@@ -19,4 +19,7 @@ class UserDosen extends Authenticatable
     {
         return ['password' => 'hashed'];
     }
+    public function mataKuliah() { return $this->hasMany(MataKuliah::class, 'dosen_id'); }
+    public function notifikasiDosen() { return $this->hasMany(NotifikasiDosen::class, 'dosen_id'); }
+    public function dosenPa() { return $this->hasMany(DosenPa::class, 'dosen_id'); }
 }

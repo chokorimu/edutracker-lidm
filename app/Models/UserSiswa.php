@@ -19,4 +19,10 @@ class UserSiswa extends Authenticatable
     {
         return ['password' => 'hashed'];
     }
+
+    public function krs() { return $this->hasMany(Krs::class, 'siswa_id'); }
+    public function nilaiTugas() { return $this->hasMany(NilaiTugas::class, 'siswa_id'); }
+    public function notifikasi() { return $this->hasMany(Notifikasi::class, 'siswa_id'); }
+    public function ipkHistory() { return $this->hasMany(IpkHistory::class, 'siswa_id'); }
+    public function dosenPa() { return $this->hasMany(DosenPa::class, 'siswa_id'); }
 }

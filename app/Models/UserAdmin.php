@@ -19,4 +19,8 @@ class UserAdmin extends Authenticatable
     {
         return ['password' => 'hashed'];
     }
+
+    public function kalenderAkademik() { return $this->hasMany(KalenderAkademik::class, 'created_by'); }
+    public function pengaturan() { return $this->hasMany(Pengaturan::class, 'updated_by'); }
+    public function laporan() { return $this->hasMany(Laporan::class, 'created_by'); }
 }
