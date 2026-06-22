@@ -9,10 +9,12 @@ class UserAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        UserAdmin::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@edutrack.test',
-            'password' => 'admin123', // otomatis ke-hash karena cast 'hashed'
-        ]);
+        UserAdmin::firstOrCreate(
+            ['email' => 'admin@edutrack.test'],
+            [
+                'name' => 'Super Admin',
+                'password' => 'admin123',
+            ]
+        );
     }
 }
