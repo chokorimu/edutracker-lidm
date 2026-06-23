@@ -1,73 +1,7 @@
-<?php
+@extends('layouts.app')
 
-use Livewire\Component;
-use Illuminate\Support\Facades\Auth;
-
-new class extends Component
-{
-    public $currentTab = 'dashboard'; // Tab default: dashboard, calendar, monitoring, analytics, notifications, profile
-    
-    // Simulasi data dinamis berbasis user login untuk arsitektur SIAKAD
-    public function getViewData()
-    {
-        $user = Auth::guard('siswa')->user();
-        $userId = $user->id ?? 1;
-
-        return [
-            'profile' => [
-                'nim' => $user->nim ?? '203480234',
-                'nama' => $user->name ?? 'Muhammad Hasan',
-                'email' => $user->email ?? 'muhammad.hasan@university.ac.id',
-                'prodi' => 'Teknik Informatika',
-                'semester' => 5,
-                'angkatan' => 2022,
-                'ipk' => 3.45,
-                'sks_lulus' => 96,
-                'sks_semester' => 21,
-                'dosen_pa' => 'Dr. Rahmat Hidayat, S.Kom., M.T.'
-            ],
-            'matakuliah' => [
-                ['nama' => 'Algoritma & Struktur Data', 'sks' => 4, 'tugas' => 5, 'beban' => 'Tinggi', 'status' => 'Aktif'],
-                ['nama' => 'Basis Data', 'sks' => 3, 'tugas' => 3, 'beban' => 'Sedang', 'status' => 'Aktif'],
-                ['nama' => 'Sistem Operasi', 'sks' => 3, 'tugas' => 4, 'beban' => 'Tinggi', 'status' => 'Aktif'],
-                ['nama' => 'Jaringan Komputer', 'sks' => 3, 'tugas' => 2, 'beban' => 'Ringan', 'status' => 'Aktif'],
-                ['nama' => 'Kalkulus 2', 'sks' => 3, 'tugas' => 3, 'beban' => 'Sedang', 'status' => 'Aktif'],
-                ['nama' => 'Rekayasa Perangkat Lunak', 'sks' => 3, 'tugas' => 4, 'beban' => 'Sedang', 'status' => 'Aktif'],
-                ['nama' => 'Statistika', 'sks' => 2, 'tugas' => 2, 'beban' => 'Ringan', 'status' => 'Aktif'],
-            ],
-            'tugas_mendatang' => [
-                ['judul' => 'Tugas Algoritma & Struktur Data', 'matkul' => 'Algoritma & Struktur Data', 'deadline' => '15 Mei 2026', 'sisa' => '1 hari lagi', 'jam' => '23:59', 'status' => 'critical'],
-                ['judul' => 'Paper Review Database', 'matkul' => 'Basis Data', 'deadline' => '17 Mei 2026', 'sisa' => '3 hari lagi', 'jam' => '23:58', 'status' => 'warning'],
-                ['judul' => 'Presentasi Sistem Operasi', 'matkul' => 'Sistem Operasi', 'deadline' => '20 Mei 2026', 'sisa' => '6 hari lagi', 'jam' => '14:00', 'status' => 'safe'],
-                ['judul' => 'Quiz Online', 'matkul' => 'Jaringan Komputer', 'deadline' => '22 Mei 2026', 'sisa' => '8 hari lagi', 'jam' => '10:00', 'status' => 'info'],
-            ],
-            'notifikasi' => [
-                ['tipe' => 'peringatan', 'judul' => 'Deadline Collision Terdeteksi', 'desc' => 'Terdapat 3 tugas dengan deadline yang sama pada 15 Mei 2026.', 'waktu' => '2 jam yang lalu', 'unread' => true],
-                ['tipe' => 'pengingat', 'judul' => 'Deadline Tugas Mendekat', 'desc' => 'Tugas Algoritma & Struktur Data akan berakhir dalam 1 hari.', 'waktu' => '3 jam yang lalu', 'unread' => true],
-                ['tipe' => 'sukses', 'judul' => 'Distribusi Beban Ideal', 'desc' => 'Distribusi beban minggu depan berada dalam kategori normal.', 'waktu' => '4 jam yang lalu', 'unread' => true],
-                ['tipe' => 'informasi', 'judul' => 'Tugas Baru Ditambahkan', 'desc' => 'Dosen telah menambahkan tugas baru untuk mata kuliah Basis Data.', 'waktu' => '1 hari yang lalu', 'unread' => false],
-                ['tipe' => 'peringatan', 'judul' => 'Beban Akademik Tinggi', 'desc' => 'Beban akademik Anda minggu ini melebihi rata-rata.', 'waktu' => '1 hari yang lalu', 'unread' => false],
-            ]
-        ];
-    }
-
-    public function switchTab($tab)
-    {
-        $this->currentTab = $tab;
-    }
-
-    public function logout()
-    {
-        Auth::guard('siswa')->logout();
-        request()->session()->invalidate();
-        request()->session()->regenerateToken();
-        return redirect()->route('login');
-    }
-}; ?>
-
+@section('content')
 <div class="flex h-screen bg-bone-light text-appleDark font-sans overflow-hidden selection:bg-appleDark selection:text-white">
-    
-    @php $data = $this->getViewData(); @endphp
 
     <aside class="w-64 bg-white/60 backdrop-blur-xl border-r border-bone-dark/60 flex flex-col justify-between z-20 flex-shrink-0">
         <div class="p-6 space-y-8">
@@ -77,38 +11,41 @@ new class extends Component
             </div>
 
             <nav class="space-y-1">
-                <button wire:click="switchTab('dashboard')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'dashboard' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
+                <a href="{{ route('siswa.dashboard', ['tab' => 'dashboard']) }}" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'dashboard' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                     Dashboard
-                </button>
-                <button wire:click="switchTab('calendar')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'calendar' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
+                </a>
+                <a href="{{ route('siswa.dashboard', ['tab' => 'calendar']) }}" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'calendar' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Kalender Tugas
-                </button>
-                <button wire:click="switchTab('monitoring')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'monitoring' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
+                </a>
+                <a href="{{ route('siswa.dashboard', ['tab' => 'monitoring']) }}" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'monitoring' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                     Monitoring SKS
-                </button>
-                <button wire:click="switchTab('analytics')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'analytics' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
+                </a>
+                <a href="{{ route('siswa.dashboard', ['tab' => 'analytics']) }}" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'analytics' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
                     Analitik Akademik
-                </button>
-                <button wire:click="switchTab('notifications')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'notifications' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
+                </a>
+                <a href="{{ route('siswa.dashboard', ['tab' => 'notifications']) }}" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'notifications' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                     Notifikasi
-                </button>
-                <button wire:click="switchTab('profile')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'profile' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
+                </a>
+                <a href="{{ route('siswa.dashboard', ['tab' => 'profile']) }}" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-sm font-medium transition-all {{ $currentTab === 'profile' ? 'bg-appleDark text-white shadow-sm' : 'text-appleMuted hover:bg-bone-dark/50 hover:text-appleDark' }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                     Profil
-                </button>
+                </a>
             </nav>
         </div>
         
         <div class="p-6 border-t border-bone-dark/50">
-            <button wire:click="logout" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-appleRed hover:bg-red-50 text-sm font-medium transition-all text-left">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                Keluar Sesi
-            </button>
+            <form method="POST" action="{{ route('siswa.logout') }}">
+                @csrf
+                <button type="submit" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-appleRed hover:bg-red-50 text-sm font-medium transition-all text-left">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Keluar Sesi
+                </button>
+            </form>
         </div>
     </aside>
 
@@ -462,3 +399,4 @@ new class extends Component
         </div>
     </main>
 </div>
+@endsection

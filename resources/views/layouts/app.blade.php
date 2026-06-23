@@ -8,7 +8,8 @@
     @livewireStyles
 </head>
 <body>
-    {{ $slot }}
+    {{ $slot ?? '' }}
+    @yield('content')
     @livewireScripts
 </body>
 </html>
