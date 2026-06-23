@@ -21,17 +21,23 @@ new class extends Component
         ];
 
         if (Auth::guard('admin')->attempt($credentials)) {
-            request()->session()->regenerate();
+            if (request()->hasSession()) {
+                request()->session()->regenerate();
+            }
             return redirect()->route('admin.dashboard');
         }
 
         if (Auth::guard('dosen')->attempt($credentials)) {
-            request()->session()->regenerate();
+            if (request()->hasSession()) {
+                request()->session()->regenerate();
+            }
             return redirect()->route('dosen.dashboard');
         }
 
         if (Auth::guard('siswa')->attempt($credentials)) {
-            request()->session()->regenerate();
+            if (request()->hasSession()) {
+                request()->session()->regenerate();
+            }
             return redirect()->route('siswa.dashboard');
         }
 

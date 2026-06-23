@@ -1,0 +1,369 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\DosenPa;
+use App\Models\IpkHistory;
+use App\Models\KalenderAkademik;
+use App\Models\Krs;
+use App\Models\Laporan;
+use App\Models\MataKuliah;
+use App\Models\NilaiTugas;
+use App\Models\Notifikasi;
+use App\Models\NotifikasiDosen;
+use App\Models\Pengaturan;
+use App\Models\Tugas;
+use App\Models\UserAdmin;
+use App\Models\UserDosen;
+use App\Models\UserSiswa;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+class AdminResourceController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $resources = $this->resources();
+        $resourceKey = $request->query('resource', 'siswas');
+
+        if (! isset($resources[$resourceKey])) {
+            $resourceKey = 'siswas';
+        }
+
+        $config = $resources[$resourceKey];
+        $modelClass = $config['model'];
+        $editId = $request->query('edit');
+        $editing = $editId ? $modelClass::find($editId) : null;
+
+        return view('pages.admin.⚡dashboard', [
+            'user' => Auth::guard('admin')->user(),
+            'resources' => $resources,
+            'resourceKey' => $resourceKey,
+            'config' => $config,
+            'records' => $modelClass::latest('id')->paginate(10)->withQueryString(),
+            'editing' => $editing,
+            'counts' => $this->counts($resources),
+            'options' => $this->formOptions(),
+        ]);
+    }
+
+    public function store(Request $request, string $resource): RedirectResponse
+    {
+        $config = $this->resource($resource);
+        $data = $this->validatedData($request, $resource, $config);
+
+        $config['model']::create($data);
+
+        return redirect()
+            ->route('admin.dashboard', ['resource' => $resource])
+            ->with('status', "{$config['label']} berhasil dibuat.");
+    }
+
+    public function update(Request $request, string $resource, int $id): RedirectResponse
+    {
+        $config = $this->resource($resource);
+        $record = $config['model']::findOrFail($id);
+        $data = $this->validatedData($request, $resource, $config, $record);
+
+        $record->update($data);
+
+        return redirect()
+            ->route('admin.dashboard', ['resource' => $resource])
+            ->with('status', "{$config['label']} berhasil diperbarui.");
+    }
+
+    public function destroy(string $resource, int $id): RedirectResponse
+    {
+        $config = $this->resource($resource);
+        $record = $config['model']::findOrFail($id);
+
+        $record->delete();
+
+        return redirect()
+            ->route('admin.dashboard', ['resource' => $resource])
+            ->with('status', "{$config['label']} berhasil dihapus.");
+    }
+
+    private function resource(string $resource): array
+    {
+        abort_unless(isset($this->resources()[$resource]), 404);
+
+        return $this->resources()[$resource];
+    }
+
+    private function resources(): array
+    {
+        return [
+            'admins' => [
+                'label' => 'Admin',
+                'model' => UserAdmin::class,
+                'fields' => [
+                    'name' => ['label' => 'Nama', 'type' => 'text', 'required' => true],
+                    'email' => ['label' => 'Email', 'type' => 'email', 'required' => true],
+                    'password' => ['label' => 'Password', 'type' => 'password', 'required' => true, 'hide_table' => true],
+                ],
+            ],
+            'dosens' => [
+                'label' => 'Dosen',
+                'model' => UserDosen::class,
+                'fields' => [
+                    'name' => ['label' => 'Nama', 'type' => 'text', 'required' => true],
+                    'email' => ['label' => 'Email', 'type' => 'email', 'required' => true],
+                    'password' => ['label' => 'Password', 'type' => 'password', 'required' => true, 'hide_table' => true],
+                    'nidn' => ['label' => 'NIDN', 'type' => 'text', 'required' => true],
+                    'fakultas' => ['label' => 'Fakultas', 'type' => 'text'],
+                ],
+            ],
+            'siswas' => [
+                'label' => 'Siswa',
+                'model' => UserSiswa::class,
+                'fields' => [
+                    'name' => ['label' => 'Nama', 'type' => 'text', 'required' => true],
+                    'email' => ['label' => 'Email', 'type' => 'email', 'required' => true],
+                    'password' => ['label' => 'Password', 'type' => 'password', 'required' => true, 'hide_table' => true],
+                    'nim' => ['label' => 'NIM', 'type' => 'text', 'required' => true],
+                    'prodi' => ['label' => 'Prodi', 'type' => 'text'],
+                    'semester' => ['label' => 'Semester', 'type' => 'number', 'min' => 1, 'max' => 14],
+                ],
+            ],
+            'mata-kuliah' => [
+                'label' => 'Mata Kuliah',
+                'model' => MataKuliah::class,
+                'fields' => [
+                    'nama' => ['label' => 'Nama', 'type' => 'text', 'required' => true],
+                    'kode' => ['label' => 'Kode', 'type' => 'text', 'required' => true],
+                    'sks' => ['label' => 'SKS', 'type' => 'number', 'required' => true, 'min' => 1, 'max' => 6],
+                    'dosen_id' => ['label' => 'Dosen', 'type' => 'select', 'required' => true, 'options' => 'dosens'],
+                    'tahun_ajaran' => ['label' => 'Tahun Ajaran', 'type' => 'text', 'required' => true],
+                    'semester' => ['label' => 'Semester', 'type' => 'number', 'required' => true, 'min' => 1, 'max' => 14],
+                ],
+            ],
+            'tugas' => [
+                'label' => 'Tugas',
+                'model' => Tugas::class,
+                'fields' => [
+                    'mata_kuliah_id' => ['label' => 'Mata Kuliah', 'type' => 'select', 'required' => true, 'options' => 'mata_kuliah'],
+                    'nama' => ['label' => 'Nama', 'type' => 'text', 'required' => true],
+                    'bobot' => ['label' => 'Bobot', 'type' => 'number', 'required' => true, 'step' => '0.01', 'min' => 0],
+                    'deadline' => ['label' => 'Deadline', 'type' => 'date', 'required' => true],
+                    'deskripsi' => ['label' => 'Deskripsi', 'type' => 'textarea'],
+                    'status_beban' => ['label' => 'Status Beban', 'type' => 'text', 'required' => true],
+                    'override' => ['label' => 'Override', 'type' => 'checkbox'],
+                ],
+            ],
+            'dosen-pa' => [
+                'label' => 'Dosen PA',
+                'model' => DosenPa::class,
+                'fields' => [
+                    'dosen_id' => ['label' => 'Dosen', 'type' => 'select', 'required' => true, 'options' => 'dosens'],
+                    'siswa_id' => ['label' => 'Siswa', 'type' => 'select', 'required' => true, 'options' => 'siswas'],
+                    'tahun_ajaran' => ['label' => 'Tahun Ajaran', 'type' => 'text', 'required' => true],
+                ],
+            ],
+            'ipk-history' => [
+                'label' => 'IPK History',
+                'model' => IpkHistory::class,
+                'fields' => [
+                    'siswa_id' => ['label' => 'Siswa', 'type' => 'select', 'required' => true, 'options' => 'siswas'],
+                    'ipk' => ['label' => 'IPK', 'type' => 'number', 'required' => true, 'step' => '0.01', 'min' => 0, 'max' => 4],
+                    'semester' => ['label' => 'Semester', 'type' => 'number', 'required' => true, 'min' => 1, 'max' => 14],
+                    'tahun_ajaran' => ['label' => 'Tahun Ajaran', 'type' => 'text', 'required' => true],
+                    'total_sks' => ['label' => 'Total SKS', 'type' => 'number', 'required' => true, 'min' => 0],
+                    'rekomendasi_sks' => ['label' => 'Rekomendasi SKS', 'type' => 'number', 'min' => 0],
+                ],
+            ],
+            'kalender-akademik' => [
+                'label' => 'Kalender Akademik',
+                'model' => KalenderAkademik::class,
+                'fields' => [
+                    'judul' => ['label' => 'Judul', 'type' => 'text', 'required' => true],
+                    'tanggal' => ['label' => 'Tanggal', 'type' => 'date', 'required' => true],
+                    'tipe' => ['label' => 'Tipe', 'type' => 'text', 'required' => true],
+                    'tahun_ajaran' => ['label' => 'Tahun Ajaran', 'type' => 'text', 'required' => true],
+                    'created_by' => ['label' => 'Admin', 'type' => 'select', 'required' => true, 'options' => 'admins'],
+                ],
+            ],
+            'krs' => [
+                'label' => 'KRS',
+                'model' => Krs::class,
+                'fields' => [
+                    'siswa_id' => ['label' => 'Siswa', 'type' => 'select', 'required' => true, 'options' => 'siswas'],
+                    'mata_kuliah_id' => ['label' => 'Mata Kuliah', 'type' => 'select', 'required' => true, 'options' => 'mata_kuliah'],
+                    'semester' => ['label' => 'Semester', 'type' => 'number', 'required' => true, 'min' => 1, 'max' => 14],
+                    'tahun_ajaran' => ['label' => 'Tahun Ajaran', 'type' => 'text', 'required' => true],
+                    'nilai_akhir' => ['label' => 'Nilai Akhir', 'type' => 'number', 'step' => '0.01', 'min' => 0, 'max' => 100],
+                    'nilai_huruf' => ['label' => 'Nilai Huruf', 'type' => 'text'],
+                    'status' => ['label' => 'Status', 'type' => 'text', 'required' => true],
+                ],
+            ],
+            'nilai-tugas' => [
+                'label' => 'Nilai Tugas',
+                'model' => NilaiTugas::class,
+                'fields' => [
+                    'tugas_id' => ['label' => 'Tugas', 'type' => 'select', 'required' => true, 'options' => 'tugas'],
+                    'siswa_id' => ['label' => 'Siswa', 'type' => 'select', 'required' => true, 'options' => 'siswas'],
+                    'nilai' => ['label' => 'Nilai', 'type' => 'number', 'step' => '0.01', 'min' => 0, 'max' => 100],
+                    'komentar' => ['label' => 'Komentar', 'type' => 'textarea'],
+                ],
+            ],
+            'notifikasi' => [
+                'label' => 'Notifikasi Siswa',
+                'model' => Notifikasi::class,
+                'fields' => [
+                    'siswa_id' => ['label' => 'Siswa', 'type' => 'select', 'required' => true, 'options' => 'siswas'],
+                    'judul' => ['label' => 'Judul', 'type' => 'text', 'required' => true],
+                    'pesan' => ['label' => 'Pesan', 'type' => 'textarea', 'required' => true],
+                    'tipe' => ['label' => 'Tipe', 'type' => 'text', 'required' => true],
+                    'sumber' => ['label' => 'Sumber', 'type' => 'text'],
+                    'is_read' => ['label' => 'Sudah Dibaca', 'type' => 'checkbox'],
+                ],
+            ],
+            'notifikasi-dosen' => [
+                'label' => 'Notifikasi Dosen',
+                'model' => NotifikasiDosen::class,
+                'fields' => [
+                    'dosen_id' => ['label' => 'Dosen', 'type' => 'select', 'required' => true, 'options' => 'dosens'],
+                    'mata_kuliah_id' => ['label' => 'Mata Kuliah', 'type' => 'select', 'required' => true, 'options' => 'mata_kuliah'],
+                    'tugas_id' => ['label' => 'Tugas', 'type' => 'select', 'options' => 'tugas'],
+                    'judul' => ['label' => 'Judul', 'type' => 'text', 'required' => true],
+                    'pesan' => ['label' => 'Pesan', 'type' => 'textarea', 'required' => true],
+                    'tipe' => ['label' => 'Tipe', 'type' => 'text', 'required' => true],
+                    'sumber' => ['label' => 'Sumber', 'type' => 'text'],
+                    'is_read' => ['label' => 'Sudah Dibaca', 'type' => 'checkbox'],
+                ],
+            ],
+            'laporan' => [
+                'label' => 'Laporan',
+                'model' => Laporan::class,
+                'fields' => [
+                    'judul' => ['label' => 'Judul', 'type' => 'text', 'required' => true],
+                    'tipe' => ['label' => 'Tipe', 'type' => 'text', 'required' => true],
+                    'periode' => ['label' => 'Periode', 'type' => 'text', 'required' => true],
+                    'file_path' => ['label' => 'File Path', 'type' => 'text', 'required' => true],
+                    'created_by' => ['label' => 'Admin', 'type' => 'select', 'required' => true, 'options' => 'admins'],
+                ],
+            ],
+            'pengaturan' => [
+                'label' => 'Pengaturan',
+                'model' => Pengaturan::class,
+                'fields' => [
+                    'setting_key' => ['label' => 'Key', 'type' => 'text', 'required' => true],
+                    'value' => ['label' => 'Value', 'type' => 'text'],
+                    'updated_by' => ['label' => 'Admin', 'type' => 'select', 'options' => 'admins'],
+                ],
+            ],
+        ];
+    }
+
+    private function validatedData(Request $request, string $resource, array $config, ?Model $record = null): array
+    {
+        $rules = [];
+
+        foreach ($config['fields'] as $field => $fieldConfig) {
+            $rules[$field] = $this->rulesForField($resource, $field, $fieldConfig, $record);
+        }
+
+        $data = $request->validate($rules);
+
+        foreach ($config['fields'] as $field => $fieldConfig) {
+            if (($fieldConfig['type'] ?? null) === 'checkbox') {
+                $data[$field] = $request->boolean($field);
+            }
+
+            if (($fieldConfig['type'] ?? null) === 'password' && blank($request->input($field))) {
+                unset($data[$field]);
+            }
+        }
+
+        return $data;
+    }
+
+    private function rulesForField(string $resource, string $field, array $fieldConfig, ?Model $record): array
+    {
+        $rules = [];
+        $required = ($fieldConfig['required'] ?? false) && ! ($record && ($fieldConfig['type'] ?? null) === 'password');
+        $rules[] = $required ? 'required' : 'nullable';
+
+        match ($fieldConfig['type'] ?? 'text') {
+            'email' => $rules[] = 'email',
+            'number' => $rules[] = 'numeric',
+            'select' => $rules[] = 'integer',
+            'date' => $rules[] = 'date',
+            'checkbox' => $rules[] = 'boolean',
+            default => $rules[] = 'string',
+        };
+
+        if (isset($fieldConfig['min'])) {
+            $rules[] = 'min:'.$fieldConfig['min'];
+        }
+
+        if (isset($fieldConfig['max'])) {
+            $rules[] = 'max:'.$fieldConfig['max'];
+        }
+
+        if ($field === 'email') {
+            $rules[] = Rule::unique((new ($this->resource($resource)['model']))->getTable(), 'email')->ignore($record?->getKey());
+        }
+
+        if ($field === 'nim') {
+            $rules[] = Rule::unique('user_siswa', 'nim')->ignore($record?->getKey());
+        }
+
+        if ($field === 'nidn') {
+            $rules[] = Rule::unique('user_dosens', 'nidn')->ignore($record?->getKey());
+        }
+
+        if ($field === 'kode') {
+            $rules[] = Rule::unique('mata_kuliah', 'kode')->ignore($record?->getKey());
+        }
+
+        if ($field === 'setting_key') {
+            $rules[] = Rule::unique('pengaturan', 'setting_key')->ignore($record?->getKey());
+        }
+
+        if (str_ends_with($field, '_id') || in_array($field, ['created_by', 'updated_by'], true)) {
+            $table = $this->foreignTable($field);
+            $rules[] = Rule::exists($table, 'id');
+        }
+
+        return $rules;
+    }
+
+    private function foreignTable(string $field): string
+    {
+        return match ($field) {
+            'dosen_id' => 'user_dosens',
+            'siswa_id' => 'user_siswa',
+            'mata_kuliah_id' => 'mata_kuliah',
+            'tugas_id' => 'tugas',
+            'created_by', 'updated_by' => 'user_admin',
+            default => $field,
+        };
+    }
+
+    private function formOptions(): array
+    {
+        return [
+            'admins' => UserAdmin::orderBy('name')->get(['id', 'name', 'email']),
+            'dosens' => UserDosen::orderBy('name')->get(['id', 'name', 'email']),
+            'siswas' => UserSiswa::orderBy('name')->get(['id', 'name', 'email']),
+            'mata_kuliah' => MataKuliah::orderBy('nama')->get(['id', 'nama', 'kode']),
+            'tugas' => Tugas::orderBy('nama')->get(['id', 'nama']),
+        ];
+    }
+
+    private function counts(array $resources): array
+    {
+        $counts = [];
+
+        foreach ($resources as $key => $resource) {
+            $counts[$key] = $resource['model']::count();
+        }
+
+        return $counts;
+    }
+}

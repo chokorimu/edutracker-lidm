@@ -9,7 +9,7 @@ class UserAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        UserAdmin::firstOrCreate(
+        UserAdmin::updateOrCreate(
             ['email' => 'admin@edutrack.test'],
             [
                 'name' => 'Super Admin',

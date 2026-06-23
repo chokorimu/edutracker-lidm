@@ -56,8 +56,10 @@ class DashboardController extends Controller
     private function logout(Request $request, string $guard): RedirectResponse
     {
         Auth::guard($guard)->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return redirect()->route('login');
     }

@@ -1,4 +1,5 @@
 <?php
+use App\Http\Controllers\AdminResourceController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -8,9 +9,13 @@ Route::get('/', function () {
 
 Route::livewire('/login', 'pages::auth.login')->name('login');
 
-Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
-    ->name('admin.dashboard')
-    ->middleware('admin');
+Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [AdminResourceController::class, 'index'])->name('dashboard');
+    Route::post('/dashboard/{resource}', [AdminResourceController::class, 'store'])->name('resources.store');
+    Route::put('/dashboard/{resource}/{id}', [AdminResourceController::class, 'update'])->name('resources.update');
+    Route::delete('/dashboard/{resource}/{id}', [AdminResourceController::class, 'destroy'])->name('resources.destroy');
+    Route::post('/logout', [DashboardController::class, 'logoutAdmin'])->name('logout');
+});
 
 Route::get('/dosen/dashboard', [DashboardController::class, 'dosen'])
     ->name('dosen.dashboard')
@@ -19,10 +24,6 @@ Route::get('/dosen/dashboard', [DashboardController::class, 'dosen'])
 Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])
     ->name('siswa.dashboard')
     ->middleware('siswa');
-
-Route::post('/admin/logout', [DashboardController::class, 'logoutAdmin'])
-    ->name('admin.logout')
-    ->middleware('admin');
 
 Route::post('/dosen/logout', [DashboardController::class, 'logoutDosen'])
     ->name('dosen.logout')
