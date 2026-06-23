@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use App\Models\UserAdmin;
 
 class UserAdminSeeder extends Seeder
@@ -13,7 +14,7 @@ class UserAdminSeeder extends Seeder
             ['email' => 'admin@edutrack.test'],
             [
                 'name' => 'Super Admin',
-                'password' => 'admin123',
+                'password' => Hash::make('admin123'),
             ]
         );
     }

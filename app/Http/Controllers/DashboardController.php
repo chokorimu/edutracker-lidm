@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MataKuliah;
+use App\Models\Tugas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -68,41 +70,191 @@ class DashboardController extends Controller
     {
         $user = Auth::guard('siswa')->user();
 
+        if (! $user) {
+            return $this->emptySiswaData();
+        }
+
+        $nim = $user->nim;
+        $angkatan = $this->extractAngkatan($nim);
+
+        // IPK terakhir
+        $latestIpk = $user->ipkHistory()->latest('semester')->first();
+
+        // Total SKS lulus (KRS status selesai)
+        $sksLulus = MataKuliah::whereIn('id', function ($q) use ($user) {
+            $q->select('mata_kuliah_id')
+                ->from('krs')
+                ->where('siswa_id', $user->id)
+                ->where('status', 'selesai');
+        })->sum('sks');
+
+        // Total SKS semester ini
+        $sksSemester = MataKuliah::whereIn('id', function ($q) use ($user) {
+            $q->select('mata_kuliah_id')
+                ->from('krs')
+                ->where('siswa_id', $user->id)
+                ->where('semester', $user->semester);
+        })->sum('sks');
+
+        // Dosen PA terakhir
+        $dosenPa = $user->dosenPa()->with('dosen')->latest()->first();
+        $dosenPaName = $dosenPa?->dosen?->name ?? '-';
+
+        // Mata kuliah semester ini
+        $krsList = $user->krs()
+            ->with('mataKuliah')
+            ->where('semester', $user->semester)
+            ->get();
+
+        $matakuliah = $krsList->map(function ($krs) {
+            $mk = $krs->mataKuliah;
+            if (! $mk) {
+                return null;
+            }
+
+            $tugasCount = $mk->tugas()->count();
+            $beban = $tugasCount >= 4 ? 'Tinggi' : ($tugasCount >= 3 ? 'Sedang' : 'Ringan');
+
+            return [
+                'nama' => $mk->nama,
+                'sks' => $mk->sks,
+                'tugas' => $tugasCount,
+                'beban' => $beban,
+                'status' => $krs->status === 'selesai' ? 'Selesai' : 'Aktif',
+            ];
+        })->filter()->values()->toArray();
+
+        // Tugas mendatang (4 terdekat)
+        $tugasMendatang = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
+            $q->where('siswa_id', $user->id);
+        })
+            ->whereDate('deadline', '>=', now()->startOfDay())
+            ->with('mataKuliah')
+            ->orderBy('deadline')
+            ->take(4)
+            ->get()
+            ->map(function ($t) {
+                $diffDays = (int) now()->startOfDay()->diffInDays($t->deadline, false);
+
+                if ($diffDays <= 0) {
+                    $status = 'critical';
+                    $sisa = 'Hari ini';
+                } elseif ($diffDays <= 1) {
+                    $status = 'critical';
+                    $sisa = $diffDays.' hari lagi';
+                } elseif ($diffDays <= 3) {
+                    $status = 'warning';
+                    $sisa = $diffDays.' hari lagi';
+                } else {
+                    $status = 'safe';
+                    $sisa = $diffDays.' hari lagi';
+                }
+
+                return [
+                    'judul' => $t->nama,
+                    'matkul' => $t->mataKuliah?->nama ?? '-',
+                    'deadline' => $t->deadline ? \Carbon\Carbon::parse($t->deadline)->translatedFormat('j F Y') : '-',
+                    'sisa' => $sisa,
+                    'jam' => $t->deadline ? \Carbon\Carbon::parse($t->deadline)->format('H:i') : '-',
+                    'status' => $status,
+                ];
+            })
+            ->toArray();
+
+        // Notifikasi (5 terbaru)
+        $notifikasi = $user->notifikasi()
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($n) {
+                $tipeMap = [
+                    'peringatan' => 'peringatan',
+                    'warning' => 'peringatan',
+                    'pengingat' => 'pengingat',
+                    'reminder' => 'pengingat',
+                    'sukses' => 'sukses',
+                    'success' => 'sukses',
+                    'info' => 'informasi',
+                    'informasi' => 'informasi',
+                ];
+
+                return [
+                    'tipe' => $tipeMap[$n->tipe] ?? 'informasi',
+                    'judul' => $n->judul,
+                    'desc' => $n->pesan,
+                    'waktu' => $this->diffForHumansId($n->created_at),
+                    'unread' => ! $n->is_read,
+                ];
+            })
+            ->toArray();
+
         return [
             'profile' => [
-                'nim' => $user->nim ?? '203480234',
-                'nama' => $user->name ?? 'Muhammad Hasan',
-                'email' => $user->email ?? 'muhammad.hasan@university.ac.id',
-                'prodi' => 'Teknik Informatika',
-                'semester' => 5,
-                'angkatan' => 2022,
-                'ipk' => 3.45,
-                'sks_lulus' => 96,
-                'sks_semester' => 21,
-                'dosen_pa' => 'Dr. Rahmat Hidayat, S.Kom., M.T.',
+                'nim' => $nim,
+                'nama' => $user->name,
+                'email' => $user->email,
+                'prodi' => $user->prodi ?? '-',
+                'semester' => $user->semester ?? 1,
+                'angkatan' => $angkatan,
+                'ipk' => $latestIpk?->ipk ?? 0.0,
+                'sks_lulus' => $sksLulus ?: ($latestIpk?->total_sks ?? 0),
+                'sks_semester' => $sksSemester ?: 0,
+                'dosen_pa' => $dosenPaName,
             ],
-            'matakuliah' => [
-                ['nama' => 'Algoritma & Struktur Data', 'sks' => 4, 'tugas' => 5, 'beban' => 'Tinggi', 'status' => 'Aktif'],
-                ['nama' => 'Basis Data', 'sks' => 3, 'tugas' => 3, 'beban' => 'Sedang', 'status' => 'Aktif'],
-                ['nama' => 'Sistem Operasi', 'sks' => 3, 'tugas' => 4, 'beban' => 'Tinggi', 'status' => 'Aktif'],
-                ['nama' => 'Jaringan Komputer', 'sks' => 3, 'tugas' => 2, 'beban' => 'Ringan', 'status' => 'Aktif'],
-                ['nama' => 'Kalkulus 2', 'sks' => 3, 'tugas' => 3, 'beban' => 'Sedang', 'status' => 'Aktif'],
-                ['nama' => 'Rekayasa Perangkat Lunak', 'sks' => 3, 'tugas' => 4, 'beban' => 'Sedang', 'status' => 'Aktif'],
-                ['nama' => 'Statistika', 'sks' => 2, 'tugas' => 2, 'beban' => 'Ringan', 'status' => 'Aktif'],
+            'matakuliah' => $matakuliah,
+            'tugas_mendatang' => $tugasMendatang,
+            'notifikasi' => $notifikasi,
+        ];
+    }
+
+    private function extractAngkatan(?string $nim): int
+    {
+        if ($nim && preg_match('/^(\d{2})/', $nim, $m)) {
+            $year = (int) $m[1];
+
+            return $year > 50 ? 1900 + $year : 2000 + $year;
+        }
+
+        return (int) now()->format('Y');
+    }
+
+    private function diffForHumansId($date): string
+    {
+        if (! $date) {
+            return '-';
+        }
+
+        $now = now();
+        $diffDays = (int) $date->diffInDays($now);
+        $diffHours = (int) $date->diffInHours($now);
+        $diffMinutes = (int) $date->diffInMinutes($now);
+
+        if ($diffDays > 0) {
+            return $diffDays.' hari yang lalu';
+        }
+        if ($diffHours > 0) {
+            return $diffHours.' jam yang lalu';
+        }
+        if ($diffMinutes > 0) {
+            return $diffMinutes.' menit yang lalu';
+        }
+
+        return 'Baru saja';
+    }
+
+    private function emptySiswaData(): array
+    {
+        $nowYear = (int) now()->format('Y');
+
+        return [
+            'profile' => [
+                'nim' => '-', 'nama' => '-', 'email' => '-',
+                'prodi' => '-', 'semester' => 1, 'angkatan' => $nowYear,
+                'ipk' => 0.0, 'sks_lulus' => 0, 'sks_semester' => 0, 'dosen_pa' => '-',
             ],
-            'tugas_mendatang' => [
-                ['judul' => 'Tugas Algoritma & Struktur Data', 'matkul' => 'Algoritma & Struktur Data', 'deadline' => '15 Mei 2026', 'sisa' => '1 hari lagi', 'jam' => '23:59', 'status' => 'critical'],
-                ['judul' => 'Paper Review Database', 'matkul' => 'Basis Data', 'deadline' => '17 Mei 2026', 'sisa' => '3 hari lagi', 'jam' => '23:58', 'status' => 'warning'],
-                ['judul' => 'Presentasi Sistem Operasi', 'matkul' => 'Sistem Operasi', 'deadline' => '20 Mei 2026', 'sisa' => '6 hari lagi', 'jam' => '14:00', 'status' => 'safe'],
-                ['judul' => 'Quiz Online', 'matkul' => 'Jaringan Komputer', 'deadline' => '22 Mei 2026', 'sisa' => '8 hari lagi', 'jam' => '10:00', 'status' => 'info'],
-            ],
-            'notifikasi' => [
-                ['tipe' => 'peringatan', 'judul' => 'Deadline Collision Terdeteksi', 'desc' => 'Terdapat 3 tugas dengan deadline yang sama pada 15 Mei 2026.', 'waktu' => '2 jam yang lalu', 'unread' => true],
-                ['tipe' => 'pengingat', 'judul' => 'Deadline Tugas Mendekat', 'desc' => 'Tugas Algoritma & Struktur Data akan berakhir dalam 1 hari.', 'waktu' => '3 jam yang lalu', 'unread' => true],
-                ['tipe' => 'sukses', 'judul' => 'Distribusi Beban Ideal', 'desc' => 'Distribusi beban minggu depan berada dalam kategori normal.', 'waktu' => '4 jam yang lalu', 'unread' => true],
-                ['tipe' => 'informasi', 'judul' => 'Tugas Baru Ditambahkan', 'desc' => 'Dosen telah menambahkan tugas baru untuk mata kuliah Basis Data.', 'waktu' => '1 hari yang lalu', 'unread' => false],
-                ['tipe' => 'peringatan', 'judul' => 'Beban Akademik Tinggi', 'desc' => 'Beban akademik Anda minggu ini melebihi rata-rata.', 'waktu' => '1 hari yang lalu', 'unread' => false],
-            ],
+            'matakuliah' => [],
+            'tugas_mendatang' => [],
+            'notifikasi' => [],
         ];
     }
 }

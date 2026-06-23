@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use App\Models\UserSiswa;
 
 class UserSiswaSeeder extends Seeder
@@ -13,7 +14,7 @@ class UserSiswaSeeder extends Seeder
             ['email' => 'andi@edutrack.test'],
             [
                 'name' => 'Andi Mahasiswa',
-                'password' => 'siswa123',
+                'password' => Hash::make('siswa123'),
                 'nim' => '220101001',
                 'prodi' => 'Teknik Informatika',
                 'semester' => 3,
