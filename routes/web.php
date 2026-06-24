@@ -1,6 +1,8 @@
 <?php
+
 use App\Http\Controllers\AdminResourceController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DosenResourceController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -17,17 +19,18 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/logout', [DashboardController::class, 'logoutAdmin'])->name('logout');
 });
 
-Route::get('/dosen/dashboard', [DashboardController::class, 'dosen'])
-    ->name('dosen.dashboard')
-    ->middleware('dosen');
+Route::middleware('dosen')->prefix('dosen')->name('dosen.')->group(function () {
+    Route::get('/dashboard', [DosenResourceController::class, 'index'])->name('dashboard');
+    Route::post('/tugas', [DosenResourceController::class, 'storeTugas'])->name('tugas.store');
+    Route::put('/tugas/{id}', [DosenResourceController::class, 'updateTugas'])->name('tugas.update');
+    Route::delete('/tugas/{id}', [DosenResourceController::class, 'destroyTugas'])->name('tugas.destroy');
+    Route::get('/notifikasi/{id}/read', [DosenResourceController::class, 'markNotifikasiRead'])->name('notifikasi.read');
+    Route::post('/logout', [DashboardController::class, 'logoutDosen'])->name('logout');
+});
 
 Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])
     ->name('siswa.dashboard')
     ->middleware('siswa');
-
-Route::post('/dosen/logout', [DashboardController::class, 'logoutDosen'])
-    ->name('dosen.logout')
-    ->middleware('dosen');
 
 Route::post('/siswa/logout', [DashboardController::class, 'logoutSiswa'])
     ->name('siswa.logout')
