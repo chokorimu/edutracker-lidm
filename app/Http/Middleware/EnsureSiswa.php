@@ -11,7 +11,7 @@ class EnsureSiswa
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::guard('siswa')->check()) {
+        if (! Auth::guard('siswa')->check()) {
             return redirect()->route('login');
         }
 

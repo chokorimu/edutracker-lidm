@@ -142,3 +142,14 @@ This installs `livewire/volt` and all other dependencies. If Volt errors persist
 composer dump-autoload
 php artisan optimize:clear
 ```
+
+### 2026-06-24 — Dosen Dashboard & Fixes
+**Files:** `database/migrations/`, `app/Http/Controllers/DosenResourceController.php`, `app/Services/BebanCalculator.php`, `routes/web.php`, `resources/views/pages/dosen/⚡dashboard.blade.php`, `tests/Feature/LoginTest.php`, `tests/Feature/SiswaDashboardTest.php`
+
+**Changes:**
+- **Dosen Dashboard**: Implemented server-side dashboard with tabs for `tugas` (CRUD + load management), `beban` (student workload monitoring), `notifikasi`, and `profil`.
+- **Logic**: Added `BebanCalculator` to categorize assignment workload (`ringan`, `normal`, `berat`, `overload`).
+- **Migrations**: Separated `notifikasi` (student) and `notifikasi_dosen` (lecturer) tables to fix schema issues.
+- **Routes**: Consolidated routes to `DosenResourceController`.
+- **Auth**: Fixed password hashing issues in tests and models by removing `hashed` cast from `UserDosen` and explicitly using `Hash::make()` in seeders and tests.
+- **Tests**: Added `SiswaDashboardTest` to verify database-driven rendering of the student dashboard.

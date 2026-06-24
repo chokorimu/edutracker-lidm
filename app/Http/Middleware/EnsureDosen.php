@@ -11,7 +11,7 @@ class EnsureDosen
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::guard('dosen')->check()) {
+        if (! Auth::guard('dosen')->check()) {
             return redirect()->route('login');
         }
 
