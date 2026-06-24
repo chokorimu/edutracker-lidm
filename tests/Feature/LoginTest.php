@@ -7,6 +7,7 @@ use App\Models\UserDosen;
 use App\Models\UserSiswa;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -19,7 +20,7 @@ class LoginTest extends TestCase
         $admin = UserAdmin::create([
             'name' => 'Admin Test',
             'email' => 'admin@example.test',
-            'password' => 'secret123',
+            'password' => Hash::make('secret123'),
         ]);
 
         $this->withSession([]);
@@ -38,7 +39,7 @@ class LoginTest extends TestCase
         $dosen = UserDosen::create([
             'name' => 'Dosen Test',
             'email' => 'dosen@example.test',
-            'password' => 'secret123',
+            'password' => Hash::make('secret123'),
             'nidn' => 'NIDN-001',
             'fakultas' => 'Teknik',
         ]);
@@ -59,7 +60,7 @@ class LoginTest extends TestCase
         $siswa = UserSiswa::create([
             'name' => 'Siswa Test',
             'email' => 'siswa@example.test',
-            'password' => 'secret123',
+            'password' => Hash::make('secret123'),
             'nim' => '220101999',
             'prodi' => 'Informatika',
             'semester' => 4,

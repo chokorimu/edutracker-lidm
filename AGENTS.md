@@ -131,3 +131,14 @@ Replaced `siswaDashboardData()` hardcoded dummy data with real Eloquent queries.
 ```bash
 php artisan migrate:fresh --seed
 ```
+
+### 2026-06-23 — First-time setup note
+After cloning/pulling the repo, always run:
+```bash
+composer install
+```
+This installs `livewire/volt` and all other dependencies. If Volt errors persist after install:
+```bash
+composer dump-autoload
+php artisan optimize:clear
+```
