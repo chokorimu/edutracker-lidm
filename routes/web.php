@@ -35,3 +35,10 @@ Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])
 Route::post('/siswa/logout', [DashboardController::class, 'logoutSiswa'])
     ->name('siswa.logout')
     ->middleware('siswa');
+
+// Prodi Routes
+Route::middleware('prodi')->prefix('prodi')->name('prodi.')->group(function () {
+    Route::get('/dashboard', [ProdiDashboardController::class, 'index'])->name('dashboard');
+    Route::post('/logout', [DashboardController::class, 'logoutProdi'])->name('logout');
+});
+
