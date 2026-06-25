@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\DosenPa;
 use App\Models\Notifikasi;
 use App\Models\NotifikasiDosen;
 use App\Models\UserSiswa;
@@ -11,6 +10,7 @@ use Illuminate\Console\Command;
 class CheckBebanAkademik extends Command
 {
     protected $signature = 'beban:check';
+
     protected $description = 'Check student workload and send notifications for overloads and deadline collisions';
 
     public function handle(): int
@@ -71,6 +71,7 @@ class CheckBebanAkademik extends Command
         }
 
         $this->info('Beban akademik check completed.');
+
         return Command::SUCCESS;
     }
 }

@@ -41,4 +41,3 @@ Route::middleware('prodi')->prefix('prodi')->name('prodi.')->group(function () {
     Route::get('/dashboard', [ProdiDashboardController::class, 'index'])->name('dashboard');
     Route::post('/logout', [DashboardController::class, 'logoutProdi'])->name('logout');
 });
-

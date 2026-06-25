@@ -139,9 +139,9 @@
                         @for ($day = 1; $day <= $daysInMonth; $day++)
                             @php
                                 $taskCount = $data['monthly_tasks']->has($day) ? $data['monthly_tasks']->get($day)->count() : 0;
-                                $status = App\Services\BebanCalculator::forCount($taskCount);
+                                $dayStatus = App\Services\BebanCalculator::forCount($taskCount);
 
-                                $colorClass = match($status) {
+                                $colorClass = match($dayStatus) {
                                     App\Services\BebanCalculator::LIGHT => 'bg-green-50 border-green-200/60',
                                     App\Services\BebanCalculator::NORMAL => 'bg-amber-50 border-amber-200/60',
                                     App\Services\BebanCalculator::HEAVY => 'bg-red-50 border-red-200/60',
