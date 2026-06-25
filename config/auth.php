@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\User;
+use App\Models\UserAdmin;
+use App\Models\UserDosen;
+use App\Models\UserSiswa;
 
 return [
 
@@ -39,17 +42,17 @@ return [
 
     'guards' => [
         'admin' => [
-        'driver' => 'session',
-        'provider' => 'admins',
-    ],
-    'siswa' => [
-        'driver' => 'session',
-        'provider' => 'siswas',
-    ],
-    'dosen' => [
-        'driver' => 'session',
-        'provider' => 'dosens',
-    ],
+            'driver' => 'session',
+            'provider' => 'admins',
+        ],
+        'siswa' => [
+            'driver' => 'session',
+            'provider' => 'siswas',
+        ],
+        'dosen' => [
+            'driver' => 'session',
+            'provider' => 'dosens',
+        ],
     ],
 
     /*
@@ -71,17 +74,17 @@ return [
 
     'providers' => [
         'admins' => [
-        'driver' => 'eloquent',
-        'model' => App\Models\UserAdmin::class,
-    ],
-    'siswas' => [
-        'driver' => 'eloquent',
-        'model' => App\Models\UserSiswa::class,
-    ],
-    'dosens' => [
-        'driver' => 'eloquent',
-        'model' => App\Models\UserDosen::class,
-    ],
+            'driver' => 'eloquent',
+            'model' => UserAdmin::class,
+        ],
+        'siswas' => [
+            'driver' => 'eloquent',
+            'model' => UserSiswa::class,
+        ],
+        'dosens' => [
+            'driver' => 'eloquent',
+            'model' => UserDosen::class,
+        ],
     ],
 
     /*

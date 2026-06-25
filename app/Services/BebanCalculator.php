@@ -5,8 +5,11 @@ namespace App\Services;
 class BebanCalculator
 {
     public const LIGHT = 'ringan';
+
     public const NORMAL = 'normal';
+
     public const HEAVY = 'berat';
+
     public const OVERLOAD = 'overload';
 
     public static function forCount(int $count): string

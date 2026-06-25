@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\UserDosen;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use App\Models\UserDosen;
 
 class UserDosenSeeder extends Seeder
 {

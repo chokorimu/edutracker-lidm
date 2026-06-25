@@ -72,18 +72,63 @@
 
             @if($currentTab === 'dashboard')
                 <div>
+                <div>
                     <h1 class="text-2xl font-bold tracking-tight text-appleDark">Dashboard Akademik</h1>
                     <p class="text-sm text-appleMuted mt-1">Monitoring beban akademik dan deadline tugas Anda</p>
                 </div>
-                <div class="bg-[#FFF4E5] border border-[#FFE0B2] rounded-[24px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                    <div class="flex items-center gap-4">
-                        <div class="bg-appleOrange/20 text-appleOrange p-2 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
-                        <div>
-                            <h3 class="text-sm font-bold text-appleDark">Peringatan: Beban Akademik Tinggi</h3>
-                            <p class="text-xs text-appleDark/70 mt-0.5">Beban akademik Anda minggu ini melebihi batas aman. Terdapat 8 tugas aktif.</p>
+
+                @php $status = $data["status_beban_mingguan"] ?? "ringan"; @endphp
+                @if($status === "berat" || $status === "overload")
+                    <div class="bg-[#FFF4E5] border border-[#FFE0B2] rounded-[24px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-appleOrange/20 text-appleOrange p-2 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
+                            <div>
+                                <h3 class="text-sm font-bold text-appleDark">Peringatan: Beban Akademik @if($status === "overload") Overload @else Tinggi @endif</h3>
+                                <p class="text-xs text-appleDark/70 mt-0.5">Beban akademik Anda minggu ini melebihi batas aman. Segera rencanakan prioritas tugas.</p>
+                            </div>
                         </div>
                     </div>
+                @endif
+                
+                <div class="bg-white border border-bone-dark rounded-[24px] p-6 shadow-sm">
+                    <h3 class="text-sm font-bold text-appleDark mb-4">Distribusi Beban Mingguan</h3>
+                    <canvas id="workloadChart" height="80"></canvas>
                 </div>
+                
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                <script>
+                    const ctx = document.getElementById("workloadChart").getContext("2d");
+                    const workloadData = @json($data["daily_workload"]);
+                    new Chart(ctx, {
+                        type: "bar",
+                        data: {
+                            labels: workloadData.map(d => d.day),
+                            datasets: [{
+                                label: "Jumlah Tugas",
+                                data: workloadData.map(d => d.count),
+                                backgroundColor: workloadData.map(d => d.color),
+                                borderRadius: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                        }
+                    });
+                </script>
+                @php $status = $data['status_beban_mingguan'] ?? 'ringan'; @endphp
+                @if($status === 'berat' || $status === 'overload')
+                    <div class="bg-[#FFF4E5] border border-[#FFE0B2] rounded-[24px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-appleOrange/20 text-appleOrange p-2 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
+                            <div>
+                                <h3 class="text-sm font-bold text-appleDark">Peringatan: Beban Akademik @if($status === 'overload') Overload @else Tinggi @endif</h3>
+                                <p class="text-xs text-appleDark/70 mt-0.5">Beban akademik Anda minggu ini melebihi batas aman. Segera rencanakan prioritas tugas.</p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-white border border-bone-dark rounded-[24px] p-5 shadow-sm">
                         <span class="text-xs font-bold uppercase tracking-wider text-appleMuted">Total SKS Aktif</span>

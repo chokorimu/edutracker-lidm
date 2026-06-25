@@ -7,7 +7,6 @@ use App\Models\Krs;
 use App\Models\MataKuliah;
 use App\Models\NotifikasiDosen;
 use App\Models\Tugas;
-use App\Models\UserSiswa;
 use App\Services\BebanCalculator;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -90,7 +89,7 @@ class DosenResourceController extends Controller
             abort(403, 'Anda tidak berhak menambah tugas di mata kuliah ini.');
         }
 
-        $tugas = new Tugas();
+        $tugas = new Tugas;
         $tugas->mata_kuliah_id = $validated['mata_kuliah_id'];
         $tugas->nama = $validated['nama'];
         $tugas->deskripsi = $validated['deskripsi'] ?? null;
@@ -104,8 +103,8 @@ class DosenResourceController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'beban_warning' => "Peringatan: Beban tugas ini tergolong {$tugas->status_beban}. " .
-                        'Silakan ubah deadline atau centang "tetap lanjut" untuk tetap menyimpan.'
+                    'beban_warning' => "Peringatan: Beban tugas ini tergolong {$tugas->status_beban}. ".
+                        'Silakan ubah deadline atau centang "tetap lanjut" untuk tetap menyimpan.',
                 ]);
         }
 
@@ -161,8 +160,8 @@ class DosenResourceController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'beban_warning' => "Peringatan: Beban tugas ini tergolong {$tugas->status_beban}. " .
-                        'Silakan ubah deadline atau centang "tetap lanjut" untuk tetap menyimpan.'
+                    'beban_warning' => "Peringatan: Beban tugas ini tergolong {$tugas->status_beban}. ".
+                        'Silakan ubah deadline atau centang "tetap lanjut" untuk tetap menyimpan.',
                 ]);
         }
 

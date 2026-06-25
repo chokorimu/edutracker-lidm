@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\MataKuliah;
 use App\Models\Tugas;
+use App\Services\BebanCalculator;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -69,6 +71,9 @@ class DashboardController extends Controller
     private function siswaDashboardData(): array
     {
         $user = Auth::guard('siswa')->user();
+        $now = now();
+        $startOfWeek = $now->copy()->startOfWeek();
+        $endOfWeek = $now->copy()->endOfWeek();
 
         if (! $user) {
             return $this->emptySiswaData();
@@ -153,9 +158,9 @@ class DashboardController extends Controller
                 return [
                     'judul' => $t->nama,
                     'matkul' => $t->mataKuliah?->nama ?? '-',
-                    'deadline' => $t->deadline ? \Carbon\Carbon::parse($t->deadline)->translatedFormat('j F Y') : '-',
+                    'deadline' => $t->deadline ? Carbon::parse($t->deadline)->translatedFormat('j F Y') : '-',
                     'sisa' => $sisa,
-                    'jam' => $t->deadline ? \Carbon\Carbon::parse($t->deadline)->format('H:i') : '-',
+                    'jam' => $t->deadline ? Carbon::parse($t->deadline)->format('H:i') : '-',
                     'status' => $status,
                 ];
             })
@@ -188,6 +193,43 @@ class DashboardController extends Controller
             })
             ->toArray();
 
+        // Data for daily workload chart
+        $dailyWorkload = [];
+        for ($i = 0; $i < 7; $i++) {
+            $date = $startOfWeek->copy()->addDays($i);
+            $count = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
+                $q->where('siswa_id', $user->id);
+            })
+                ->whereDate('deadline', $date->toDateString())
+                ->count();
+
+            $dailyWorkload[] = [
+                'day' => $date->translatedFormat('D'),
+                'count' => $count,
+                'color' => $count >= 3 ? '#EF4444' : ($count >= 2 ? '#F59E0B' : '#10B981'),
+            ];
+        }
+
+        // Weekly overload status
+        $weeklyTaskCount = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
+            $q->where('siswa_id', $user->id);
+        })
+            ->whereBetween('deadline', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->count();
+        $weeklyStatus = BebanCalculator::forCount($weeklyTaskCount);
+
+        // Monthly calendar heat-map data
+        $monthStart = $now->copy()->startOfMonth();
+        $monthEnd = $now->copy()->endOfMonth();
+        $monthlyTasks = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
+            $q->where('siswa_id', $user->id);
+        })
+            ->whereBetween('deadline', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->get(['deadline'])
+            ->groupBy(function ($t) {
+                return Carbon::parse($t->deadline)->day;
+            });
+
         return [
             'profile' => [
                 'nim' => $nim,
@@ -200,10 +242,15 @@ class DashboardController extends Controller
                 'sks_lulus' => $sksLulus ?: ($latestIpk?->total_sks ?? 0),
                 'sks_semester' => $sksSemester ?: 0,
                 'dosen_pa' => $dosenPaName,
+                'weekly_status' => $weeklyStatus,
             ],
             'matakuliah' => $matakuliah,
             'tugas_mendatang' => $tugasMendatang,
             'notifikasi' => $notifikasi,
+            'daily_workload' => $dailyWorkload,
+            'monthly_tasks' => $monthlyTasks,
+            'month_start' => $monthStart,
+            'month_end' => $monthEnd,
         ];
     }
 

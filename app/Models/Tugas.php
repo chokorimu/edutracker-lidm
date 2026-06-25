@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Tugas extends Model
 {
     protected $table = 'tugas';
+
     protected $fillable = ['mata_kuliah_id', 'nama', 'bobot', 'deadline', 'deskripsi', 'status_beban', 'override'];
 
     public function mataKuliah()

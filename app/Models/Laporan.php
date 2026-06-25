@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Laporan extends Model
 {
     protected $table = 'laporan';
+
     protected $fillable = ['judul', 'tipe', 'periode', 'file_path', 'created_by'];
 
     public function admin()

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class KalenderAkademik extends Model
 {
     protected $table = 'kalender_akademik';
+
     protected $fillable = ['judul', 'tanggal', 'tipe', 'tahun_ajaran', 'created_by'];
 
     public function admin()
