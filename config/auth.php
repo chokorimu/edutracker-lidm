@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Models\UserAdmin;
 use App\Models\UserDosen;
+use App\Models\UserProdi;
 use App\Models\UserSiswa;
 
 return [

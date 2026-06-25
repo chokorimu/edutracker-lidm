@@ -43,17 +43,22 @@ class DosenResourceController extends Controller
             case 'beban':
                 $weekStart = Carbon::now()->startOfWeek();
                 $weekEnd = Carbon::now()->endOfWeek();
+                $nextWeekStart = Carbon::now()->addWeek()->startOfWeek();
+                $nextWeekEnd = Carbon::now()->addWeek()->endOfWeek();
+
                 $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)->with('krs.siswa')->get();
                 $data['bimbinganIds'] = DosenPa::where('dosen_id', $user->id)->pluck('siswa_id')->toArray();
                 $data['weekStart'] = $weekStart;
                 $data['weekEnd'] = $weekEnd;
-                $data['nextWeekStart'] = Carbon::now()->addWeek()->startOfWeek();
-                $data['nextWeekEnd'] = Carbon::now()->addWeek()->endOfWeek();
-                $data['workloadData'] = $data['mataKuliahList']->map(function ($mk) use ($weekStart, $weekEnd) {
+                $data['nextWeekStart'] = $nextWeekStart;
+                $data['nextWeekEnd'] = $nextWeekEnd;
+
+                $data['workloadData'] = $data['mataKuliahList']->map(function ($mk) use ($weekStart, $weekEnd, $nextWeekStart, $nextWeekEnd) {
                     return [
                         'nama' => $mk->nama,
                         'kode' => $mk->kode,
-                        'siswaWorkload' => BebanCalculator::weeklyLoadForCourse($mk->id, $weekStart, $weekEnd),
+                        'thisWeek' => BebanCalculator::weeklyLoadForCourse($mk->id, $weekStart, $weekEnd),
+                        'nextWeek' => BebanCalculator::weeklyLoadForCourse($mk->id, $nextWeekStart, $nextWeekEnd),
                     ];
                 });
                 break;
@@ -92,7 +97,6 @@ class DosenResourceController extends Controller
             'override' => 'nullable|boolean',
         ]);
 
-        // Validate ownership
         $mk = MataKuliah::findOrFail($validated['mata_kuliah_id']);
         if ($mk->dosen_id !== $user->id) {
             abort(403, 'Anda tidak berhak menambah tugas di mata kuliah ini.');
@@ -107,19 +111,16 @@ class DosenResourceController extends Controller
         $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline']);
         $tugas->override = $request->boolean('override');
 
-        // If heavy/overload and no override, warn and redirect back
         if (! $request->boolean('override') && in_array($tugas->status_beban, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true)) {
             return back()
                 ->withInput()
                 ->withErrors([
-                    'beban_warning' => "Peringatan: Beban tugas ini tergolong {$tugas->status_beban}. ".
-                        'Silakan ubah deadline atau centang "tetap lanjut" untuk tetap menyimpan.',
+                    'beban_warning' => "Peringatan: Beban tugas ini tergolong {$tugas->status_beban}. Silakan ubah deadline atau centang 'tetap lanjut' untuk tetap menyimpan.",
                 ]);
         }
 
         $tugas->save();
 
-        // Auto‑generate notification for DosenPa students if overload
         if (in_array($tugas->status_beban, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true)) {
             $bimbinganSiswaIds = DosenPa::where('dosen_id', $user->id)->pluck('siswa_id');
             foreach ($bimbinganSiswaIds as $siswaId) {
@@ -143,9 +144,8 @@ class DosenResourceController extends Controller
     {
         $user = Auth::guard('dosen')->user();
         $tugas = Tugas::findOrFail($id);
-
-        // Ownership via mata_kuliah
         $mk = $tugas->mataKuliah;
+
         if ($mk->dosen_id !== $user->id) {
             abort(403, 'Anda tidak berhak mengubah tugas ini.');
         }
@@ -155,29 +155,15 @@ class DosenResourceController extends Controller
             'deskripsi' => 'nullable|string',
             'bobot' => 'nullable|numeric|min:0|max:100',
             'deadline' => 'required|date',
-            'override' => 'nullable|boolean',
+            'status' => 'required|in:aktif,selesai',
         ]);
 
-        $tugas->nama = $validated['nama'];
-        $tugas->deskripsi = $validated['deskripsi'] ?? null;
-        $tugas->bobot = $validated['bobot'] ?? null;
-        $tugas->deadline = $validated['deadline'];
+        $tugas->fill($validated);
         $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline']);
-        $tugas->override = $request->boolean('override');
-
-        if (! $request->boolean('override') && in_array($tugas->status_beban, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true)) {
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'beban_warning' => "Peringatan: Beban tugas ini tergolong {$tugas->status_beban}. ".
-                        'Silakan ubah deadline atau centang "tetap lanjut" untuk tetap menyimpan.',
-                ]);
-        }
-
         $tugas->save();
 
         return redirect()->route('dosen.dashboard', ['tab' => 'tugas'])
-            ->with('status', 'Tugas berhasil diperbarui.');
+            ->with('status', 'Tugas diperbarui.');
     }
 
     public function destroyTugas(int $id): RedirectResponse
@@ -192,7 +178,7 @@ class DosenResourceController extends Controller
         $tugas->delete();
 
         return redirect()->route('dosen.dashboard', ['tab' => 'tugas'])
-            ->with('status', 'Tugas berhasil dihapus.');
+            ->with('status', 'Tugas dihapus.');
     }
 
     public function markNotifikasiRead(int $id): RedirectResponse
@@ -202,13 +188,9 @@ class DosenResourceController extends Controller
         $notif->update(['is_read' => true]);
 
         return redirect()->route('dosen.dashboard', ['tab' => 'notifikasi'])
-            ->with('status', 'Notifikasi ditandai sudah dibaca.');
+            ->with('status', 'Notifikasi dibaca.');
     }
 
-    /**
-     * Compute aggregate load for the deadline week.
-     * Picks the worst load among all students enrolled in this course.
-     */
     private function computeStatusBeban(int $mataKuliahId, string $deadline): string
     {
         $deadlineDate = Carbon::parse($deadline);
@@ -224,30 +206,22 @@ class DosenResourceController extends Controller
         $worst = BebanCalculator::LIGHT;
 
         foreach ($siswaIds as $siswaId) {
-            // Get all course IDs this student is enrolled in (any semester)
             $studentCourseIds = Krs::where('siswa_id', $siswaId)->pluck('mata_kuliah_id');
 
-            // Count tasks across all those courses falling in the same week
             $count = Tugas::whereIn('mata_kuliah_id', $studentCourseIds)
-                ->whereBetween('deadline', [$weekStart, $weekEnd])
+                ->whereBetween('deadline', [$weekStart->toDateString(), $weekEnd->toDateString()])
                 ->count();
 
-            $load = BebanCalculator::forCount($count);
-            $worst = $this->worstLoad($worst, $load);
+            $status = BebanCalculator::forCount($count);
+
+            if ($status === BebanCalculator::OVERLOAD) {
+                return BebanCalculator::OVERLOAD;
+            }
+            if ($status === BebanCalculator::HEAVY) {
+                $worst = BebanCalculator::HEAVY;
+            }
         }
 
         return $worst;
-    }
-
-    private function worstLoad(string $current, string $candidate): string
-    {
-        $order = [
-            BebanCalculator::LIGHT => 0,
-            BebanCalculator::NORMAL => 1,
-            BebanCalculator::HEAVY => 2,
-            BebanCalculator::OVERLOAD => 3,
-        ];
-
-        return ($order[$candidate] ?? 0) > ($order[$current] ?? 0) ? $candidate : $current;
     }
 }
