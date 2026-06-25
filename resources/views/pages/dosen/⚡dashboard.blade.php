@@ -163,7 +163,7 @@
                                     $next = collect($mk['nextWeek'])->firstWhere('siswa_id', $s['siswa_id']);
                                     return [
                                         'nama' => $s['nama_siswa'],
-                                        'nim' => $s['siswa_id'], // placeholder, real NIM not needed for load view
+                                        'siswa_id' => $s['siswa_id'], // placeholder, real NIM not needed for load view
                                         'weekCount' => $s['count'],
                                         'weekLoad' => $s['status'],
                                         'nextWeekCount' => $next['count'] ?? 0,
@@ -189,7 +189,7 @@
                     @foreach($students as $s)
                                             <tr class="border-b border-gray-100">
                                                 <td class="py-1 px-1">{{ $s['nama'] }}</td>
-                                                <td class="py-1 px-1">{{ $s['nim'] }}</td>
+                                                <td class="py-1 px-1">{{ $s['siswa_id'] }}</td>
                                                 <td class="py-1 px-1">
                                                     <span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium
                                                         {{ $s['weekLoad'] === BebanCalculator::LIGHT ? 'bg-green-100 text-green-700' : '' }}
