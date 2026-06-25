@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Krs;
 use App\Models\Tugas;
+use App\Models\UserSiswa;
 use Illuminate\Support\Collection;
 
 class BebanCalculator
@@ -51,5 +52,69 @@ class BebanCalculator
                 'status' => self::forCount($count),
             ];
         });
+    }
+
+    /**
+     * Get distribution of students by load category for the week.
+     * Returns array like ['ringan' => 10, 'normal' => 5, 'berat' => 3, 'overload' => 2]
+     */
+    public static function weeklyLoadDistribution($weekStart, $weekEnd): array
+    {
+        $students = UserSiswa::with(['krs.mataKuliah.tugas' => function ($q) use ($weekStart, $weekEnd) {
+            $q->whereBetween('deadline', [$weekStart->toDateString(), $weekEnd->toDateString()]);
+        }])->get();
+
+        $distribution = [
+            self::LIGHT => 0,
+            self::NORMAL => 0,
+            self::HEAVY => 0,
+            self::OVERLOAD => 0,
+        ];
+
+        foreach ($students as $student) {
+            $taskCount = $student->krs
+                ->flatMap(fn ($krs) => $krs->mataKuliah?->tugas ?? collect())
+                ->count();
+
+            $status = self::forCount($taskCount);
+            $distribution[$status]++;
+        }
+
+        return $distribution;
+    }
+
+    /**
+     * Get average tasks per week per course (for Prodi dashboard table)
+     */
+    public static function averageTasksPerWeekPerCourse(): array
+    {
+        $weekStart = now()->startOfWeek();
+        $weekEnd = now()->endOfWeek();
+
+        return Krs::with(['mataKuliah.tugas' => function ($q) use ($weekStart, $weekEnd) {
+            $q->whereBetween('deadline', [$weekStart->toDateString(), $weekEnd->toDateString()]);
+        }])
+            ->get()
+            ->groupBy('mata_kuliah_id')
+            ->map(function ($krsGroup) {
+                $mk = $krsGroup->first()->mataKuliah;
+                if (! $mk) {
+                    return null;
+                }
+
+                $totalStudents = $krsGroup->count();
+                $totalTasks = $krsGroup->sum(fn ($krs) => $krs->mataKuliah?->tugas->count() ?? 0);
+                $avg = $totalStudents > 0 ? round($totalTasks / $totalStudents, 1) : 0;
+                $status = self::forCount((int) $avg); // approximate
+
+                return [
+                    'nama' => $mk->nama,
+                    'avg_tasks_week' => $avg,
+                    'status' => $status,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->toArray();
     }
 }
