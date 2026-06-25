@@ -59,7 +59,7 @@
 
             <div class="flex items-center gap-4">
                 <div class="flex items-center gap-3 pl-4">
-                    <div class="w-9 h-9 rounded-full bg-appleDark text-white flex items-center justify-center text-xs font-bold shadow-sm">MH</div>
+                    <div class="w-9 h-9 rounded-full bg-appleDark text-white flex items-center justify-center text-xs font-bold shadow-sm">{{ strtoupper(substr($data['profile']['nama'], 0, 2)) }}</div>
                     <div>
                         <p class="text-xs font-bold text-appleDark leading-tight">{{ $data['profile']['nama'] }}</p>
                         <p class="text-[10px] text-appleMuted">NIM: {{ $data['profile']['nim'] }}</p>
@@ -165,15 +165,15 @@
                     </div>
                     <div class="bg-white border border-bone-dark rounded-[24px] p-5 shadow-sm">
                         <span class="text-xs font-bold uppercase tracking-wider text-appleMuted">Tugas Minggu Ini</span>
-                        <h2 class="text-3xl font-bold text-appleDark mt-2">8</h2>
+                        <h2 class="text-3xl font-bold text-appleDark mt-2">{{ $data['weekly_task_count'] }}</h2>
                     </div>
                     <div class="bg-white border border-bone-dark rounded-[24px] p-5 shadow-sm">
                         <span class="text-xs font-bold uppercase tracking-wider text-appleMuted">Deadline Terdekat</span>
-                        <h2 class="text-3xl font-bold text-appleOrange mt-2">2</h2>
+                        <h2 class="text-3xl font-bold text-appleOrange mt-2">{{ $data['deadline_terdekat'] }}</h2>
                     </div>
                     <div class="bg-white border border-bone-dark rounded-[24px] p-5 shadow-sm">
                         <span class="text-xs font-bold uppercase tracking-wider text-appleMuted">Status Beban</span>
-                        <h2 class="text-3xl font-bold text-appleRed mt-2">Berat</h2>
+                        <h2 class="text-3xl font-bold {{ $data['status_beban_color'] }} mt-2">{{ $data['status_beban_label'] }}</h2>
                     </div>
                 </div>
             @endif
@@ -187,10 +187,10 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2 bg-white border border-bone-dark rounded-[24px] p-6 shadow-sm">
                         <div class="flex justify-between items-center mb-6">
-                            <span class="text-sm font-bold text-appleDark">Mei 2026</span>
+                            <span class="text-sm font-bold text-appleDark">{{ \Carbon\Carbon::parse($data['month_start'])->translatedFormat('F Y') }}</span>
                             <div class="flex gap-1">
-                                <button class="p-1.5 border border-bone-dark rounded-full hover:bg-bone-light transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
-                                <button class="p-1.5 border border-bone-dark rounded-full hover:bg-bone-light transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+                                <a href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => $data['calendar_previous']['month'], 'year' => $data['calendar_previous']['year']]) }}" class="p-1.5 border border-bone-dark rounded-full hover:bg-bone-light transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></a>
+                                <a href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => $data['calendar_next']['month'], 'year' => $data['calendar_next']['year']]) }}" class="p-1.5 border border-bone-dark rounded-full hover:bg-bone-light transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                             </div>
                         </div>
 
@@ -199,65 +199,65 @@
                         </div>
 
                         <div class="grid grid-cols-7 gap-1.5 text-xs">
-                            <div class="p-2 min-h-[64px]"></div><div class="p-2 min-h-[64px]"></div><div class="p-2 min-h-[64px]"></div><div class="p-2 min-h-[64px]"></div>
-                            
-                            <div class="bg-amber-50 border border-amber-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">1</span><span class="text-[9px] text-appleMuted font-medium">2 Tugas</span>
-                            </div>
-                            <div class="bg-green-50 border border-green-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">2</span><span class="text-[9px] text-appleMuted font-medium">1 Tugas</span>
-                            </div>
-                            <div class="bg-green-50 border border-green-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">3</span><span class="text-[9px] text-appleMuted font-medium">1 Tugas</span>
-                            </div>
-                            <div class="bg-amber-50 border border-amber-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">4</span><span class="text-[9px] text-appleMuted font-medium">3 Tugas</span>
-                            </div>
-                            <div class="bg-yellow-50 border border-yellow-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">5</span><span class="text-[9px] text-appleMuted font-medium">5 SKS</span>
-                            </div>
-                            <div class="bg-amber-50 border border-amber-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">6</span><span class="text-[9px] text-appleMuted font-medium">2 Tugas</span>
-                            </div>
-                            <div class="bg-green-50 border border-green-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">7</span><span class="text-[9px] text-appleMuted font-medium">1 Tugas</span>
-                            </div>
-                            <div class="bg-yellow-50 border border-yellow-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">8</span><span class="text-[9px] text-appleMuted font-medium">4 Tugas</span>
-                            </div>
-                            <div class="bg-amber-50 border border-amber-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">9</span><span class="text-[9px] text-appleMuted font-medium">2 Tugas</span>
-                            </div>
-                            <div class="bg-green-50 border border-green-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">10</span><span class="text-[9px] text-appleMuted font-medium">Aman</span>
-                            </div>
-                            <div class="bg-red-50 border border-red-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">11</span><span class="text-[9px] text-appleRed font-bold">4 Tugas</span>
-                            </div>
-                            <div class="bg-green-50 border border-green-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">12</span><span class="text-[9px] text-appleMuted font-medium">1 Tugas</span>
-                            </div>
-                            <div class="bg-amber-50 border border-amber-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">13</span><span class="text-[9px] text-appleMuted font-medium">2 Tugas</span>
-                            </div>
-                            <div class="bg-appleDark border border-appleDark text-white p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between shadow-sm">
-                                <span class="font-bold">14</span><span class="text-[9px] opacity-80 font-bold">3 Tugas</span>
-                            </div>
-                            <div class="bg-yellow-50 border border-yellow-200/60 p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between">
-                                <span class="font-bold text-appleDark">15</span><span class="text-[9px] text-appleMuted font-medium">5 Tugas</span>
-                            </div>
+                            @php
+                                $firstDayOfMonth = \Carbon\Carbon::parse($data['month_start']);
+                                $daysInMonth = \Carbon\Carbon::parse($data['month_end'])->day;
+                                $startOfWeek = $firstDayOfMonth->dayOfWeekIso;
+                                $emptyCells = ($startOfWeek === 7) ? 0 : $startOfWeek;
+
+                                for ($i = 0; $i < $emptyCells; $i++) {
+                                    echo '<div class="p-2 min-h-[64px]"></div>';
+                                }
+                            @endphp
+
+                            @for ($day = 1; $day <= $daysInMonth; $day++)
+                                @php
+                                    $taskCount = $data['monthly_tasks']->has($day) ? $data['monthly_tasks']->get($day)->count() : 0;
+                                    $dayStatus = App\Services\BebanCalculator::forCount($taskCount);
+
+                                    $colorClass = match($dayStatus) {
+                                        App\Services\BebanCalculator::LIGHT => 'bg-green-50 border-green-200/60',
+                                        App\Services\BebanCalculator::NORMAL => 'bg-amber-50 border-amber-200/60',
+                                        App\Services\BebanCalculator::HEAVY => 'bg-red-50 border-red-200/60',
+                                        App\Services\BebanCalculator::OVERLOAD => 'bg-red-100 border-red-300/60',
+                                        default => 'bg-bone border-bone-dark',
+                                    };
+                                @endphp
+                                <a href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => \Carbon\Carbon::parse($data['month_start'])->month, 'year' => \Carbon\Carbon::parse($data['month_start'])->year, 'day' => $day]) }}" class="{{ $colorClass }} {{ $data['selected_day'] === $day ? 'ring-2 ring-appleDark' : '' }} border p-2 rounded-[12px] min-h-[64px] flex flex-col justify-between hover:scale-[1.02] transition-transform">
+                                    <span class="font-bold text-appleDark">{{ $day }}</span>
+                                    @if($taskCount > 0)
+                                        <span class="text-[9px] text-appleMuted font-medium">{{ $taskCount }} Tugas</span>
+                                    @endif
+                                </a>
+                            @endfor
                         </div>
                     </div>
 
                     <div class="bg-white border border-bone-dark rounded-[24px] p-6 shadow-sm flex flex-col justify-between">
                         <div>
+                            <h3 class="text-sm font-bold text-appleDark mb-1">Timeline Deadline</h3>
+                            <p class="text-[10px] text-appleMuted mb-4">{{ \Carbon\Carbon::parse($data['selected_date'])->translatedFormat('l, d F Y') }}</p>
+                            <div class="space-y-3 mb-6">
+                                @forelse($data['selected_day_tasks'] as $task)
+                                    <div class="flex gap-3">
+                                        <span class="text-[10px] font-mono text-appleMuted w-10">{{ $task['jam'] }}</span>
+                                        <div class="border-l border-bone-dark pl-3 pb-3">
+                                            <h4 class="text-xs font-bold text-appleDark leading-snug">{{ $task['judul'] }}</h4>
+                                            <p class="text-[10px] text-appleMuted mt-0.5">{{ $task['matkul'] }}</p>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p class="text-xs text-appleMuted">Tidak ada deadline pada tanggal ini.</p>
+                                @endforelse
+                            </div>
+
                             <h3 class="text-sm font-bold text-appleDark mb-4">Tugas Mendatang</h3>
                             <div class="space-y-4">
                                 @foreach($data['tugas_mendatang'] as $tugas)
                                     <div class="border-b border-bone-dark pb-3 last:border-0 last:pb-0 flex justify-between items-start gap-2">
                                         <div>
                                             <h4 class="text-xs font-bold text-appleDark leading-snug">{{ $tugas['judul'] }}</h4>
-                                            <p class="text-[10px] text-appleMuted mt-0.5">{{ $tugas['matkul'] }} • {{ $tugas['deadline'] }}</p>
+                                            <p class="text-[10px] text-appleMuted mt-0.5">{{ $tugas['matkul'] }} • {{ $tugas['deadline'] }} • {{ $tugas['sisa'] }}</p>
                                         </div>
                                         <span class="text-[10px] font-mono whitespace-nowrap text-appleMuted bg-bone px-2 py-0.5 rounded-full">{{ $tugas['jam'] }}</span>
                                     </div>
@@ -288,7 +288,7 @@
                     <div class="bg-white border border-bone-dark rounded-[24px] p-5 shadow-sm">
                         <span class="text-xs font-bold text-appleMuted uppercase tracking-wider block">IPK Kumulatif</span>
                         <p class="text-3xl font-bold text-appleDark mt-2">{{ $data['profile']['ipk'] }}</p>
-                        <p class="text-[10px] text-appleGreen font-semibold mt-1">Top 15% program studi</p>
+                        <!-- Top 15% placeholder – calculated in controller -->
                     </div>
                 </div>
 
@@ -302,7 +302,8 @@
                                 <tr class="bg-bone text-appleMuted font-bold border-b border-bone-dark">
                                     <th class="p-4 pl-6">Mata Kuliah</th>
                                     <th class="p-4 text-center">SKS</th>
-                                    <th class="p-4 text-center">Tugas</th>
+                                    <th class="p-4 text-center">Total Tugas</th>
+                                    <th class="p-4 text-center">Minggu Ini</th>
                                     <th class="p-4 text-center">Beban</th>
                                     <th class="p-4 text-center pr-6">Status</th>
                                 </tr>
@@ -313,9 +314,9 @@
                                         <td class="p-4 pl-6 font-bold text-appleDark">{{ $mk['nama'] }}</td>
                                         <td class="p-4 text-center text-appleMuted font-medium">{{ $mk['sks'] }}</td>
                                         <td class="p-4 text-center text-appleMuted font-medium">{{ $mk['tugas'] }}</td>
+                                        <td class="p-4 text-center text-appleMuted font-medium">{{ $mk['tugas_minggu_ini'] }}</td>
                                         <td class="p-4 text-center">
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-tight
-                                                {{ $mk['beban'] === 'Tinggi' ? 'bg-red-50 text-appleRed' : ($mk['beban'] === 'Sedang' ? 'bg-orange-50 text-appleOrange' : 'bg-green-50 text-appleGreen') }}">
+                                            <span class="px-2.5 py-1 rounded-full border text-[10px] font-bold tracking-tight {{ $mk['beban_color'] }}">
                                                 {{ $mk['beban'] }}
                                             </span>
                                         </td>
@@ -343,9 +344,9 @@
 
                         <div class="flex justify-center items-center py-4">
                             <div class="relative w-32 h-32 rounded-full border-8 border-bone flex items-center justify-center">
-                                <div class="absolute inset-0 rounded-full border-8 border-appleOrange border-t-transparent border-l-transparent transform rotate-45"></div>
+                                <div class="absolute inset-0 rounded-full border-8 border-appleOrange border-t-transparent border-l-transparent transform" style="transform: rotate({{ $data['risk_score'] * 3.6 + 45 }}deg);"></div>
                                 <div class="text-center z-10">
-                                    <span class="text-2xl font-bold block text-appleDark">35%</span>
+                                    <span class="text-2xl font-bold block text-appleDark">{{ $data['risk_score'] }}%</span>
                                     <span class="text-[9px] text-appleMuted font-bold uppercase tracking-wider block">Risiko</span>
                                 </div>
                             </div>
@@ -361,8 +362,8 @@
                     <div class="bg-appleDark text-white rounded-[24px] p-6 shadow-sm space-y-4">
                         <div class="flex items-center gap-2"><svg class="w-4 h-4 text-appleOrange" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><h3 class="text-sm font-bold">Rekomendasi AI</h3></div>
                         <div class="space-y-3 text-xs leading-relaxed opacity-95">
-                            <div class="bg-white/10 p-3 rounded-[16px]"><p class="font-bold text-appleOrange">SKS Semester Depan</p><p class="text-[11px] opacity-80 mt-1">Disarankan mengambil maksimal 18 SKS berdasarkan kestabilan beban.</p></div>
-                            <div class="bg-white/10 p-3 rounded-[16px]"><p class="font-bold text-white">Prioritas Fokus</p><p class="text-[11px] opacity-80 mt-1">Fokuskan perhatian ekstra pada mata kuliah kategori beban tinggi.</p></div>
+                            <div class="bg-white/10 p-3 rounded-[16px]"><p class="font-bold text-appleOrange">SKS Semester Depan</p><p class="text-[11px] opacity-80 mt-1">Disarankan mengambil maksimal {{ $data['sks_recommendation']['sks'] }} SKS. {{ $data['sks_recommendation']['reason'] }}</p></div>
+                            <div class="bg-white/10 p-3 rounded-[16px]"><p class="font-bold text-white">Prioritas Fokus</p><p class="text-[11px] opacity-80 mt-1">{{ $data['risk_score'] >= 70 ? 'Kurangi penumpukan deadline dan konsultasikan beban dengan dosen PA.' : ($data['risk_score'] >= 40 ? 'Pantau mata kuliah dengan beban mingguan tertinggi.' : 'Beban akademik masih stabil, pertahankan ritme belajar.') }}</p></div>
                         </div>
                     </div>
                 </div>
@@ -371,19 +372,68 @@
                     <div class="bg-white border border-bone-dark rounded-[24px] p-5 shadow-sm">
                         <h4 class="text-xs font-bold text-appleDark">Tren Historis IPK</h4>
                         <div class="h-32 flex items-end gap-4 mt-4 border-b border-l border-bone-dark p-2">
-                            <div class="w-full bg-bone h-[70%] rounded-t-[4px] relative"><span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] text-appleMuted">3.1</span></div>
-                            <div class="w-full bg-bone h-[78%] rounded-t-[4px] relative"><span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] text-appleMuted">3.3</span></div>
-                            <div class="w-full bg-appleDark h-[86%] rounded-t-[4px] relative"><span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-appleDark">3.45</span></div>
+                            @foreach($data['ipk_history'] as $ipkEntry)
+                                @php
+                                    // Calculate height based on IPK value, assuming a max IPK of 4.0 for scaling purposes.
+                                    // The chart container is h-32, which typically corresponds to 128px height.
+                                    // We'll scale the IPK to fit within this height.
+                                    $maxChartHeightPx = 128;
+                                    $maxIpk = 4.0;
+                                    $scaledHeight = ($ipkEntry['ipk'] / $maxIpk) * $maxChartHeightPx;
+                                    // Ensure minimum height for visibility and handle 0 IPK gracefully
+                                    $scaledHeight = max($scaledHeight, 10); // Minimum height of 10px
+
+                                    // Calculate percentage for the bar's height attribute if needed, but direct style is better for px
+                                    // $heightPercentage = ($ipkEntry['ipk'] / $maxIpk) * 100;
+                                @endphp
+                                <div class="w-full bg-bone h-[{{ $scaledHeight }}px] rounded-t-[4px] relative" style="height: {{ $scaledHeight }}px;">
+                                    <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] text-appleMuted">{{ number_format($ipkEntry['ipk'], 2) }}</span>
+                                </div>
+                            @endforeach
                         </div>
-                        <div class="flex justify-between text-[9px] text-appleMuted mt-2 px-6"><span>Sem 3</span><span>Sem 4</span><span>Sem 5</span></div>
+                        <div class="flex justify-between text-[9px] text-appleMuted mt-2 px-6">
+                            @foreach($data['ipk_history'] as $ipkEntry)
+                                <span>{{ $ipkEntry['semester'] }}</span>
+                            @endforeach
+                        </div>
                     </div>
                     <div class="bg-white border border-bone-dark rounded-[24px] p-5 shadow-sm flex flex-col justify-between">
-                        <h4 class="text-xs font-bold text-appleDark">Analisis Kompetensi</h4>
-                        <div class="p-4 bg-bone-light border border-bone-dark rounded-[16px] text-[11px] space-y-2 mt-2">
-                            <div class="flex justify-between"><span>Pemrograman</span><span class="font-bold">Sangat Baik</span></div>
-                            <div class="flex justify-between"><span>Basis Data</span><span class="font-bold">Cukup</span></div>
-                            <div class="flex justify-between"><span>Jaringan Komputer</span><span class="font-bold">Baik</span></div>
-                        </div>
+                        <h4 class="text-xs font-bold text-appleDark">Radar Kompetensi</h4>
+                        @if(count($data['competency']))
+                            <div class="h-48 mt-3">
+                                <canvas id="competencyChart"></canvas>
+                            </div>
+                            <div class="p-4 bg-bone-light border border-bone-dark rounded-[16px] text-[11px] space-y-2 mt-2">
+                                @foreach($data['competency'] as $skill)
+                                    <div class="flex justify-between gap-3"><span>{{ $skill['nama'] }}</span><span class="font-bold">{{ $skill['label'] }} ({{ $skill['score'] }})</span></div>
+                                @endforeach
+                            </div>
+                            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                            <script>
+                                const competencyData = @json($data['competency']);
+                                new Chart(document.getElementById("competencyChart"), {
+                                    type: "radar",
+                                    data: {
+                                        labels: competencyData.map(item => item.nama),
+                                        datasets: [{
+                                            label: "Nilai rata-rata",
+                                            data: competencyData.map(item => item.score),
+                                            borderColor: "#007AFF",
+                                            backgroundColor: "rgba(0, 122, 255, 0.12)",
+                                            pointBackgroundColor: "#007AFF"
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        scales: { r: { min: 0, max: 100, ticks: { stepSize: 20 } } },
+                                        plugins: { legend: { display: false } }
+                                    }
+                                });
+                            </script>
+                        @else
+                            <p class="text-xs text-appleMuted mt-3">Belum ada nilai tugas yang bisa dihitung menjadi kompetensi.</p>
+                        @endif
                     </div>
                 </div>
             @endif
@@ -428,7 +478,7 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="bg-white border border-bone-dark rounded-[24px] p-6 shadow-sm text-center space-y-4">
-                        <div class="w-20 h-20 bg-appleDark text-white rounded-full mx-auto flex items-center justify-center text-2xl font-bold shadow-sm">MH</div>
+                        <div class="w-20 h-20 bg-appleDark text-white rounded-full mx-auto flex items-center justify-center text-2xl font-bold shadow-sm">{{ strtoupper(substr($data['profile']['nama'], 0, 2)) }}</div>
                         <div>
                             <h3 class="text-base font-bold text-appleDark">{{ $data['profile']['nama'] }}</h3>
                             <p class="text-xs text-appleMuted mt-0.5">NIM: {{ $data['profile']['nim'] }}</p>

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminResourceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DosenResourceController;
+use App\Http\Controllers\ProdiDashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {

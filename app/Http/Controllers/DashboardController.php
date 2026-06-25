@@ -38,7 +38,7 @@ class DashboardController extends Controller
 
         return view('pages.siswa.⚡dashboard', [
             'currentTab' => $currentTab,
-            'data' => $this->siswaDashboardData(),
+            'data' => $this->siswaDashboardData($request),
         ]);
     }
 
@@ -73,7 +73,7 @@ class DashboardController extends Controller
         return redirect()->route('login');
     }
 
-    private function siswaDashboardData(): array
+    private function siswaDashboardData(?Request $request = null): array
     {
         $user = Auth::guard('siswa')->user();
         $now = now();
@@ -123,13 +123,20 @@ class DashboardController extends Controller
             }
 
             $tugasCount = $mk->tugas()->count();
-            $beban = $tugasCount >= 4 ? 'Tinggi' : ($tugasCount >= 3 ? 'Sedang' : 'Ringan');
+            $weeklyTugasCount = $mk->tugas()
+                ->whereBetween('deadline', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])
+                ->count();
+            $statusBeban = BebanCalculator::forCount($weeklyTugasCount);
 
             return [
                 'nama' => $mk->nama,
+                'kode' => $mk->kode,
                 'sks' => $mk->sks,
                 'tugas' => $tugasCount,
-                'beban' => $beban,
+                'tugas_minggu_ini' => $weeklyTugasCount,
+                'beban' => BebanCalculator::label($statusBeban),
+                'beban_status' => $statusBeban,
+                'beban_color' => BebanCalculator::colorClass($statusBeban),
                 'status' => $krs->status === 'selesai' ? 'Selesai' : 'Aktif',
             ];
         })->filter()->values()->toArray();
@@ -164,6 +171,7 @@ class DashboardController extends Controller
                     'judul' => $t->nama,
                     'matkul' => $t->mataKuliah?->nama ?? '-',
                     'deadline' => $t->deadline ? Carbon::parse($t->deadline)->translatedFormat('j F Y') : '-',
+                    'deadline_iso' => $t->deadline ? Carbon::parse($t->deadline)->toDateString() : null,
                     'sisa' => $sisa,
                     'jam' => $t->deadline ? Carbon::parse($t->deadline)->format('H:i') : '-',
                     'status' => $status,
@@ -223,17 +231,78 @@ class DashboardController extends Controller
             ->count();
         $weeklyStatus = BebanCalculator::forCount($weeklyTaskCount);
 
-        // Monthly calendar heat-map data
-        $monthStart = $now->copy()->startOfMonth();
-        $monthEnd = $now->copy()->endOfMonth();
+        $riskScore = BebanCalculator::riskScoreForStudent($user, $startOfWeek, $endOfWeek);
+        $sksRecommendation = BebanCalculator::recommendSks($user, $riskScore);
+
+        // Deadline terdekat (tugas < 4 hari)
+        $deadlineTerdekat = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
+            $q->where('siswa_id', $user->id);
+        })
+            ->whereBetween('deadline', [now()->startOfDay(), now()->addDays(3)->endOfDay()])
+            ->count();
+
+        // Label bahasa untuk status beban
+        $statusBebanLabel = match ($weeklyStatus) {
+            BebanCalculator::LIGHT => 'Ringan',
+            BebanCalculator::NORMAL => 'Normal',
+            BebanCalculator::HEAVY => 'Berat',
+            BebanCalculator::OVERLOAD => 'Overload',
+            default => 'Ringan',
+        };
+
+        // Warna status beban
+        $statusBebanColor = match ($weeklyStatus) {
+            BebanCalculator::LIGHT => 'text-appleGreen',
+            BebanCalculator::NORMAL => 'text-appleOrange',
+            BebanCalculator::HEAVY => 'text-appleRed',
+            BebanCalculator::OVERLOAD => 'text-appleRed',
+            default => 'text-appleGreen',
+        };
+
+        // IPK history (for chart)
+        $ipkHistory = $user->ipkHistory()
+            ->orderBy('semester')
+            ->get()
+            ->map(fn ($h) => ['semester' => 'Sem '.$h->semester, 'ipk' => (float) $h->ipk])
+            ->toArray();
+        $competency = BebanCalculator::competencyByCourse($user);
+
+        // Monthly calendar — with optional month/year nav from query
+        $calendarMonth = $request?->query('month');
+        $calendarYear = $request?->query('year');
+        if ($calendarMonth && $calendarYear) {
+            $monthStart = Carbon::createFromDate((int) $calendarYear, (int) $calendarMonth, 1)->startOfMonth();
+            $monthEnd = $monthStart->copy()->endOfMonth();
+        } else {
+            $monthStart = $now->copy()->startOfMonth();
+            $monthEnd = $now->copy()->endOfMonth();
+        }
         $monthlyTasks = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
             $q->where('siswa_id', $user->id);
         })
+            ->with('mataKuliah')
             ->whereBetween('deadline', [$monthStart->toDateString(), $monthEnd->toDateString()])
-            ->get(['deadline'])
+            ->orderBy('deadline')
+            ->get()
             ->groupBy(function ($t) {
                 return Carbon::parse($t->deadline)->day;
             });
+        $selectedDay = (int) ($request?->query('day', now()->day));
+        if ($selectedDay < 1 || $selectedDay > $monthEnd->day) {
+            $selectedDay = now()->day;
+        }
+        $selectedDate = $monthStart->copy()->day($selectedDay);
+        $selectedDayTasks = $monthlyTasks->get($selectedDay, collect())
+            ->map(fn ($task) => [
+                'judul' => $task->nama,
+                'matkul' => $task->mataKuliah?->nama ?? '-',
+                'jam' => Carbon::parse($task->deadline)->format('H:i'),
+                'status' => Carbon::parse($task->deadline)->isPast() ? 'lewat' : 'aktif',
+            ])
+            ->values()
+            ->toArray();
+        $previousMonth = $monthStart->copy()->subMonth();
+        $nextMonth = $monthStart->copy()->addMonth();
 
         return [
             'profile' => [
@@ -256,6 +325,19 @@ class DashboardController extends Controller
             'monthly_tasks' => $monthlyTasks,
             'month_start' => $monthStart,
             'month_end' => $monthEnd,
+            'selected_day' => $selectedDay,
+            'selected_date' => $selectedDate,
+            'selected_day_tasks' => $selectedDayTasks,
+            'calendar_previous' => ['month' => $previousMonth->month, 'year' => $previousMonth->year],
+            'calendar_next' => ['month' => $nextMonth->month, 'year' => $nextMonth->year],
+            'weekly_task_count' => $weeklyTaskCount,
+            'deadline_terdekat' => $deadlineTerdekat,
+            'status_beban_label' => $statusBebanLabel,
+            'status_beban_color' => $statusBebanColor,
+            'ipk_history' => $ipkHistory,
+            'risk_score' => $riskScore,
+            'sks_recommendation' => $sksRecommendation,
+            'competency' => $competency,
         ];
     }
 

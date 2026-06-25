@@ -1,45 +1,37 @@
-# EduTrack SKS — Cleaned Status
+# EduTrack SKS — Status Checklist
 
-## Tech Stack
+## Status Checklist
 
-- **Backend:** Laravel 13, PHP 8.3+
-- **Frontend:** Livewire 4 + Volt (single-file), Blade, TailwindCSS, Vite
-- **Database:** SQLite (default) / MySQL
-- **Testing:** PHPUnit 12
-- **Dev tooling:** Laravel Pint, Pail
-
----
-
-## Completed Features
-
-| Fitur | Lokasi | Keterangan |
-|-------|--------|------------|
-| Auth login role-based | `pages/auth/⚡login.blade.php` | Admin, Dosen, Siswa |
-| Middleware per role | `app/Http/Middleware/` | EnsureAdmin, EnsureDosen, EnsureSiswa |
-| Dashboard Siswa (DB-driven) | `DashboardController@siswaDashboardData` | Profile, Matakuliah, Tugas Mendatang, Notifikasi |
-| Dashboard Dosen (tabs) | `pages/dosen/⚡dashboard.blade.php` | Tugas CRUD, Beban monitoring, Notifikasi, Profil |
-| BebanCalculator service | `app/Services/BebanCalculator.php` | Kategorisasi: ringan/normal/berat/overload |
-| Model KRS, MataKuliah, Tugas, NilaiTugas | `app/Models/` | Relasi sudah terdefinisi |
-| Notifikasi Siswa & Dosen (terpisah) | `notifikasi`, `notifikasi_dosen` tables | Skema sudah dipisah |
-| IpkHistory | `app/Models/IpkHistory.php` | Riwayat IPK per semester |
-| DosenPa mapping | `app/Models/DosenPa.php` | Pemetaan dosen PA ke siswa |
-| KalenderAkademik | `app/Models/KalenderAkademik.php` | Model ada |
-| Laporan & Pengaturan | `app/Models/Laporan.php`, `Pengaturan.php` | Model ada |
-| Admin CRUD panel | `AdminResourceController` | Generic CRUD semua resource |
-| Seeder (Admin, Dosen, Siswa) | `database/seeders/` | Credentials siap pakai |
-| Early Warning System | `app/Console/Commands/CheckBebanAkademik.php` | Scheduled daily at 07:00 |
-
----
-
-## Credentials Dev
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@edutrack.test` | `admin123` |
-| Dosen | `dosen@edutrack.test` | `dosen123` |
-| Siswa | `andi@edutrack.test` | `siswa123` |
-
-```bash
-php artisan migrate:fresh --seed
-composer run dev
-```
+| No | Fungsi | Status | Keterangan |
+|----|--------|--------|------------|
+| 1 | Onboarding | ❌ Belum | |
+| 2 | Login role-based | ✅ Ada | |
+| 3 | Dashboard Siswa — ringkasan SKS | ✅ Ada | |
+| 4 | Dashboard Siswa — grafik beban harian | ✅ Ada | |
+| 5 | Dashboard Siswa — timeline deadline | ✅ Sebagian | Tugas Mendatang (list) |
+| 6 | Dashboard Siswa — alert banner overload | ✅ Ada | |
+| 7 | Kalender heat map interaktif | ✅ Sebagian | Heat map dinamis, nav buttons static |
+| 8 | Panel "Tugas Mendatang" | ✅ Ada | |
+| 9 | Monitoring SKS — tabel matkul berkode warna | ✅ Sebagian | Warna hardcoded di blade |
+| 10 | Monitoring SKS — level beban tiap matkul | ✅ Ada | BebanCalculator |
+| 11 | Early warning system otomatis | ✅ Ada | `beban:check` scheduled |
+| 12 | Notifikasi platform (in-app) | ✅ Ada | Siswa & Dosen |
+| 13 | Notifikasi email | ❌ Belum | (Skipped) |
+| 14 | Analitik — tren IPK historis | ✅ Ada | |
+| 15 | Analitik — prediksi risiko akademik | ✅ Ada | Risk score dynamic |
+| 16 | Analitik — radar chart kompetensi | ❌ Belum | Hardcoded in view |
+| 17 | Analitik — rekomendasi SKS optimal | ❌ Belum | Hardcoded recommendations |
+| 18 | Input tugas dosen | ✅ Ada | |
+| 19 | Visualisasi beban agregat saat input tugas | ✅ Ada | |
+| 20 | Peringatan dosen jika pekan padat | ✅ Ada | |
+| 21 | Reschedule tugas dari peringatan | ✅ Sebagian | Suggestions present, not auto-applying |
+| 22 | Dashboard Dosen PA — kartu risiko mahasiswa | ✅ Sebagian | Need dedicated cards |
+| 23 | Notifikasi Dosen PA otomatis | ✅ Ada | |
+| 24 | Dashboard Prodi — grafik tren beban keseluruhan | ✅ Sebagian | Chart present, logic wired |
+| 25 | Laporan akademik periodik | ❌ Belum | |
+| 26 | Filter laporan per prodi/angkatan | ❌ Belum | |
+| 27 | Profil Siswa — identitas + dosen PA | ✅ Ada | |
+| 28 | Pengaturan preferensi notifikasi | ❌ Belum | Links are placeholders |
+| 29 | Logout per role | ✅ Ada | |
+| 30 | Kompatibilitas multi-device (responsive) | ✅ Ada | |
+| 31 | Akurasi data real-time dari DB | ✅ Ada | |

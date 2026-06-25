@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Notifikasi;
 use App\Models\NotifikasiDosen;
 use App\Models\UserSiswa;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class CheckBebanAkademik extends Command
@@ -39,7 +40,7 @@ class CheckBebanAkademik extends Command
                     'is_read' => false,
                 ]);
 
-                $dosenPa = $siswa->dosenPa;
+                $dosenPa = $siswa->dosenPa->sortByDesc('created_at')->first();
                 if ($dosenPa?->dosen) {
                     NotifikasiDosen::create([
                         'dosen_id' => $dosenPa->dosen_id,
@@ -55,7 +56,11 @@ class CheckBebanAkademik extends Command
             // 2. Check deadline collision
             $collisionCount = $siswa->krs
                 ->flatMap(fn ($krs) => $krs->mataKuliah?->tugas ?? collect())
-                ->filter(fn ($tugas) => $tugas->deadline >= now() && $tugas->deadline <= now()->addDays($collisionWindowDays))
+                ->filter(function ($tugas) use ($collisionWindowDays) {
+                    $deadline = Carbon::parse($tugas->deadline);
+
+                    return $deadline->betweenIncluded(now(), now()->copy()->addDays($collisionWindowDays));
+                })
                 ->count();
 
             if ($collisionCount >= $deadlineCollisionThreshold) {
@@ -67,6 +72,18 @@ class CheckBebanAkademik extends Command
                     'sumber' => 'system',
                     'is_read' => false,
                 ]);
+
+                $dosenPa = $siswa->dosenPa->sortByDesc('created_at')->first();
+                if ($dosenPa?->dosen) {
+                    NotifikasiDosen::create([
+                        'dosen_id' => $dosenPa->dosen_id,
+                        'judul' => "Deadline Padat: {$siswa->name}",
+                        'pesan' => "Mahasiswa {$siswa->name} ({$siswa->nim}) memiliki {$collisionCount} deadline dalam {$collisionWindowDays} hari ke depan.",
+                        'tipe' => 'deadline_collision',
+                        'sumber' => 'system',
+                        'is_read' => false,
+                    ]);
+                }
             }
         }
 
