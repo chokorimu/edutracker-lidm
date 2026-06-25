@@ -53,6 +53,10 @@ return [
             'driver' => 'session',
             'provider' => 'dosens',
         ],
+        'prodi' => [
+            'driver' => 'session',
+            'provider' => 'prodis',
+        ],
     ],
 
     /*
@@ -84,6 +88,10 @@ return [
         'dosens' => [
             'driver' => 'eloquent',
             'model' => UserDosen::class,
+        ],
+        'prodis' => [
+            'driver' => 'eloquent',
+            'model' => UserProdi::class,
         ],
     ],
 

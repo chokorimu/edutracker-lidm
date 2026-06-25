@@ -57,6 +57,11 @@ class DashboardController extends Controller
         return $this->logout($request, 'siswa');
     }
 
+    public function logoutProdi(Request $request): RedirectResponse
+    {
+        return $this->logout($request, 'prodi');
+    }
+
     private function logout(Request $request, string $guard): RedirectResponse
     {
         Auth::guard($guard)->logout();
