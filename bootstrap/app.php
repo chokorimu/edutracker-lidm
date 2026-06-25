@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureAdmin::class,
             'dosen' => EnsureDosen::class,
             'siswa' => EnsureSiswa::class,
+            'prodi' => EnsureProdi::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

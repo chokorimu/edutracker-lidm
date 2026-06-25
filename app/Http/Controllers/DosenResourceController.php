@@ -41,12 +41,21 @@ class DosenResourceController extends Controller
                 break;
 
             case 'beban':
+                $weekStart = Carbon::now()->startOfWeek();
+                $weekEnd = Carbon::now()->endOfWeek();
                 $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)->with('krs.siswa')->get();
                 $data['bimbinganIds'] = DosenPa::where('dosen_id', $user->id)->pluck('siswa_id')->toArray();
-                $data['weekStart'] = Carbon::now()->startOfWeek();
-                $data['weekEnd'] = Carbon::now()->endOfWeek();
+                $data['weekStart'] = $weekStart;
+                $data['weekEnd'] = $weekEnd;
                 $data['nextWeekStart'] = Carbon::now()->addWeek()->startOfWeek();
                 $data['nextWeekEnd'] = Carbon::now()->addWeek()->endOfWeek();
+                $data['workloadData'] = $data['mataKuliahList']->map(function ($mk) use ($weekStart, $weekEnd) {
+                    return [
+                        'nama' => $mk->nama,
+                        'kode' => $mk->kode,
+                        'siswaWorkload' => BebanCalculator::weeklyLoadForCourse($mk->id, $weekStart, $weekEnd),
+                    ];
+                });
                 break;
 
             case 'notifikasi':
