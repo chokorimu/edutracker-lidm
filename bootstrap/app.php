@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureDosen;
+use App\Http\Middleware\EnsureProdi;
 use App\Http\Middleware\EnsureSiswa;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;

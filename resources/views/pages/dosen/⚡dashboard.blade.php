@@ -158,30 +158,20 @@
                             <h3 class="font-medium text-sm mb-2">{{ $mk->nama }} ({{ $mk->kode }})</h3>
 
                             @php
-                                $students = collect();
-                                foreach ($mk->krs as $krs) {
-                                    $siswa = $krs->siswa;
-                                    if (! $siswa) continue;
-
-                                    // Tasks this week from all courses this student takes
-                                    $allCourseIds = \App\Models\Krs::where('siswa_id', $siswa->id)->pluck('mata_kuliah_id');
-                                    $weekCount = \App\Models\Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-                                        ->whereBetween('deadline', [$data['weekStart'], $data['weekEnd']])
-                                        ->count();
-                                    $nextWeekCount = \App\Models\Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-                                        ->whereBetween('deadline', [$data['nextWeekStart'], $data['nextWeekEnd']])
-                                        ->count();
-
-                                    $students->push([
-                                        'nama' => $siswa->name,
-                                        'nim' => $siswa->nim,
-                                        'weekCount' => $weekCount,
-                                        'weekLoad' => BebanCalculator::forCount($weekCount),
-                                        'nextWeekCount' => $nextWeekCount,
-                                        'nextWeekLoad' => BebanCalculator::forCount($nextWeekCount),
-                                        'isBimbingan' => in_array($siswa->id, $data['bimbinganIds']),
-                                    ]);
-                                }
+                                // Merge this‑week and next‑week results from the controller.
+                                $combined = collect($mk['thisWeek'])->map(function ($s) use ($mk, $data) {
+                                    $next = collect($mk['nextWeek'])->firstWhere('siswa_id', $s['siswa_id']);
+                                    return [
+                                        'nama' => $s['nama_siswa'],
+                                        'nim' => $s['siswa_id'], // placeholder, real NIM not needed for load view
+                                        'weekCount' => $s['count'],
+                                        'weekLoad' => $s['status'],
+                                        'nextWeekCount' => $next['count'] ?? 0,
+                                        'nextWeekLoad' => $next['status'] ?? \App\Services\BebanCalculator::LIGHT,
+                                        'isBimbingan' => in_array($s['siswa_id'], $data['bimbinganIds']),
+                                    ];
+                                });
+                                $students = $combined;
                             @endphp
 
                             @if($students->count())
@@ -196,7 +186,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($students as $s)
+                    @foreach($students as $s)
                                             <tr class="border-b border-gray-100">
                                                 <td class="py-1 px-1">{{ $s['nama'] }}</td>
                                                 <td class="py-1 px-1">{{ $s['nim'] }}</td>
