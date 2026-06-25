@@ -153,9 +153,9 @@
                     <h2 class="text-lg font-semibold mb-4">Beban Tugas Mahasiswa</h2>
                     <p class="text-xs text-gray-400 mb-4">Minggu ini: {{ $data['weekStart']->format('d/m/Y') }} – {{ $data['weekEnd']->format('d/m/Y') }}</p>
 
-                    @forelse($data['mataKuliahList'] as $mk)
+                    @forelse($data['workloadData'] as $mk)
                         <div class="border border-gray-200 rounded-lg p-4 mb-4">
-                            <h3 class="font-medium text-sm mb-2">{{ $mk->nama }} ({{ $mk->kode }})</h3>
+                            <h3 class="font-medium text-sm mb-2">{{ $mk['nama'] }} ({{ $mk['kode'] }})</h3>
 
                             @php
                                 // Merge this‑week and next‑week results from the controller.
