@@ -10,7 +10,8 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        // Commands are auto-discovered via composer.json
+        // bootstrap/app.php already loads routes/console.php; this file is likely inert.
+        // Do not add new scheduling logic here.
     ];
 
     protected function commands()

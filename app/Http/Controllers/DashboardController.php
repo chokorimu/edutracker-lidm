@@ -27,8 +27,12 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function siswa(Request $request): View
+    public function siswa(Request $request): View|RedirectResponse
     {
+        $user = Auth::guard('siswa')->user();
+        if ($user && ! $user->profile_completed) {
+            return redirect()->route('siswa.onboarding.show');
+        }
         $tabs = ['dashboard', 'calendar', 'monitoring', 'analytics', 'notifications', 'profile'];
         $currentTab = $request->query('tab', 'dashboard');
 
@@ -71,6 +75,40 @@ class DashboardController extends Controller
         }
 
         return redirect()->route('login');
+    }
+
+    public function onboardingShow(): View
+    {
+        $user = Auth::guard('siswa')->user();
+        $data = $this->siswaDashboardData();
+        $data['profile']['profile_completed'] = $user->profile_completed;
+
+        return view('pages.siswa.⚡onboarding', [
+            'currentTab' => 'dashboard',
+            'data' => $data,
+        ]);
+    }
+
+    public function onboardingComplete(Request $request): RedirectResponse
+    {
+        $user = Auth::guard('siswa')->user();
+        $user->update(['profile_completed' => true]);
+
+        return redirect()->route('siswa.dashboard');
+    }
+
+    public function savePreferences(Request $request): RedirectResponse
+    {
+        $user = Auth::guard('siswa')->user();
+        $validated = $request->validate([
+            'preferences' => 'array',
+        ]);
+
+        $user->update([
+            'notification_preferences' => $validated['preferences'] ?? [],
+        ]);
+
+        return back()->with('status', 'Pengaturan notifikasi disimpan.');
     }
 
     private function siswaDashboardData(?Request $request = null): array

@@ -11,13 +11,16 @@ class UserSiswa extends Authenticatable
 
     protected $table = 'user_siswa';
 
-    protected $fillable = ['name', 'email', 'password', 'nim', 'prodi', 'semester', 'profile_completed'];
+    protected $fillable = ['name', 'email', 'password', 'nim', 'prodi', 'semester', 'profile_completed', 'notification_preferences'];
 
     protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array
     {
-        return ['password' => 'hashed'];
+        return [
+            'password' => 'hashed',
+            'notification_preferences' => 'array',
+        ];
     }
 
     public function krs()
