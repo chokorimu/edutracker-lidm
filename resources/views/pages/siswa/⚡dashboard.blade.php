@@ -117,7 +117,6 @@
                     });
                 </script>
 
-@endsection
                                 <div class="bg-white border border-bone-dark rounded-[24px] p-6 shadow-sm">
                     <h3 class="text-sm font-bold text-appleDark mb-4">Kalender Tugas Bulanan</h3>
                     <div class="flex justify-between items-center mb-6">
