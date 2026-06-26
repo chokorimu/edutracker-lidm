@@ -30,9 +30,6 @@ class DashboardController extends Controller
     public function siswa(Request $request): View|RedirectResponse
     {
         $user = Auth::guard('siswa')->user();
-        if ($user && ! $user->profile_completed) {
-            return redirect()->route('siswa.onboarding.show');
-        }
         $tabs = ['dashboard', 'calendar', 'monitoring', 'analytics', 'notifications', 'profile'];
         $currentTab = $request->query('tab', 'dashboard');
 
@@ -75,26 +72,6 @@ class DashboardController extends Controller
         }
 
         return redirect()->route('login');
-    }
-
-    public function onboardingShow(): View
-    {
-        $user = Auth::guard('siswa')->user();
-        $data = $this->siswaDashboardData();
-        $data['profile']['profile_completed'] = $user->profile_completed;
-
-        return view('pages.siswa.⚡onboarding', [
-            'currentTab' => 'dashboard',
-            'data' => $data,
-        ]);
-    }
-
-    public function onboardingComplete(Request $request): RedirectResponse
-    {
-        $user = Auth::guard('siswa')->user();
-        $user->update(['profile_completed' => true]);
-
-        return redirect()->route('siswa.dashboard');
     }
 
     public function savePreferences(Request $request): RedirectResponse
@@ -350,9 +327,9 @@ class DashboardController extends Controller
                 'prodi' => $user->prodi ?? '-',
                 'semester' => $user->semester ?? 1,
                 'angkatan' => $angkatan,
-                'ipk' => $latestIpk?->ipk ?? 0.0,
-                'sks_lulus' => $sksLulus ?: ($latestIpk?->total_sks ?? 0),
-                'sks_semester' => $sksSemester ?: 0,
+                'ipk' => $latestIpk?->ipk ?? '-',
+                'sks_lulus' => $sksLulus,
+                'sks_semester' => $sksSemester,
                 'dosen_pa' => $dosenPaName,
                 'weekly_status' => $weeklyStatus,
             ],
@@ -369,64 +346,81 @@ class DashboardController extends Controller
             'calendar_previous' => ['month' => $previousMonth->month, 'year' => $previousMonth->year],
             'calendar_next' => ['month' => $nextMonth->month, 'year' => $nextMonth->year],
             'weekly_task_count' => $weeklyTaskCount,
-            'deadline_terdekat' => $deadlineTerdekat,
             'status_beban_label' => $statusBebanLabel,
             'status_beban_color' => $statusBebanColor,
-            'ipk_history' => $ipkHistory,
+            'weekly_status' => [
+                'label' => $statusBebanLabel,
+                'color' => $statusBebanColor,
+                'count' => $weeklyTaskCount,
+            ],
             'risk_score' => $riskScore,
             'sks_recommendation' => $sksRecommendation,
+            'deadline_terdekat' => $deadlineTerdekat,
+            'ipk_history' => $ipkHistory,
             'competency' => $competency,
+            'calendar' => [
+                'month' => $monthStart->translatedFormat('F'),
+                'year' => $monthStart->year,
+                'selected_day' => $selectedDay,
+                'selected_date' => $selectedDate->toDateString(),
+                'days_in_month' => $monthEnd->day,
+                'first_day_of_month' => $monthStart->dayOfWeekIso,
+                'day_tasks' => $selectedDayTasks,
+                'prev_month' => $previousMonth->format('m'),
+                'prev_year' => $previousMonth->year,
+                'next_month' => $nextMonth->format('m'),
+                'next_year' => $nextMonth->year,
+            ],
         ];
     }
 
-    private function extractAngkatan(?string $nim): int
+    private function extractAngkatan(string $nim): string
     {
-        if ($nim && preg_match('/^(\d{2})/', $nim, $m)) {
-            $year = (int) $m[1];
-
-            return $year > 50 ? 1900 + $year : 2000 + $year;
+        $prefix = substr($nim, 0, 2);
+        if (! is_numeric($prefix)) {
+            return '-';
         }
 
-        return (int) now()->format('Y');
+        $year = (int) $prefix + 2000;
+
+        return $year >= 2000 && $year <= 2100 ? (string) $year : '-';
     }
 
     private function diffForHumansId($date): string
     {
-        if (! $date) {
-            return '-';
-        }
-
-        $now = now();
-        $diffDays = (int) $date->diffInDays($now);
-        $diffHours = (int) $date->diffInHours($now);
-        $diffMinutes = (int) $date->diffInMinutes($now);
-
-        if ($diffDays > 0) {
-            return $diffDays.' hari yang lalu';
-        }
-        if ($diffHours > 0) {
-            return $diffHours.' jam yang lalu';
-        }
-        if ($diffMinutes > 0) {
-            return $diffMinutes.' menit yang lalu';
-        }
-
-        return 'Baru saja';
+        return $date->diffForHumans();
     }
 
     private function emptySiswaData(): array
     {
-        $nowYear = (int) now()->format('Y');
-
         return [
             'profile' => [
-                'nim' => '-', 'nama' => '-', 'email' => '-',
-                'prodi' => '-', 'semester' => 1, 'angkatan' => $nowYear,
-                'ipk' => 0.0, 'sks_lulus' => 0, 'sks_semester' => 0, 'dosen_pa' => '-',
+                'nim' => '-', 'nama' => '-', 'email' => '-', 'prodi' => '-', 'semester' => 1, 'angkatan' => '-', 'ipk' => '-', 'sks_lulus' => 0, 'sks_semester' => 0, 'dosen_pa' => '-', 'weekly_status' => BebanCalculator::LIGHT,
             ],
             'matakuliah' => [],
             'tugas_mendatang' => [],
             'notifikasi' => [],
+            'daily_workload' => [],
+            'monthly_tasks' => collect(),
+            'month_start' => now()->startOfMonth(),
+            'month_end' => now()->endOfMonth(),
+            'selected_day' => now()->day,
+            'selected_date' => now(),
+            'selected_day_tasks' => [],
+            'calendar_previous' => ['month' => now()->subMonth()->month, 'year' => now()->subMonth()->year],
+            'calendar_next' => ['month' => now()->addMonth()->month, 'year' => now()->addMonth()->year],
+            'weekly_task_count' => 0,
+            'status_beban_label' => 'Tidak ada data',
+            'status_beban_color' => 'text-gray-400',
+            'weekly_status' => ['label' => 'Tidak ada data', 'color' => 'text-gray-400', 'count' => 0],
+            'risk_score' => 0,
+            'sks_recommendation' => ['sks' => 0, 'reason' => '-'],
+            'deadline_terdekat' => 0,
+            'ipk_history' => [],
+            'competency' => [],
+            'calendar' => [
+                'month' => '-', 'year' => '-', 'selected_day' => 1, 'selected_date' => '-', 'days_in_month' => 0, 'first_day_of_month' => 0, 'day_tasks' => [], 'prev_month' => '-', 'prev_year' => '-', 'next_month' => '-', 'next_year' => '-',
+            ],
         ];
     }
 }

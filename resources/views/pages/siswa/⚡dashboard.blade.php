@@ -117,18 +117,6 @@
                     });
                 </script>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const userProfileCompleted = {{ Js::from($data['profile']['profile_completed'] ?? false) }};
-        const currentRoute = window.location.pathname;
-        const isOnboardingPage = currentRoute.includes('/onboarding');
-
-        if (!userProfileCompleted && !isOnboardingPage) {
-            window.location.href = '{{ route('siswa.onboarding.show') }}';
-        }
-    });
-</script>
-@endsection
                                 <div class="bg-white border border-bone-dark rounded-[24px] p-6 shadow-sm">
                     <h3 class="text-sm font-bold text-appleDark mb-4">Kalender Tugas Bulanan</h3>
                     <div class="flex justify-between items-center mb-6">
