@@ -1,6 +1,8 @@
 # AI Warning Notes
 
-Read this before making more changes in EduTrack. These are mistakes that already happened or are easy to repeat.
+Read this before making more changes in EduTrack. These are mistakes that already happened or is easy to repeat.
+
+All known bugs from bug.md have been fixed, and bug.md has been removed.
 
 ## Routing And Roles
 
