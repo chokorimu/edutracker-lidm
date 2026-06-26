@@ -35,14 +35,6 @@ Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])
     ->name('siswa.dashboard')
     ->middleware('siswa');
 
-Route::get('/siswa/onboarding', [DashboardController::class, 'onboardingShow'])
-    ->name('siswa.onboarding.show')
-    ->middleware('siswa');
-
-Route::post('/siswa/onboarding/complete', [DashboardController::class, 'onboardingComplete'])
-    ->name('siswa.onboarding.complete')
-    ->middleware('siswa');
-
 Route::post('/siswa/preferences', [DashboardController::class, 'savePreferences'])
     ->name('siswa.preferences')
     ->middleware('siswa');
