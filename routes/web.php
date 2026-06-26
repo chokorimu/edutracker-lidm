@@ -17,6 +17,8 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/dashboard/{resource}', [AdminResourceController::class, 'store'])->name('resources.store');
     Route::put('/dashboard/{resource}/{id}', [AdminResourceController::class, 'update'])->name('resources.update');
     Route::delete('/dashboard/{resource}/{id}', [AdminResourceController::class, 'destroy'])->name('resources.destroy');
+    Route::get('/laporan', [AdminResourceController::class, 'laporanIndex'])->name('laporan.index');
+    Route::post('/laporan/generate', [AdminResourceController::class, 'laporanGenerate'])->name('laporan.generate');
     Route::post('/logout', [DashboardController::class, 'logoutAdmin'])->name('logout');
 });
 
@@ -31,6 +33,18 @@ Route::middleware('dosen')->prefix('dosen')->name('dosen.')->group(function () {
 
 Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])
     ->name('siswa.dashboard')
+    ->middleware('siswa');
+
+Route::get('/siswa/onboarding', [DashboardController::class, 'onboardingShow'])
+    ->name('siswa.onboarding.show')
+    ->middleware('siswa');
+
+Route::post('/siswa/onboarding/complete', [DashboardController::class, 'onboardingComplete'])
+    ->name('siswa.onboarding.complete')
+    ->middleware('siswa');
+
+Route::post('/siswa/preferences', [DashboardController::class, 'savePreferences'])
+    ->name('siswa.preferences')
     ->middleware('siswa');
 
 Route::post('/siswa/logout', [DashboardController::class, 'logoutSiswa'])

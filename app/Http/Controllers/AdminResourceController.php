@@ -366,4 +366,85 @@ class AdminResourceController extends Controller
 
         return $counts;
     }
+
+    public function laporanIndex(Request $request): View
+    {
+        $resources = $this->resources();
+        $laporans = Laporan::latest('id')->paginate(10)->withQueryString();
+        $prodis = UserSiswa::distinct()->pluck('prodi')->filter()->values();
+
+        return view('pages.admin.⚡dashboard', [
+            'user' => Auth::guard('admin')->user(),
+            'resources' => $resources,
+            'resourceKey' => 'laporan',
+            'config' => $resources['laporan'],
+            'records' => $laporans,
+            'counts' => $this->counts($resources),
+            'options' => $this->formOptions(),
+            'laporanProdis' => $prodis,
+        ]);
+    }
+
+    public function laporanGenerate(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'prodi' => 'nullable|string',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'tipe' => 'required|string',
+        ]);
+
+        $startDate = $validated['start_date'];
+        $endDate = $validated['end_date'];
+        $prodiFilter = $validated['prodi'] ?? null;
+        $tipe = $validated['tipe'];
+
+        $query = UserSiswa::query();
+        if ($prodiFilter) {
+            $query->where('prodi', $prodiFilter);
+        }
+        $students = $query->get();
+
+        $totalStudents = $students->count();
+        $avgIpk = $students->map(fn ($s) => $s->ipkHistory()->latest('semester')->first()?->ipk ?? 0)->avg() ?? 0;
+        $avgSks = $students->map(fn ($s) => $s->krs()->whereColumn('semester', 'user_siswa.semester')->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')->sum('mata_kuliah.sks'))->avg() ?? 0;
+
+        $overloadCount = 0;
+        $collisionCount = 0;
+
+        foreach ($students as $student) {
+            $sks = $student->krs()->whereColumn('semester', 'user_siswa.semester')
+                ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+                ->sum('mata_kuliah.sks');
+            if ($sks > 24) {
+                $overloadCount++;
+            }
+
+            $tasks = $student->krs()
+                ->whereColumn('semester', 'user_siswa.semester')
+                ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+                ->join('tugas', 'tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
+                ->whereBetween('tugas.deadline', [$startDate, $endDate])
+                ->count();
+            if ($tasks >= 3) {
+                $collisionCount++;
+            }
+        }
+
+        $htmlContent = "<h1>Laporan Akademik</h1><p>Tipe: {$tipe}</p><p>Periode: {$startDate} - {$endDate}</p><p>Total Mahasiswa: {$totalStudents}</p><p>Rata-rata IPK: ".number_format($avgIpk, 2).'</p><p>Rata-rata SKS: '.number_format($avgSks, 1)."</p><p>Overload (>24 SKS): {$overloadCount}</p><p>Deadline Padat (>3 tugas/minggu): {$collisionCount}</p>";
+
+        $fileName = 'laporan_'.$tipe.'_'.date('YmdHis').'.html';
+        $filePath = 'laporans/'.$fileName;
+        \Storage::disk('public')->put($filePath, $htmlContent);
+
+        Laporan::create([
+            'judul' => 'Laporan '.$tipe.' - '.$startDate.' s.d. '.$endDate,
+            'tipe' => $tipe,
+            'periode' => $startDate.' - '.$endDate.($prodiFilter ? ' ('.$prodiFilter.')' : ''),
+            'file_path' => $filePath,
+            'created_by' => Auth::guard('admin')->id(),
+        ]);
+
+        return redirect()->route('admin.laporan.index')->with('status', 'Laporan berhasil dibuat.');
+    }
 }

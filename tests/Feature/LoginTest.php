@@ -65,6 +65,7 @@ class LoginTest extends TestCase
             'nim' => '220101999',
             'prodi' => 'Informatika',
             'semester' => 4,
+            'profile_completed' => true,
         ]);
 
         $this->withSession([]);

@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Krs;
 use App\Models\IpkHistory;
+use App\Models\Krs;
 use App\Models\MataKuliah;
 use App\Models\NilaiTugas;
 use App\Models\Notifikasi;
@@ -27,6 +27,7 @@ class SiswaDashboardTest extends TestCase
             'nim' => '220101001',
             'prodi' => 'Informatika',
             'semester' => 1,
+            'profile_completed' => true,
         ]);
 
         // 2. Setup Dosen
@@ -71,6 +72,7 @@ class SiswaDashboardTest extends TestCase
             'email' => 'siswa1@test.test',
             'name' => 'Siswa Sem 1',
             'semester' => 1,
+            'profile_completed' => true,
         ]);
 
         $this->assertDatabaseHas('krs', [
@@ -103,6 +105,7 @@ class SiswaDashboardTest extends TestCase
             'nim' => '220101002',
             'prodi' => 'Informatika',
             'semester' => 3,
+            'profile_completed' => true,
         ]);
         $dosen = UserDosen::create([
             'name' => 'Dosen Analytics',

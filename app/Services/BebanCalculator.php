@@ -140,7 +140,7 @@ class BebanCalculator
                 $join->on('tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
                     ->whereBetween('tugas.deadline', [
                         $weekStart->toDateString(),
-                        $weekEnd->toDateString()
+                        $weekEnd->toDateString(),
                     ]);
             })
             ->selectRaw('
@@ -148,7 +148,7 @@ class BebanCalculator
                 SUM(CASE WHEN tugas.deadline >= ? AND tugas.deadline <= ? THEN 1 ELSE 0 END) as urgent_count
             ', [
                 now()->startOfDay()->toDateString(),
-                now()->addDays(self::URGENT_TASK_DAYS)->endOfDay()->toDateString()
+                now()->addDays(self::URGENT_TASK_DAYS)->endOfDay()->toDateString(),
             ])
             ->first();
 
@@ -368,22 +368,19 @@ class BebanCalculator
         $start = $weekStart instanceof \DateTimeInterface ? $weekStart->format('Y-m-d') : Carbon::parse($weekStart)->toDateString();
         $end = $weekEnd instanceof \DateTimeInterface ? $weekEnd->format('Y-m-d') : Carbon::parse($weekEnd)->toDateString();
 
-        $taskCounts = UserSiswa::select('user_siswas.id')
+        $taskCounts = UserSiswa::select('user_siswa.id')
             ->leftJoin('krs', function ($join) {
-                $join->on('krs.siswa_id', '=', 'user_siswas.id')
-                    ->on('krs.semester', '=', 'user_siswas.semester'); // Match current semester
+                $join->on('krs.siswa_id', '=', 'user_siswa.id')
+                    ->on('krs.semester', '=', 'user_siswa.semester');
             })
             ->leftJoin('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
-            ->leftJoin('tugas', function ($join) use ($weekStart, $weekEnd) {
+            ->leftJoin('tugas', function ($join) use ($start, $end) {
                 $join->on('tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
-                    ->whereBetween('tugas.deadline', [
-                        $weekStart->toDateString(),
-                        $weekEnd->toDateString()
-                    ]);
+                    ->whereBetween('tugas.deadline', [$start, $end]);
             })
-            ->groupBy('user_siswas.id')
+            ->groupBy('user_siswa.id')
             ->selectRaw('COUNT(tugas.id) as task_count')
-            ->pluck('task_count', 'user_siswas.id');
+            ->pluck('task_count', 'user_siswa.id');
 
         foreach ($taskCounts as $count) {
             $status = self::forCount((int) $count);

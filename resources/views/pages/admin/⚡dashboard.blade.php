@@ -56,6 +56,39 @@
             </div>
         @endif
 
+        @if ($resourceKey === 'laporan')
+            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm mb-6">
+                <h2 class="text-lg font-semibold mb-4">Generate Laporan Akademik</h2>
+                <form method="POST" action="{{ route('admin.laporan.generate') }}" class="space-y-4">
+                    @csrf
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Periode Mulai</label>
+                            <input type="date" name="start_date" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Periode Akhir</label>
+                            <input type="date" name="end_date" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none" required>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Filter Prodi (opsional)</label>
+<select name="prodi" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none">
+    <option value="">Semua Prodi</option>
+    @foreach($laporanProdis ?? [] as $prodi)
+        <option value="{{ $prodi }}">{{ $prodi }}</option>
+    @endforeach
+</select>
+                            </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700">
+                            Generate Laporan
+                        </button>
+                    </div>
+                </form>
+            </section>
+        @endif
+
         <div class="grid gap-6 lg:grid-cols-[240px_1fr]">
             <aside class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                 <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Data Master</h2>
