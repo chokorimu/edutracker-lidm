@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MataKuliah;
 use App\Models\Tugas;
 use App\Services\BebanCalculator;
 use Carbon\Carbon;
@@ -102,45 +101,48 @@ class DashboardController extends Controller
         $nim = $user->nim;
         $angkatan = $this->extractAngkatan($nim);
 
-        // IPK terakhir
         $latestIpk = $user->ipkHistory()->latest('semester')->first();
 
-        // Total SKS lulus (KRS status selesai)
-        $sksLulus = MataKuliah::whereIn('id', function ($q) use ($user) {
-            $q->select('mata_kuliah_id')
-                ->from('krs')
-                ->where('siswa_id', $user->id)
-                ->where('status', 'selesai');
-        })->sum('sks');
-
-        // Total SKS semester ini
-        $sksSemester = MataKuliah::whereIn('id', function ($q) use ($user) {
-            $q->select('mata_kuliah_id')
-                ->from('krs')
-                ->where('siswa_id', $user->id)
-                ->where('semester', $user->semester);
-        })->sum('sks');
-
-        // Dosen PA terakhir
         $dosenPa = $user->dosenPa()->with('dosen')->latest()->first();
         $dosenPaName = $dosenPa?->dosen?->name ?? '-';
 
-        // Mata kuliah semester ini
+        $allCourseIds = $user->krs()
+            ->pluck('mata_kuliah_id')
+            ->filter()
+            ->unique()
+            ->values();
+
         $krsList = $user->krs()
             ->with('mataKuliah')
             ->where('semester', $user->semester)
             ->get();
 
-        $matakuliah = $krsList->map(function ($krs) {
+        $currentCourseIds = $krsList->pluck('mata_kuliah_id')->filter()->values();
+        $sksSemester = $krsList->sum(fn ($krs) => (int) ($krs->mataKuliah?->sks ?? 0));
+        $sksLulus = (int) $user->krs()
+            ->where('status', 'selesai')
+            ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+            ->sum('mata_kuliah.sks');
+
+        $taskCountsByCourse = Tugas::whereIn('mata_kuliah_id', $currentCourseIds)
+            ->selectRaw('mata_kuliah_id, COUNT(*) as aggregate')
+            ->groupBy('mata_kuliah_id')
+            ->pluck('aggregate', 'mata_kuliah_id');
+
+        $weeklyTaskCountsByCourse = Tugas::whereIn('mata_kuliah_id', $currentCourseIds)
+            ->whereBetween('deadline', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->selectRaw('mata_kuliah_id, COUNT(*) as aggregate')
+            ->groupBy('mata_kuliah_id')
+            ->pluck('aggregate', 'mata_kuliah_id');
+
+        $matakuliah = $krsList->map(function ($krs) use ($taskCountsByCourse, $weeklyTaskCountsByCourse) {
             $mk = $krs->mataKuliah;
             if (! $mk) {
                 return null;
             }
 
-            $tugasCount = $mk->tugas()->count();
-            $weeklyTugasCount = $mk->tugas()
-                ->whereBetween('deadline', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])
-                ->count();
+            $tugasCount = (int) $taskCountsByCourse->get($mk->id, 0);
+            $weeklyTugasCount = (int) $weeklyTaskCountsByCourse->get($mk->id, 0);
             $statusBeban = BebanCalculator::forCount($weeklyTugasCount);
 
             return [
@@ -156,10 +158,7 @@ class DashboardController extends Controller
             ];
         })->filter()->values()->toArray();
 
-        // Tugas mendatang (4 terdekat)
-        $tugasMendatang = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
-            $q->where('siswa_id', $user->id);
-        })
+        $tugasMendatang = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->whereDate('deadline', '>=', now()->startOfDay())
             ->with('mataKuliah')
             ->orderBy('deadline')
@@ -194,7 +193,6 @@ class DashboardController extends Controller
             })
             ->toArray();
 
-        // Notifikasi (5 terbaru)
         $notifikasi = $user->notifikasi()
             ->latest()
             ->take(5)
@@ -221,15 +219,18 @@ class DashboardController extends Controller
             })
             ->toArray();
 
-        // Data for daily workload chart
+        $weeklyTasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
+            ->whereBetween('deadline', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->get(['deadline']);
+        $weeklyTaskCount = $weeklyTasks->count();
+        $dailyTaskCounts = $weeklyTasks
+            ->groupBy(fn ($task) => Carbon::parse($task->deadline)->toDateString())
+            ->map->count();
+
         $dailyWorkload = [];
         for ($i = 0; $i < 7; $i++) {
             $date = $startOfWeek->copy()->addDays($i);
-            $count = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
-                $q->where('siswa_id', $user->id);
-            })
-                ->whereDate('deadline', $date->toDateString())
-                ->count();
+            $count = (int) $dailyTaskCounts->get($date->toDateString(), 0);
 
             $dailyWorkload[] = [
                 'day' => $date->translatedFormat('D'),
@@ -238,25 +239,15 @@ class DashboardController extends Controller
             ];
         }
 
-        // Weekly overload status
-        $weeklyTaskCount = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
-            $q->where('siswa_id', $user->id);
-        })
-            ->whereBetween('deadline', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
-            ->count();
         $weeklyStatus = BebanCalculator::forCount($weeklyTaskCount);
 
         $riskScore = BebanCalculator::riskScoreForStudent($user, $startOfWeek, $endOfWeek);
         $sksRecommendation = BebanCalculator::recommendSks($user, $riskScore);
 
-        // Deadline terdekat (tugas < 4 hari)
-        $deadlineTerdekat = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
-            $q->where('siswa_id', $user->id);
-        })
+        $deadlineTerdekat = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->whereBetween('deadline', [now()->startOfDay(), now()->addDays(3)->endOfDay()])
             ->count();
 
-        // Label bahasa untuk status beban
         $statusBebanLabel = match ($weeklyStatus) {
             BebanCalculator::LIGHT => 'Ringan',
             BebanCalculator::NORMAL => 'Normal',
@@ -265,7 +256,6 @@ class DashboardController extends Controller
             default => 'Ringan',
         };
 
-        // Warna status beban
         $statusBebanColor = match ($weeklyStatus) {
             BebanCalculator::LIGHT => 'text-appleGreen',
             BebanCalculator::NORMAL => 'text-appleOrange',
@@ -274,7 +264,6 @@ class DashboardController extends Controller
             default => 'text-appleGreen',
         };
 
-        // IPK history (for chart)
         $ipkHistory = $user->ipkHistory()
             ->orderBy('semester')
             ->get()
@@ -282,7 +271,6 @@ class DashboardController extends Controller
             ->toArray();
         $competency = BebanCalculator::competencyByCourse($user);
 
-        // Monthly calendar — with optional month/year nav from query
         $calendarMonth = $request?->query('month');
         $calendarYear = $request?->query('year');
         if ($calendarMonth && $calendarYear) {
@@ -292,9 +280,7 @@ class DashboardController extends Controller
             $monthStart = $now->copy()->startOfMonth();
             $monthEnd = $now->copy()->endOfMonth();
         }
-        $monthlyTasks = Tugas::whereHas('mataKuliah.krs', function ($q) use ($user) {
-            $q->where('siswa_id', $user->id);
-        })
+        $monthlyTasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->with('mataKuliah')
             ->whereBetween('deadline', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->orderBy('deadline')
