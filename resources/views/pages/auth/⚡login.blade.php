@@ -1,11 +1,12 @@
 <?php
 
-use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Component;
 
 new class extends Component
 {
     public string $email = '';
+
     public string $password = '';
 
     public function login()
@@ -24,6 +25,7 @@ new class extends Component
             if (request()->hasSession()) {
                 request()->session()->regenerate();
             }
+
             return redirect()->route('admin.dashboard');
         }
 
@@ -31,6 +33,7 @@ new class extends Component
             if (request()->hasSession()) {
                 request()->session()->regenerate();
             }
+
             return redirect()->route('dosen.dashboard');
         }
 
@@ -38,7 +41,16 @@ new class extends Component
             if (request()->hasSession()) {
                 request()->session()->regenerate();
             }
+
             return redirect()->route('siswa.dashboard');
+        }
+
+        if (Auth::guard('prodi')->attempt($credentials)) {
+            if (request()->hasSession()) {
+                request()->session()->regenerate();
+            }
+
+            return redirect()->route('prodi.dashboard');
         }
 
         $this->addError('email', 'Email atau password salah.');

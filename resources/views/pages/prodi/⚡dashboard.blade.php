@@ -26,6 +26,11 @@
 
     {{-- Chart + Table --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="lg:col-span-2 bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
+            <h3 class="text-sm font-bold text-appleDark mb-4">Tren Beban Keseluruhan 8 Minggu</h3>
+            <canvas id="weeklyTrendChart" height="90"></canvas>
+        </div>
+
         {{-- Load Distribution Chart --}}
         <div class="bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
             <h3 class="text-sm font-bold text-appleDark mb-4">Distribusi Beban Minggu Ini</h3>
@@ -74,6 +79,25 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const distData = @json($distribution);
+    const trendData = @json($trend);
+    new Chart(document.getElementById('weeklyTrendChart'), {
+        type: 'line',
+        data: {
+            labels: trendData.map(item => item.label),
+            datasets: [
+                { label: 'Ringan', data: trendData.map(item => item.ringan), borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.08)', tension: 0.35 },
+                { label: 'Normal', data: trendData.map(item => item.normal), borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.08)', tension: 0.35 },
+                { label: 'Berat', data: trendData.map(item => item.berat), borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.08)', tension: 0.35 },
+                { label: 'Overload', data: trendData.map(item => item.overload), borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', tension: 0.35 },
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
     new Chart(document.getElementById('loadDistChart'), {
         type: 'doughnut',
         data: {

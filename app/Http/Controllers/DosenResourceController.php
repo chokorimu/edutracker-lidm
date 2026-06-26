@@ -33,6 +33,7 @@ class DosenResourceController extends Controller
             case 'tugas':
                 $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)->get();
                 $mkIds = $data['mataKuliahList']->pluck('id');
+                $data['aggregatePreview'] = BebanCalculator::aggregatePreviewForDosen($user);
                 $data['tugasList'] = Tugas::whereIn('mata_kuliah_id', $mkIds)
                     ->with('mataKuliah')
                     ->latest()
@@ -52,6 +53,7 @@ class DosenResourceController extends Controller
                 $data['weekEnd'] = $weekEnd;
                 $data['nextWeekStart'] = $nextWeekStart;
                 $data['nextWeekEnd'] = $nextWeekEnd;
+                $data['paRiskCards'] = BebanCalculator::paRiskCards($user);
 
                 $data['workloadData'] = $data['mataKuliahList']->map(function ($mk) use ($weekStart, $weekEnd, $nextWeekStart, $nextWeekEnd) {
                     return [
@@ -112,8 +114,11 @@ class DosenResourceController extends Controller
         $tugas->override = $request->boolean('override');
 
         if (! $request->boolean('override') && in_array($tugas->status_beban, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true)) {
+            $suggestions = BebanCalculator::rescheduleSuggestions($mk->id, $validated['deadline']);
+
             return back()
                 ->withInput()
+                ->with('deadline_suggestions', $suggestions)
                 ->withErrors([
                     'beban_warning' => "Peringatan: Beban tugas ini tergolong {$tugas->status_beban}. Silakan ubah deadline atau centang 'tetap lanjut' untuk tetap menyimpan.",
                 ]);
@@ -122,18 +127,15 @@ class DosenResourceController extends Controller
         $tugas->save();
 
         if (in_array($tugas->status_beban, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true)) {
-            $bimbinganSiswaIds = DosenPa::where('dosen_id', $user->id)->pluck('siswa_id');
-            foreach ($bimbinganSiswaIds as $siswaId) {
-                NotifikasiDosen::create([
-                    'dosen_id' => $user->id,
-                    'mata_kuliah_id' => $mk->id,
-                    'tugas_id' => $tugas->id,
-                    'judul' => "Beban tinggi: {$tugas->nama}",
-                    'pesan' => "Tugas {$tugas->nama} di {$mk->nama} tergolong {$tugas->status_beban} untuk mahasiswa bimbingan Anda.",
-                    'tipe' => 'beban_tinggi',
-                    'sumber' => 'system',
-                ]);
-            }
+            NotifikasiDosen::create([
+                'dosen_id' => $user->id,
+                'mata_kuliah_id' => $mk->id,
+                'tugas_id' => $tugas->id,
+                'judul' => "Beban tinggi: {$tugas->nama}",
+                'pesan' => "Tugas {$tugas->nama} di {$mk->nama} tergolong {$tugas->status_beban} untuk mahasiswa bimbingan Anda.",
+                'tipe' => 'beban_tinggi',
+                'sumber' => 'system',
+            ]);
         }
 
         return redirect()->route('dosen.dashboard', ['tab' => 'tugas'])
@@ -159,7 +161,7 @@ class DosenResourceController extends Controller
         ]);
 
         $tugas->fill($validated);
-        $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline']);
+        $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline'], $tugas->id);
         $tugas->save();
 
         return redirect()->route('dosen.dashboard', ['tab' => 'tugas'])
@@ -191,7 +193,7 @@ class DosenResourceController extends Controller
             ->with('status', 'Notifikasi dibaca.');
     }
 
-    private function computeStatusBeban(int $mataKuliahId, string $deadline): string
+    private function computeStatusBeban(int $mataKuliahId, string $deadline, ?int $excludeTugasId = null): string
     {
         $deadlineDate = Carbon::parse($deadline);
         $weekStart = (clone $deadlineDate)->startOfWeek();
@@ -204,21 +206,28 @@ class DosenResourceController extends Controller
         }
 
         $worst = BebanCalculator::LIGHT;
+        $severity = [
+            BebanCalculator::LIGHT => 0,
+            BebanCalculator::NORMAL => 1,
+            BebanCalculator::HEAVY => 2,
+            BebanCalculator::OVERLOAD => 3,
+        ];
 
         foreach ($siswaIds as $siswaId) {
             $studentCourseIds = Krs::where('siswa_id', $siswaId)->pluck('mata_kuliah_id');
 
             $count = Tugas::whereIn('mata_kuliah_id', $studentCourseIds)
                 ->whereBetween('deadline', [$weekStart->toDateString(), $weekEnd->toDateString()])
-                ->count();
+                ->when($excludeTugasId, fn ($q) => $q->where('id', '!=', $excludeTugasId))
+                ->count() + 1;
 
             $status = BebanCalculator::forCount($count);
 
             if ($status === BebanCalculator::OVERLOAD) {
                 return BebanCalculator::OVERLOAD;
             }
-            if ($status === BebanCalculator::HEAVY) {
-                $worst = BebanCalculator::HEAVY;
+            if ($severity[$status] > $severity[$worst]) {
+                $worst = $status;
             }
         }
 

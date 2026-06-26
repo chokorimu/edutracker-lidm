@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Krs;
+use App\Models\IpkHistory;
 use App\Models\MataKuliah;
+use App\Models\NilaiTugas;
 use App\Models\Notifikasi;
+use App\Models\Tugas;
 use App\Models\UserDosen;
 use App\Models\UserSiswa;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -89,5 +92,72 @@ class SiswaDashboardTest extends TestCase
 
         // Verify the page shows the semester info (SKS = 3) and the row exists
         $response->assertSee('3 SKS');
+    }
+
+    public function test_siswa_analytics_and_calendar_are_data_driven(): void
+    {
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Analytics',
+            'email' => 'analytics@test.test',
+            'password' => bcrypt('siswa123'),
+            'nim' => '220101002',
+            'prodi' => 'Informatika',
+            'semester' => 3,
+        ]);
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Analytics',
+            'email' => 'dosen-analytics@test.test',
+            'password' => bcrypt('dosen123'),
+            'nidn' => 'NIDN-002',
+            'fakultas' => 'Teknik',
+        ]);
+        $mk = MataKuliah::create([
+            'nama' => 'Basis Data Lanjut',
+            'kode' => 'BDL01',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'semester' => 3,
+            'tahun_ajaran' => '2026/2027',
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mk->id,
+            'semester' => 3,
+            'status' => 'aktif',
+            'tahun_ajaran' => '2026/2027',
+        ]);
+        IpkHistory::create([
+            'siswa_id' => $siswa->id,
+            'semester' => 2,
+            'tahun_ajaran' => '2025/2026',
+            'ipk' => 3.25,
+            'total_sks' => 40,
+            'rekomendasi_sks' => 21,
+        ]);
+        $task = Tugas::create([
+            'mata_kuliah_id' => $mk->id,
+            'nama' => 'Analisis Normalisasi',
+            'bobot' => 20,
+            'deadline' => now()->day(15)->toDateString(),
+            'deskripsi' => 'Tugas DB',
+        ]);
+        NilaiTugas::create([
+            'tugas_id' => $task->id,
+            'siswa_id' => $siswa->id,
+            'nilai' => 88,
+        ]);
+
+        $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard', ['tab' => 'analytics']))
+            ->assertOk()
+            ->assertSee('21 SKS')
+            ->assertSee('Basis Data Lanjut')
+            ->assertSee('Sangat Baik');
+
+        $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard', ['tab' => 'calendar', 'month' => now()->month, 'year' => now()->year, 'day' => 15]))
+            ->assertOk()
+            ->assertSee('Timeline Deadline')
+            ->assertSee('Analisis Normalisasi');
     }
 }

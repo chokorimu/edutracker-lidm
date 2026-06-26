@@ -45,6 +45,32 @@
                     @if ($errors->has('beban_warning'))
                         <div class="bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-3 rounded-md mb-4 text-sm">
                             {{ $errors->first('beban_warning') }}
+                            @if(session('deadline_suggestions'))
+                                <div class="mt-3">
+                                    <p class="font-semibold mb-2">Saran jadwal yang lebih aman:</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach(session('deadline_suggestions') as $suggestion)
+                                            <button type="button"
+                                                    data-deadline-suggestion="{{ $suggestion['value'] }}"
+                                                    class="px-3 py-1 rounded-full bg-white border border-yellow-300 text-yellow-900 text-xs hover:bg-yellow-50">
+                                                {{ $suggestion['label'] }} · {{ $suggestion['count'] }} tugas
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
+                    @if(count($data['aggregatePreview']))
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+                            @foreach($data['aggregatePreview'] as $preview)
+                                <div class="border rounded-lg p-3 {{ $preview['color'] }}">
+                                    <p class="text-xs font-semibold">{{ $preview['nama'] }} ({{ $preview['kode'] }})</p>
+                                    <p class="text-[11px] mt-1">{{ $preview['students'] }} mahasiswa · rata-rata {{ $preview['avg_tasks'] }} tugas minggu ini</p>
+                                    <p class="text-[11px] font-bold mt-1">Status terberat: {{ $preview['label'] }}</p>
+                                </div>
+                            @endforeach
                         </div>
                     @endif
 
@@ -80,7 +106,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Deadline</label>
-                                <input type="datetime-local" name="deadline" value="{{ old('deadline') }}" required
+                                <input type="datetime-local" name="deadline" id="deadline" value="{{ old('deadline') }}" required
                                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
                             </div>
                         </div>
@@ -95,6 +121,16 @@
                             </button>
                         </div>
                     </form>
+                    <script>
+                        document.querySelectorAll("[data-deadline-suggestion]").forEach((button) => {
+                            button.addEventListener("click", () => {
+                                const deadlineInput = document.getElementById("deadline");
+                                if (deadlineInput) {
+                                    deadlineInput.value = button.dataset.deadlineSuggestion;
+                                }
+                            });
+                        });
+                    </script>
                 </div>
 
                 {{-- Tasks List --}}
@@ -153,6 +189,23 @@
                     <h2 class="text-lg font-semibold mb-4">Beban Tugas Mahasiswa</h2>
                     <p class="text-xs text-gray-400 mb-4">Minggu ini: {{ $data['weekStart']->format('d/m/Y') }} – {{ $data['weekEnd']->format('d/m/Y') }}</p>
 
+                    @if(count($data['paRiskCards']))
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                            @foreach($data['paRiskCards'] as $student)
+                                <div class="border rounded-lg p-4 {{ $student['color'] }}">
+                                    <div class="flex justify-between gap-3">
+                                        <div>
+                                            <h3 class="text-sm font-bold">{{ $student['nama'] }}</h3>
+                                            <p class="text-[11px] opacity-80">{{ $student['nim'] }}</p>
+                                        </div>
+                                        <span class="text-lg font-bold">{{ $student['risk_score'] }}%</span>
+                                    </div>
+                                    <p class="text-xs mt-2">{{ $student['task_count'] }} tugas minggu ini · {{ $student['label'] }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
                     @forelse($data['workloadData'] as $mk)
                         <div class="border border-gray-200 rounded-lg p-4 mb-4">
                             <h3 class="font-medium text-sm mb-2">{{ $mk['nama'] }} ({{ $mk['kode'] }})</h3>
@@ -163,7 +216,8 @@
                                     $next = collect($mk['nextWeek'])->firstWhere('siswa_id', $s['siswa_id']);
                                     return [
                                         'nama' => $s['nama_siswa'],
-                                        'siswa_id' => $s['siswa_id'], // placeholder, real NIM not needed for load view
+                                        'siswa_id' => $s['siswa_id'],
+                                        'nim' => $s['nim'],
                                         'weekCount' => $s['count'],
                                         'weekLoad' => $s['status'],
                                         'nextWeekCount' => $next['count'] ?? 0,
@@ -189,7 +243,7 @@
                     @foreach($students as $s)
                                             <tr class="border-b border-gray-100">
                                                 <td class="py-1 px-1">{{ $s['nama'] }}</td>
-                                                <td class="py-1 px-1">{{ $s['siswa_id'] }}</td>
+                                                <td class="py-1 px-1">{{ $s['nim'] ?? $s['siswa_id'] }}</td>
                                                 <td class="py-1 px-1">
                                                     <span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium
                                                         {{ $s['weekLoad'] === BebanCalculator::LIGHT ? 'bg-green-100 text-green-700' : '' }}

@@ -2,10 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Models\DosenPa;
+use App\Models\Krs;
 use App\Models\Notifikasi;
 use App\Models\NotifikasiDosen;
 use App\Models\UserSiswa;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class CheckBebanAkademik extends Command
 {
@@ -18,57 +21,100 @@ class CheckBebanAkademik extends Command
         $overloadSksThreshold = 24;
         $deadlineCollisionThreshold = 3;
         $collisionWindowDays = 7;
+        $chunkSize = 100;
 
-        $allSiswa = UserSiswa::with(['krs.mataKuliah.tugas', 'dosenPa.dosen'])->get();
+        $collisionStart = now()->toDateString();
+        $collisionEnd = now()->copy()->addDays($collisionWindowDays)->endOfDay()->toDateString();
 
-        foreach ($allSiswa as $siswa) {
-            $semester = $siswa->semester;
+        UserSiswa::chunk($chunkSize, function ($students) use ($overloadSksThreshold, $deadlineCollisionThreshold, $collisionWindowDays, $collisionStart, $collisionEnd) {
+            $studentIds = $students->pluck('id');
 
-            // 1. Check SKS overload
-            $totalSks = $siswa->krs
-                ->where('semester', $semester)
-                ->sum(fn ($krs) => $krs->mataKuliah?->sks ?? 0);
+            $sksByStudent = Krs::query()
+                ->from('krs')
+                ->selectRaw('krs.siswa_id as siswa_id, SUM(COALESCE(mata_kuliah.sks, 0)) as total_sks')
+                ->join('user_siswa', 'user_siswa.id', '=', 'krs.siswa_id')
+                ->leftJoin('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+                ->whereIn('krs.siswa_id', $studentIds)
+                ->whereColumn('krs.semester', 'user_siswa.semester')
+                ->groupBy('krs.siswa_id')
+                ->pluck('total_sks', 'krs.siswa_id');
 
-            if ($totalSks > $overloadSksThreshold) {
-                Notifikasi::create([
-                    'siswa_id' => $siswa->id,
-                    'judul' => 'Beban SKS Overload',
-                    'pesan' => "Beban SKS kamu semester ini ({$totalSks} SKS) melebihi batas aman.",
-                    'tipe' => 'overload_sks',
-                    'sumber' => 'system',
-                    'is_read' => false,
-                ]);
+            $collisionByStudent = Krs::query()
+                ->from('krs')
+                ->selectRaw('krs.siswa_id as siswa_id, COUNT(tugas.id) as collision_count')
+                ->join('user_siswa', 'user_siswa.id', '=', 'krs.siswa_id')
+                ->leftJoin('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+                ->leftJoin('tugas', function ($join) use ($collisionStart, $collisionEnd) {
+                    $join->on('tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
+                        ->whereBetween('tugas.deadline', [$collisionStart, $collisionEnd])
+                        ->where('tugas.deadline', '>=', now()->toDateString());
+                })
+                ->whereIn('krs.siswa_id', $studentIds)
+                ->whereColumn('krs.semester', 'user_siswa.semester')
+                ->whereNotNull('tugas.id')
+                ->groupBy('krs.siswa_id')
+                ->pluck('collision_count', 'krs.siswa_id');
 
-                $dosenPa = $siswa->dosenPa;
-                if ($dosenPa?->dosen) {
-                    NotifikasiDosen::create([
-                        'dosen_id' => $dosenPa->dosen_id,
-                        'judul' => "SKS Overload: {$siswa->name}",
-                        'pesan' => "Mahasiswa {$siswa->name} ({$siswa->nim}) memiliki beban {$totalSks} SKS (overload).",
-                        'tipe' => 'peringatan_siswa',
-                        'sumber' => 'system',
-                        'is_read' => false,
-                    ]);
+                $students->load('dosenPa.dosen');
+
+            foreach ($students as $siswa) {
+                try {
+                    $totalSks = (int) ($sksByStudent[$siswa->id] ?? 0);
+
+                    if ($totalSks > $overloadSksThreshold) {
+                        Notifikasi::create([
+                            'siswa_id' => $siswa->id,
+                            'judul' => 'Beban SKS Overload',
+                            'pesan' => "Beban SKS kamu semester ini ({$totalSks} SKS) melebihi batas aman.",
+                            'tipe' => 'overload_sks',
+                            'sumber' => 'system',
+                            'is_read' => false,
+                        ]);
+
+                        $dosenPa = $latestPaPerStudent[$siswa->id] ?? $siswa->dosenPa->sortByDesc('created_at')->first();
+                        if ($dosenPa?->dosen) {
+                            NotifikasiDosen::create([
+                                'dosen_id' => $dosenPa->dosen_id,
+                                'judul' => "SKS Overload: {$siswa->name}",
+                                'pesan' => "Mahasiswa {$siswa->name} ({$siswa->nim}) memiliki beban {$totalSks} SKS (overload).",
+                                'tipe' => 'peringatan_siswa',
+                                'sumber' => 'system',
+                                'is_read' => false,
+                            ]);
+                        }
+                    }
+
+                    $collisionCount = (int) ($collisionByStudent[$siswa->id] ?? 0);
+
+                    if ($collisionCount >= $deadlineCollisionThreshold) {
+                        Notifikasi::create([
+                            'siswa_id' => $siswa->id,
+                            'judul' => 'Deadline Padat',
+                            'pesan' => "Ada {$collisionCount} tugas dalam {$collisionWindowDays} hari ke depan. Segera rencanakan waktumu!",
+                            'tipe' => 'deadline_collision',
+                            'sumber' => 'system',
+                            'is_read' => false,
+                        ]);
+
+                        $dosenPa = $latestPaPerStudent[$siswa->id] ?? $siswa->dosenPa->sortByDesc('created_at')->first();
+                        if ($dosenPa?->dosen) {
+                            NotifikasiDosen::create([
+                                'dosen_id' => $dosenPa->dosen_id,
+                                'judul' => "Deadline Padat: {$siswa->name}",
+                                'pesan' => "Mahasiswa {$siswa->name} ({$siswa->nim}) memiliki {$collisionCount} deadline dalam {$collisionWindowDays} hari ke depan.",
+                                'tipe' => 'deadline_collision',
+                                'sumber' => 'system',
+                                'is_read' => false,
+                            ]);
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    Log::error("CheckBebanAkademik failed for student {$siswa->id}: ".$e->getMessage());
+
+                    continue;
                 }
             }
-
-            // 2. Check deadline collision
-            $collisionCount = $siswa->krs
-                ->flatMap(fn ($krs) => $krs->mataKuliah?->tugas ?? collect())
-                ->filter(fn ($tugas) => $tugas->deadline >= now() && $tugas->deadline <= now()->addDays($collisionWindowDays))
-                ->count();
-
-            if ($collisionCount >= $deadlineCollisionThreshold) {
-                Notifikasi::create([
-                    'siswa_id' => $siswa->id,
-                    'judul' => 'Deadline Padat',
-                    'pesan' => "Ada {$collisionCount} tugas dalam {$collisionWindowDays} hari ke depan. Segera rencanakan waktumu!",
-                    'tipe' => 'deadline_collision',
-                    'sumber' => 'system',
-                    'is_read' => false,
-                ]);
-            }
-        }
+        });
 
         $this->info('Beban akademik check completed.');
 

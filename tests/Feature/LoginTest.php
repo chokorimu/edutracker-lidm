@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\UserAdmin;
 use App\Models\UserDosen;
+use App\Models\UserProdi;
 use App\Models\UserSiswa;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
@@ -75,6 +76,25 @@ class LoginTest extends TestCase
             ->assertRedirect(route('siswa.dashboard'));
 
         $this->assertTrue(Auth::guard('siswa')->check());
+    }
+
+    public function test_prodi_can_login(): void
+    {
+        $prodi = UserProdi::create([
+            'name' => 'Prodi Test',
+            'email' => 'prodi@example.test',
+            'password' => Hash::make('secret123'),
+        ]);
+
+        $this->withSession([]);
+
+        Livewire::test('pages::auth.login')
+            ->set('email', $prodi->email)
+            ->set('password', 'secret123')
+            ->call('login')
+            ->assertRedirect(route('prodi.dashboard'));
+
+        $this->assertTrue(Auth::guard('prodi')->check());
     }
 
     public function test_login_rejects_invalid_credentials(): void

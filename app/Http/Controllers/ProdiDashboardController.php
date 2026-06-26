@@ -25,6 +25,7 @@ class ProdiDashboardController extends Controller
 
         // Course average tasks per week
         $courseAverages = BebanCalculator::averageTasksPerWeekPerCourse();
+        $weeklyTrend = BebanCalculator::prodiWeeklyTrend();
 
         // Notification breakdown in last 30 days
         $notifOverloadSks = Notifikasi::where('tipe', 'overload_sks')
@@ -46,6 +47,7 @@ class ProdiDashboardController extends Controller
                 'notif_lainnya' => $notifOther,
             ],
             'distribution' => $loadDistribution,
+            'trend' => $weeklyTrend,
             'courses' => $courseAverages,
         ]);
     }
