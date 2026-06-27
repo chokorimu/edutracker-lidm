@@ -106,6 +106,69 @@
             </aside>
 
             <main class="space-y-6">
+                @if ($resourceKey === 'krs' && ! $editing)
+                    <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                        <div class="mb-4">
+                            <h2 class="text-lg font-semibold">Tambah KRS Paket</h2>
+                            <p class="text-sm text-gray-500">Pilih paket berdasarkan semester dan tahun ajaran, lalu masukkan semua mata kuliah paket ke satu siswa.</p>
+                        </div>
+
+                        <form method="POST" action="{{ route('admin.resources.store', $resourceKey) }}" class="grid gap-4 md:grid-cols-3">
+                            @csrf
+                            <input type="hidden" name="_mode" value="batch">
+
+                            <label class="block">
+                                <span class="mb-1 block text-sm font-medium text-gray-700">Siswa <span class="text-red-600">*</span></span>
+                                <select
+                                    name="siswa_id"
+                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                                    required
+                                >
+                                    <option value="">Pilih Siswa</option>
+                                    @foreach ($options['siswas'] as $siswa)
+                                        <option value="{{ $siswa->id }}" @selected((string) old('siswa_id') === (string) $siswa->id)>
+                                            {{ $siswa->name }} @if ($siswa->email ?? null) - {{ $siswa->email }} @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+
+                            <label class="block">
+                                <span class="mb-1 block text-sm font-medium text-gray-700">Paket KRS <span class="text-red-600">*</span></span>
+                                <select
+                                    name="krs_package"
+                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                                    required
+                                >
+                                    <option value="">Pilih Paket KRS</option>
+                                    @foreach ($options['krs_packages'] as $package)
+                                        <option value="{{ $package['key'] }}" @selected(old('krs_package') === $package['key'])>
+                                            {{ $package['label'] }} ({{ $package['total'] }} mata kuliah)
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+
+                            <label class="block">
+                                <span class="mb-1 block text-sm font-medium text-gray-700">Status <span class="text-red-600">*</span></span>
+                                <input
+                                    type="text"
+                                    name="status"
+                                    value="{{ old('status', 'aktif') }}"
+                                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                                    required
+                                >
+                            </label>
+
+                            <div class="md:col-span-3">
+                                <button type="submit" class="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700">
+                                    Tambahkan Paket KRS
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                @endif
+
                 <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                     <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>

@@ -2,38 +2,78 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="min-h-screen bg-gray-50">
-    <div class="max-w-6xl mx-auto px-4 py-6">
-
-        {{-- Header --}}
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Dashboard Dosen</h1>
-                <p class="text-sm text-gray-500 mt-1">Selamat datang, {{ $user->name }}</p>
-            </div>
-            <form method="POST" action="{{ route('dosen.logout') }}">
-                @csrf
-                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm">Logout</button>
-            </form>
+<div class="flex h-screen overflow-hidden bg-gray-50">
+    {{-- Sidebar --}}
+    <aside class="flex w-56 flex-shrink-0 flex-col border-r border-gray-200 bg-white">
+        {{-- Logo --}}
+        <div class="flex h-14 items-center border-b border-gray-100 px-5">
+            <span class="text-sm font-semibold text-gray-800">EduTracker</span>
         </div>
 
-        {{-- Flash status --}}
-        @if (session('status'))
-            <div class="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-md mb-4 text-sm">{{ session('status') }}</div>
-        @endif
+        {{-- Nav links --}}
+        <nav class="flex-1 space-y-0.5 px-3 py-4">
+            @php
+                $navItems = [
+                    'tugas' => ['label' => 'Tugas', 'icon' => 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
+                    'beban' => ['label' => 'Beban', 'icon' => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'],
+                    'notifikasi' => ['label' => 'Notifikasi', 'icon' => 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'],
+                    'profil' => ['label' => 'Profil', 'icon' => 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'],
+                ];
+            @endphp
 
-        {{-- Tab Navigation --}}
-        <div class="flex space-x-1 border-b border-gray-200 mb-6">
-            @php $tabs = ['tugas' => 'Tugas', 'beban' => 'Beban', 'notifikasi' => 'Notifikasi', 'profil' => 'Profil']; @endphp
-            @foreach ($tabs as $key => $label)
+            @foreach ($navItems as $key => $item)
                 <a href="{{ route('dosen.dashboard', ['tab' => $key]) }}"
-                   class="px-4 py-2 text-sm font-medium rounded-t-md transition {{ $currentTab === $key ? 'bg-white border border-b-0 border-gray-200 text-blue-600' : 'text-gray-500 hover:text-gray-700' }}">
-                    {{ $label }}
+                   class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors
+                          {{ $currentTab === $key
+                              ? 'bg-indigo-50 font-medium text-indigo-700'
+                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
+                    <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="{{ $item['icon'] }}" />
+                    </svg>
+                    {{ $item['label'] }}
+                    @if ($key === 'notifikasi')
+                        @php $unread = isset($data['notifikasiList']) ? $data['notifikasiList']->where('is_read', false)->count() : 0; @endphp
+                        @if ($unread > 0)
+                            <span class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{{ $unread }}</span>
+                        @endif
+                    @endif
                 </a>
             @endforeach
-        </div>
+        </nav>
 
-        {{-- Tab Content --}}
+        {{-- User + logout at bottom --}}
+        <div class="border-t border-gray-100 px-3 py-3">
+            <div class="mb-2 truncate px-3 text-xs text-gray-500">{{ $user->name }}</div>
+            <form method="POST" action="{{ route('dosen.logout') }}">
+                @csrf
+                <button type="submit"
+                        class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    {{-- Main content --}}
+    <main class="flex flex-1 flex-col overflow-y-auto">
+        {{-- Top bar --}}
+        <header class="flex h-14 flex-shrink-0 items-center border-b border-gray-200 bg-white px-6">
+            <h1 class="text-sm font-semibold text-gray-700">
+                @php $pageTitle = ['tugas' => 'Tugas', 'beban' => 'Beban Mahasiswa', 'notifikasi' => 'Notifikasi', 'profil' => 'Profil']; @endphp
+                {{ $pageTitle[$currentTab] ?? 'Dashboard' }}
+            </h1>
+        </header>
+
+        {{-- Page content --}}
+        <div class="flex-1 p-6">
+            @if (session('status'))
+                <div class="mb-4 rounded-md border border-green-300 bg-green-100 px-4 py-3 text-sm text-green-700">
+                    {{ session('status') }}
+                </div>
+            @endif
 
         {{-- ===== TUGAS ===== --}}
         @if ($currentTab === 'tugas')
@@ -570,6 +610,7 @@
             </div>
         @endif
 
-    </div>
+        </div>
+    </main>
 </div>
 @endsection
