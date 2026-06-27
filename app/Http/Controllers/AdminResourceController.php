@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -38,16 +39,28 @@ class AdminResourceController extends Controller
         $modelClass = $config['model'];
         $editId = $request->query('edit');
         $editing = $editId ? $modelClass::find($editId) : null;
+        $records = $modelClass::latest('id')->paginate(10)->withQueryString();
+        $krsGroups = null;
+
+        if ($resourceKey === 'krs') {
+            $records = Krs::with(['siswa', 'mataKuliah'])->latest('id')->paginate(10)->withQueryString();
+            $krsGroups = UserSiswa::whereHas('krs')
+                ->with(['krs' => fn ($query) => $query->with('mataKuliah')->orderBy('semester')->orderBy('tahun_ajaran')->orderBy('id')])
+                ->orderBy('name')
+                ->paginate(10, ['*'], 'students_page')
+                ->withQueryString();
+        }
 
         return view('pages.admin.⚡dashboard', [
             'user' => Auth::guard('admin')->user(),
             'resources' => $resources,
             'resourceKey' => $resourceKey,
             'config' => $config,
-            'records' => $modelClass::latest('id')->paginate(10)->withQueryString(),
+            'records' => $records,
             'editing' => $editing,
             'counts' => $this->counts($resources),
             'options' => $this->formOptions(),
+            'krsGroups' => $krsGroups,
         ]);
     }
 
@@ -279,8 +292,14 @@ class AdminResourceController extends Controller
                 $data[$field] = $request->boolean($field);
             }
 
-            if (($fieldConfig['type'] ?? null) === 'password' && blank($request->input($field))) {
-                unset($data[$field]);
+            if (($fieldConfig['type'] ?? null) === 'password') {
+                if (blank($request->input($field))) {
+                    unset($data[$field]);
+
+                    continue;
+                }
+
+                $data[$field] = Hash::make($request->input($field));
             }
         }
 

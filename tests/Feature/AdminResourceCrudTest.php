@@ -9,6 +9,7 @@ use App\Models\UserAdmin;
 use App\Models\UserDosen;
 use App\Models\UserSiswa;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AdminResourceCrudTest extends TestCase
@@ -166,6 +167,13 @@ class AdminResourceCrudTest extends TestCase
 
             $id = (int) \DB::table($case['table'])->latest('id')->value('id');
 
+            if (in_array($resource, ['admins', 'dosens', 'siswas'], true)) {
+                $storedPassword = \DB::table($case['table'])->where('id', $id)->value('password');
+
+                $this->assertTrue(Hash::check($case['create']['password'], $storedPassword));
+                $this->assertNotSame($case['create']['password'], $storedPassword);
+            }
+
             $this->put(route('admin.resources.update', [$resource, $id]), $case['update'])
                 ->assertRedirect(route('admin.dashboard', ['resource' => $resource]));
 
@@ -241,5 +249,70 @@ class AdminResourceCrudTest extends TestCase
             ->assertSessionHas('status', 'KRS paket berhasil diproses: 0 dibuat, 3 sudah ada.');
 
         $this->assertSame(3, Krs::where('siswa_id', $siswa->id)->count());
+    }
+
+    public function test_admin_krs_list_is_grouped_by_student_with_total_sks(): void
+    {
+        $admin = UserAdmin::create([
+            'name' => 'Admin Test',
+            'email' => 'admin-krs-list@example.test',
+            'password' => 'password',
+        ]);
+        $dosen = UserDosen::create([
+            'name' => 'Dosen KRS List',
+            'email' => 'dosen-krs-list@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-KRS-LIST',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa KRS List',
+            'email' => 'siswa-krs-list@example.test',
+            'password' => 'password',
+            'nim' => 'NIM-KRS-LIST',
+            'prodi' => 'Informatika',
+            'semester' => 3,
+        ]);
+        $basisData = MataKuliah::create([
+            'nama' => 'Basis Data',
+            'kode' => 'KRS-BD',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 3,
+        ]);
+        $algoritma = MataKuliah::create([
+            'nama' => 'Algoritma',
+            'kode' => 'KRS-ALG',
+            'sks' => 4,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 3,
+        ]);
+
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $basisData->id,
+            'semester' => 3,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $algoritma->id,
+            'semester' => 3,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.dashboard', ['resource' => 'krs']))
+            ->assertOk()
+            ->assertSee('Total 1 murid dengan 2 data KRS.')
+            ->assertSee('Siswa KRS List')
+            ->assertSee('2 mata kuliah')
+            ->assertSee('7 SKS')
+            ->assertSee('Basis Data')
+            ->assertSee('Algoritma');
     }
 }

@@ -15,6 +15,11 @@ class UserDosen extends Authenticatable
 
     protected $hidden = ['password', 'remember_token'];
 
+    protected function casts(): array
+    {
+        return ['password' => 'hashed'];
+    }
+
     public function mataKuliah()
     {
         return $this->hasMany(MataKuliah::class, 'dosen_id');
