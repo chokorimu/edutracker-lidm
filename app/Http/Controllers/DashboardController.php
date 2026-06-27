@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tugas;
+use App\Models\UserSiswa;
 use App\Services\BebanCalculator;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -90,40 +91,77 @@ class DashboardController extends Controller
     private function siswaDashboardData(?Request $request = null): array
     {
         $user = Auth::guard('siswa')->user();
-        $now = now();
-        $startOfWeek = $now->copy()->startOfWeek();
-        $endOfWeek = $now->copy()->endOfWeek();
 
         if (! $user) {
             return $this->emptySiswaData();
         }
 
-        $nim = $user->nim;
-        $angkatan = $this->extractAngkatan($nim);
-
-        $latestIpk = $user->ipkHistory()->latest('semester')->first();
-
-        $dosenPa = $user->dosenPa()->with('dosen')->latest()->first();
-        $dosenPaName = $dosenPa?->dosen?->name ?? '-';
-
+        $now = now();
+        $startOfWeek = $now->copy()->startOfWeek();
+        $endOfWeek = $now->copy()->endOfWeek();
         $allCourseIds = $user->krs()
             ->pluck('mata_kuliah_id')
             ->filter()
             ->unique()
             ->values();
 
+        $workloadData = $this->buildWorkloadData($allCourseIds, $startOfWeek, $endOfWeek);
+
+        return array_merge(
+            $this->buildProfileData($user, $workloadData['weekly_status_code']),
+            $this->buildMatakuliahData($user, $startOfWeek, $endOfWeek),
+            $this->buildTugasData($allCourseIds),
+            $this->buildNotifikasiData($user),
+            $workloadData['payload'],
+            $this->buildCalendarData($request, $allCourseIds, $now),
+            $this->buildAnalyticsData($user, $allCourseIds, $startOfWeek, $endOfWeek),
+        );
+    }
+
+    private function buildProfileData(UserSiswa $user, string $weeklyStatus): array
+    {
+        $nim = $user->nim;
+        $angkatan = $this->extractAngkatan($nim);
+        $latestIpk = $user->ipkHistory()->latest('semester')->first();
+        $dosenPa = $user->dosenPa()->with('dosen')->latest()->first();
+        $dosenPaName = $dosenPa?->dosen?->name ?? '-';
+
         $krsList = $user->krs()
             ->with('mataKuliah')
             ->where('semester', $user->semester)
             ->get();
 
-        $currentCourseIds = $krsList->pluck('mata_kuliah_id')->filter()->values();
         $sksSemester = $krsList->sum(fn ($krs) => (int) ($krs->mataKuliah?->sks ?? 0));
         $sksLulus = (int) $user->krs()
             ->where('status', 'selesai')
             ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
             ->sum('mata_kuliah.sks');
 
+        return [
+            'profile' => [
+                'nim' => $nim,
+                'nama' => $user->name,
+                'email' => $user->email,
+                'prodi' => $user->prodi ?? '-',
+                'semester' => $user->semester ?? 1,
+                'angkatan' => $angkatan,
+                'ipk' => $latestIpk?->ipk ?? '-',
+                'sks_lulus' => $sksLulus,
+                'sks_semester' => $sksSemester,
+                'dosen_pa' => $dosenPaName,
+                'weekly_status' => $weeklyStatus,
+            ],
+        ];
+    }
+
+    private function buildMatakuliahData(UserSiswa $user, Carbon $startOfWeek, Carbon $endOfWeek): array
+    {
+        $krsList = $user->krs()
+            ->with('mataKuliah')
+            ->where('semester', $user->semester)
+            ->get();
+
+        $currentCourseIds = $krsList->pluck('mata_kuliah_id')->filter()->values();
         $taskCountsByCourse = Tugas::whereIn('mata_kuliah_id', $currentCourseIds)
             ->selectRaw('mata_kuliah_id, COUNT(*) as aggregate')
             ->groupBy('mata_kuliah_id')
@@ -158,6 +196,13 @@ class DashboardController extends Controller
             ];
         })->filter()->values()->toArray();
 
+        return [
+            'matakuliah' => $matakuliah,
+        ];
+    }
+
+    private function buildTugasData($allCourseIds): array
+    {
         $tugasMendatang = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->whereDate('deadline', '>=', now()->startOfDay())
             ->with('mataKuliah')
@@ -193,6 +238,13 @@ class DashboardController extends Controller
             })
             ->toArray();
 
+        return [
+            'tugas_mendatang' => $tugasMendatang,
+        ];
+    }
+
+    private function buildNotifikasiData(UserSiswa $user): array
+    {
         $notifikasi = $user->notifikasi()
             ->latest()
             ->take(5)
@@ -219,9 +271,17 @@ class DashboardController extends Controller
             })
             ->toArray();
 
+        return [
+            'notifikasi' => $notifikasi,
+        ];
+    }
+
+    private function buildWorkloadData($allCourseIds, Carbon $startOfWeek, Carbon $endOfWeek): array
+    {
         $weeklyTasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->whereBetween('deadline', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
             ->get(['deadline']);
+
         $weeklyTaskCount = $weeklyTasks->count();
         $dailyTaskCounts = $weeklyTasks
             ->groupBy(fn ($task) => Carbon::parse($task->deadline)->toDateString())
@@ -240,14 +300,6 @@ class DashboardController extends Controller
         }
 
         $weeklyStatus = BebanCalculator::forCount($weeklyTaskCount);
-
-        $riskScore = BebanCalculator::riskScoreForStudent($user, $startOfWeek, $endOfWeek);
-        $sksRecommendation = BebanCalculator::recommendSks($user, $riskScore);
-
-        $deadlineTerdekat = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-            ->whereBetween('deadline', [now()->startOfDay(), now()->addDays(3)->endOfDay()])
-            ->count();
-
         $statusBebanLabel = match ($weeklyStatus) {
             BebanCalculator::LIGHT => 'Ringan',
             BebanCalculator::NORMAL => 'Normal',
@@ -264,15 +316,27 @@ class DashboardController extends Controller
             default => 'text-appleGreen',
         };
 
-        $ipkHistory = $user->ipkHistory()
-            ->orderBy('semester')
-            ->get()
-            ->map(fn ($h) => ['semester' => 'Sem '.$h->semester, 'ipk' => (float) $h->ipk])
-            ->toArray();
-        $competency = BebanCalculator::competencyByCourse($user);
+        return [
+            'weekly_status_code' => $weeklyStatus,
+            'payload' => [
+                'daily_workload' => $dailyWorkload,
+                'weekly_task_count' => $weeklyTaskCount,
+                'status_beban_label' => $statusBebanLabel,
+                'status_beban_color' => $statusBebanColor,
+                'weekly_status' => [
+                    'label' => $statusBebanLabel,
+                    'color' => $statusBebanColor,
+                    'count' => $weeklyTaskCount,
+                ],
+            ],
+        ];
+    }
 
+    private function buildCalendarData(?Request $request, $allCourseIds, Carbon $now): array
+    {
         $calendarMonth = $request?->query('month');
         $calendarYear = $request?->query('year');
+
         if ($calendarMonth && $calendarYear) {
             $monthStart = Carbon::createFromDate((int) $calendarYear, (int) $calendarMonth, 1)->startOfMonth();
             $monthEnd = $monthStart->copy()->endOfMonth();
@@ -280,6 +344,7 @@ class DashboardController extends Controller
             $monthStart = $now->copy()->startOfMonth();
             $monthEnd = $now->copy()->endOfMonth();
         }
+
         $monthlyTasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->with('mataKuliah')
             ->whereBetween('deadline', [$monthStart->toDateString(), $monthEnd->toDateString()])
@@ -288,10 +353,12 @@ class DashboardController extends Controller
             ->groupBy(function ($t) {
                 return Carbon::parse($t->deadline)->day;
             });
+
         $selectedDay = (int) ($request?->query('day', now()->day));
         if ($selectedDay < 1 || $selectedDay > $monthEnd->day) {
             $selectedDay = now()->day;
         }
+
         $selectedDate = $monthStart->copy()->day($selectedDay);
         $selectedDayTasks = $monthlyTasks->get($selectedDay, collect())
             ->map(fn ($task) => [
@@ -302,27 +369,20 @@ class DashboardController extends Controller
             ])
             ->values()
             ->toArray();
+
+        $monthlyTasks = $monthlyTasks
+            ->map(fn ($tasks) => $tasks->map(fn ($task) => [
+                'judul' => $task->nama,
+                'matkul' => $task->mataKuliah?->nama ?? '-',
+                'jam' => Carbon::parse($task->deadline)->format('H:i'),
+                'status' => Carbon::parse($task->deadline)->isPast() ? 'lewat' : 'aktif',
+            ])->values()->toArray())
+            ->toArray();
+
         $previousMonth = $monthStart->copy()->subMonth();
         $nextMonth = $monthStart->copy()->addMonth();
 
         return [
-            'profile' => [
-                'nim' => $nim,
-                'nama' => $user->name,
-                'email' => $user->email,
-                'prodi' => $user->prodi ?? '-',
-                'semester' => $user->semester ?? 1,
-                'angkatan' => $angkatan,
-                'ipk' => $latestIpk?->ipk ?? '-',
-                'sks_lulus' => $sksLulus,
-                'sks_semester' => $sksSemester,
-                'dosen_pa' => $dosenPaName,
-                'weekly_status' => $weeklyStatus,
-            ],
-            'matakuliah' => $matakuliah,
-            'tugas_mendatang' => $tugasMendatang,
-            'notifikasi' => $notifikasi,
-            'daily_workload' => $dailyWorkload,
             'monthly_tasks' => $monthlyTasks,
             'month_start' => $monthStart,
             'month_end' => $monthEnd,
@@ -331,19 +391,6 @@ class DashboardController extends Controller
             'selected_day_tasks' => $selectedDayTasks,
             'calendar_previous' => ['month' => $previousMonth->month, 'year' => $previousMonth->year],
             'calendar_next' => ['month' => $nextMonth->month, 'year' => $nextMonth->year],
-            'weekly_task_count' => $weeklyTaskCount,
-            'status_beban_label' => $statusBebanLabel,
-            'status_beban_color' => $statusBebanColor,
-            'weekly_status' => [
-                'label' => $statusBebanLabel,
-                'color' => $statusBebanColor,
-                'count' => $weeklyTaskCount,
-            ],
-            'risk_score' => $riskScore,
-            'sks_recommendation' => $sksRecommendation,
-            'deadline_terdekat' => $deadlineTerdekat,
-            'ipk_history' => $ipkHistory,
-            'competency' => $competency,
             'calendar' => [
                 'month' => $monthStart->translatedFormat('F'),
                 'year' => $monthStart->year,
@@ -357,6 +404,29 @@ class DashboardController extends Controller
                 'next_month' => $nextMonth->format('m'),
                 'next_year' => $nextMonth->year,
             ],
+        ];
+    }
+
+    private function buildAnalyticsData(UserSiswa $user, $allCourseIds, Carbon $startOfWeek, Carbon $endOfWeek): array
+    {
+        $riskScore = BebanCalculator::riskScoreForStudent($user, $startOfWeek, $endOfWeek);
+        $sksRecommendation = BebanCalculator::recommendSks($user, $riskScore);
+        $deadlineTerdekat = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
+            ->whereBetween('deadline', [now()->startOfDay(), now()->addDays(3)->endOfDay()])
+            ->count();
+
+        $ipkHistory = $user->ipkHistory()
+            ->orderBy('semester')
+            ->get()
+            ->map(fn ($h) => ['semester' => 'Sem '.$h->semester, 'ipk' => (float) $h->ipk])
+            ->toArray();
+
+        return [
+            'risk_score' => $riskScore,
+            'sks_recommendation' => $sksRecommendation,
+            'deadline_terdekat' => $deadlineTerdekat,
+            'ipk_history' => $ipkHistory,
+            'competency' => BebanCalculator::competencyByCourse($user),
         ];
     }
 
@@ -374,7 +444,7 @@ class DashboardController extends Controller
 
     private function diffForHumansId($date): string
     {
-        return $date->diffForHumans();
+        return $date->locale('id')->diffForHumans();
     }
 
     private function emptySiswaData(): array
@@ -387,7 +457,7 @@ class DashboardController extends Controller
             'tugas_mendatang' => [],
             'notifikasi' => [],
             'daily_workload' => [],
-            'monthly_tasks' => collect(),
+            'monthly_tasks' => [],
             'month_start' => now()->startOfMonth(),
             'month_end' => now()->endOfMonth(),
             'selected_day' => now()->day,

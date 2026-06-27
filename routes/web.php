@@ -27,7 +27,7 @@ Route::middleware('dosen')->prefix('dosen')->name('dosen.')->group(function () {
     Route::post('/tugas', [DosenResourceController::class, 'storeTugas'])->name('tugas.store');
     Route::put('/tugas/{id}', [DosenResourceController::class, 'updateTugas'])->name('tugas.update');
     Route::delete('/tugas/{id}', [DosenResourceController::class, 'destroyTugas'])->name('tugas.destroy');
-    Route::get('/notifikasi/{id}/read', [DosenResourceController::class, 'markNotifikasiRead'])->name('notifikasi.read');
+    Route::patch('/notifikasi/{id}/read', [DosenResourceController::class, 'markNotifikasiRead'])->name('notifikasi.read');
     Route::post('/logout', [DashboardController::class, 'logoutDosen'])->name('logout');
 });
 

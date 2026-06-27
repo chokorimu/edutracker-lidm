@@ -302,10 +302,14 @@
                                         @endif
                                     </div>
                                     @if(!$notif->is_read)
-                                        <a href="{{ route('dosen.notifikasi.read', $notif->id) }}"
-                                           class="text-blue-600 hover:text-blue-800 text-xs font-medium whitespace-nowrap ml-2">
-                                            Tandai Dibaca
-                                        </a>
+                                        <form method="POST" action="{{ route('dosen.notifikasi.read', $notif->id) }}" class="ml-2">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit"
+                                                    class="text-blue-600 hover:text-blue-800 text-xs font-medium whitespace-nowrap">
+                                                Tandai Dibaca
+                                            </button>
+                                        </form>
                                     @endif
                                 </div>
                             </div>
