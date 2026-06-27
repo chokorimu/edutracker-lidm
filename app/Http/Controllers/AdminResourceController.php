@@ -54,6 +54,11 @@ class AdminResourceController extends Controller
     public function store(Request $request, string $resource): RedirectResponse
     {
         $config = $this->resource($resource);
+
+        if ($resource === 'krs' && $request->input('_mode') === 'batch') {
+            return $this->storeKrsBatch($request, $config);
+        }
+
         $data = $this->validatedData($request, $resource, $config);
 
         $config['model']::create($data);
@@ -347,13 +352,81 @@ class AdminResourceController extends Controller
 
     private function formOptions(): array
     {
+        $mataKuliah = MataKuliah::orderBy('tahun_ajaran')
+            ->orderBy('semester')
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'kode', 'semester', 'tahun_ajaran']);
+
         return [
             'admins' => UserAdmin::orderBy('name')->get(['id', 'name', 'email']),
             'dosens' => UserDosen::orderBy('name')->get(['id', 'name', 'email']),
             'siswas' => UserSiswa::orderBy('name')->get(['id', 'name', 'email']),
-            'mata_kuliah' => MataKuliah::orderBy('nama')->get(['id', 'nama', 'kode']),
+            'mata_kuliah' => $mataKuliah,
+            'krs_packages' => $mataKuliah
+                ->groupBy(fn (MataKuliah $mataKuliah) => $mataKuliah->tahun_ajaran.'|'.$mataKuliah->semester)
+                ->map(function ($items, string $key) {
+                    [$tahunAjaran, $semester] = explode('|', $key, 2);
+
+                    return [
+                        'key' => $key,
+                        'label' => "Semester {$semester} - {$tahunAjaran}",
+                        'semester' => (int) $semester,
+                        'tahun_ajaran' => $tahunAjaran,
+                        'mata_kuliah_ids' => $items->pluck('id')->values(),
+                        'total' => $items->count(),
+                    ];
+                })
+                ->values(),
             'tugas' => Tugas::orderBy('nama')->get(['id', 'nama']),
         ];
+    }
+
+    private function storeKrsBatch(Request $request, array $config): RedirectResponse
+    {
+        $validated = $request->validate([
+            'siswa_id' => ['required', 'integer', Rule::exists('user_siswa', 'id')],
+            'krs_package' => ['required', 'string'],
+            'status' => ['required', 'string'],
+        ]);
+
+        [$tahunAjaran, $semester] = array_pad(explode('|', $validated['krs_package'], 2), 2, null);
+
+        if (! $tahunAjaran || ! $semester || ! is_numeric($semester)) {
+            return back()
+                ->withErrors(['krs_package' => 'Paket KRS tidak valid.'])
+                ->withInput();
+        }
+
+        $mataKuliahIds = MataKuliah::where('tahun_ajaran', $tahunAjaran)
+            ->where('semester', (int) $semester)
+            ->pluck('id');
+
+        if ($mataKuliahIds->isEmpty()) {
+            return back()
+                ->withErrors(['krs_package' => 'Paket KRS belum memiliki mata kuliah.'])
+                ->withInput();
+        }
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($mataKuliahIds as $mataKuliahId) {
+            $krs = Krs::firstOrCreate(
+                [
+                    'siswa_id' => $validated['siswa_id'],
+                    'mata_kuliah_id' => $mataKuliahId,
+                    'semester' => (int) $semester,
+                    'tahun_ajaran' => $tahunAjaran,
+                ],
+                ['status' => $validated['status']]
+            );
+
+            $krs->wasRecentlyCreated ? $created++ : $skipped++;
+        }
+
+        return redirect()
+            ->route('admin.dashboard', ['resource' => 'krs'])
+            ->with('status', "{$config['label']} paket berhasil diproses: {$created} dibuat, {$skipped} sudah ada.");
     }
 
     private function counts(array $resources): array

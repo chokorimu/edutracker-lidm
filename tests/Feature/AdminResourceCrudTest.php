@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Krs;
 use App\Models\MataKuliah;
 use App\Models\Tugas;
 use App\Models\UserAdmin;
@@ -175,5 +176,70 @@ class AdminResourceCrudTest extends TestCase
 
             $this->assertDatabaseMissing($case['table'], ['id' => $id]);
         }
+    }
+
+    public function test_admin_can_add_krs_as_package_for_a_student(): void
+    {
+        $admin = UserAdmin::create([
+            'name' => 'Admin Test',
+            'email' => 'admin-package@example.test',
+            'password' => 'password',
+        ]);
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Paket',
+            'email' => 'dosen-package@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-PACKAGE',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Paket',
+            'email' => 'siswa-package@example.test',
+            'password' => 'password',
+            'nim' => 'NIM-PACKAGE',
+            'prodi' => 'Informatika',
+            'semester' => 3,
+        ]);
+        $courses = collect(['Algoritma', 'Basis Data', 'Jaringan'])->map(fn (string $name, int $index) => MataKuliah::create([
+            'nama' => $name,
+            'kode' => 'PKT-00'.($index + 1),
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 3,
+        ]));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.dashboard', ['resource' => 'krs']))
+            ->assertOk()
+            ->assertSee('Tambah KRS Paket')
+            ->assertSee('Semester 3 - 2026/2027 (3 mata kuliah)');
+
+        $payload = [
+            '_mode' => 'batch',
+            'siswa_id' => $siswa->id,
+            'krs_package' => '2026/2027|3',
+            'status' => 'aktif',
+        ];
+
+        $this->post(route('admin.resources.store', 'krs'), $payload)
+            ->assertRedirect(route('admin.dashboard', ['resource' => 'krs']))
+            ->assertSessionHas('status', 'KRS paket berhasil diproses: 3 dibuat, 0 sudah ada.');
+
+        foreach ($courses as $course) {
+            $this->assertDatabaseHas('krs', [
+                'siswa_id' => $siswa->id,
+                'mata_kuliah_id' => $course->id,
+                'semester' => 3,
+                'tahun_ajaran' => '2026/2027',
+                'status' => 'aktif',
+            ]);
+        }
+
+        $this->post(route('admin.resources.store', 'krs'), $payload)
+            ->assertRedirect(route('admin.dashboard', ['resource' => 'krs']))
+            ->assertSessionHas('status', 'KRS paket berhasil diproses: 0 dibuat, 3 sudah ada.');
+
+        $this->assertSame(3, Krs::where('siswa_id', $siswa->id)->count());
     }
 }
