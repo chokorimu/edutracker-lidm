@@ -153,6 +153,11 @@ class SiswaDashboardTest extends TestCase
         $this->actingAs($siswa, 'siswa')
             ->get(route('siswa.dashboard', ['tab' => 'analytics']))
             ->assertOk()
+            ->assertSee('Tren Historis IPK')
+            ->assertSee('data-ipk-chart', false)
+            ->assertSee('Grafik Tren Historis IPK')
+            ->assertSee('Sem 2')
+            ->assertSee('3.25')
             ->assertSee('21 SKS')
             ->assertSee('Basis Data Lanjut')
             ->assertSee('Sangat Baik');

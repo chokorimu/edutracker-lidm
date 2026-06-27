@@ -1,6 +1,11 @@
 <?php
 
+use App\Models\UserAdmin;
+use App\Models\UserDosen;
+use App\Models\UserProdi;
+use App\Models\UserSiswa;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
 
 new class extends Component
@@ -21,39 +26,63 @@ new class extends Component
             'password' => $this->password,
         ];
 
-        if (Auth::guard('admin')->attempt($credentials)) {
-            if (request()->hasSession()) {
-                request()->session()->regenerate();
-            }
-
-            return redirect()->route('admin.dashboard');
+        if ($redirect = $this->attemptGuard('admin', UserAdmin::class, 'admin.dashboard', $credentials)) {
+            return $redirect;
         }
 
-        if (Auth::guard('dosen')->attempt($credentials)) {
-            if (request()->hasSession()) {
-                request()->session()->regenerate();
-            }
-
-            return redirect()->route('dosen.dashboard');
+        if ($redirect = $this->attemptGuard('dosen', UserDosen::class, 'dosen.dashboard', $credentials)) {
+            return $redirect;
         }
 
-        if (Auth::guard('siswa')->attempt($credentials)) {
-            if (request()->hasSession()) {
-                request()->session()->regenerate();
-            }
-
-            return redirect()->route('siswa.dashboard');
+        if ($redirect = $this->attemptGuard('siswa', UserSiswa::class, 'siswa.dashboard', $credentials)) {
+            return $redirect;
         }
 
-        if (Auth::guard('prodi')->attempt($credentials)) {
-            if (request()->hasSession()) {
-                request()->session()->regenerate();
-            }
-
-            return redirect()->route('prodi.dashboard');
+        if ($redirect = $this->attemptGuard('prodi', UserProdi::class, 'prodi.dashboard', $credentials)) {
+            return $redirect;
         }
 
         $this->addError('email', 'Email atau password salah.');
+    }
+
+    private function attemptGuard(string $guard, string $modelClass, string $route, array $credentials)
+    {
+        if ($this->repairLegacyPlaintextPassword($modelClass, $credentials) === false) {
+            return null;
+        }
+
+        if (! Auth::guard($guard)->attempt($credentials)) {
+            return null;
+        }
+
+        if (request()->hasSession()) {
+            request()->session()->regenerate();
+        }
+
+        return redirect()->route($route);
+    }
+
+    private function repairLegacyPlaintextPassword(string $modelClass, array $credentials): ?bool
+    {
+        $user = $modelClass::where('email', $credentials['email'])->first();
+
+        if (! $user || blank($user->password)) {
+            return null;
+        }
+
+        if ((Hash::info($user->password)['algoName'] ?? 'unknown') !== 'unknown') {
+            return null;
+        }
+
+        if (! hash_equals((string) $user->password, (string) $credentials['password'])) {
+            return false;
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($credentials['password']),
+        ])->save();
+
+        return true;
     }
 }; ?>
 

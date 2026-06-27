@@ -251,62 +251,147 @@
                     <div class="flex items-center justify-between border-b border-gray-200 p-5">
                         <div>
                             <h2 class="text-lg font-semibold">Daftar {{ $config['label'] }}</h2>
-                            <p class="text-sm text-gray-500">Total {{ $records->total() }} data.</p>
+                            @if ($resourceKey === 'krs' && $krsGroups)
+                                <p class="text-sm text-gray-500">Total {{ $krsGroups->total() }} murid dengan {{ $records->total() }} data KRS.</p>
+                            @else
+                                <p class="text-sm text-gray-500">Total {{ $records->total() }} data.</p>
+                            @endif
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                <tr>
-                                    <th class="px-4 py-3">ID</th>
-                                    @foreach ($config['fields'] as $field => $fieldConfig)
-                                        @continue($fieldConfig['hide_table'] ?? false)
-                                        <th class="px-4 py-3">{{ $fieldConfig['label'] }}</th>
-                                    @endforeach
-                                    <th class="px-4 py-3 text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                @forelse ($records as $record)
+                    @if ($resourceKey === 'krs' && $krsGroups)
+                        <div class="divide-y divide-gray-100">
+                            @forelse ($krsGroups as $siswa)
+                                @php
+                                    $krsList = $siswa->krs;
+                                    $totalSks = $krsList->sum(fn ($krs) => (int) ($krs->mataKuliah?->sks ?? 0));
+                                    $tahunAjaran = $krsList->pluck('tahun_ajaran')->filter()->unique()->values()->join(', ');
+                                    $semester = $krsList->pluck('semester')->filter()->unique()->sort()->values()->join(', ');
+                                @endphp
+                                <details class="group">
+                                    <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-gray-50">
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="font-semibold text-gray-900">{{ $siswa->name }}</span>
+                                                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">{{ $krsList->count() }} mata kuliah</span>
+                                                <span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{{ $totalSks }} SKS</span>
+                                            </div>
+                                            <p class="mt-1 truncate text-xs text-gray-500">
+                                                {{ $siswa->nim ?? '-' }} · Semester {{ $semester ?: '-' }} · {{ $tahunAjaran ?: '-' }}
+                                            </p>
+                                        </div>
+                                        <svg class="h-4 w-4 flex-shrink-0 text-gray-400 transition group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </summary>
+
+                                    <div class="border-t border-gray-100 bg-gray-50 px-5 py-4">
+                                        <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                                <thead class="bg-gray-50 text-left font-semibold uppercase tracking-wide text-gray-500">
+                                                    <tr>
+                                                        <th class="px-3 py-2">Mata Kuliah</th>
+                                                        <th class="px-3 py-2">SKS</th>
+                                                        <th class="px-3 py-2">Semester</th>
+                                                        <th class="px-3 py-2">Tahun Ajaran</th>
+                                                        <th class="px-3 py-2">Status</th>
+                                                        <th class="px-3 py-2 text-right">Aksi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-gray-100">
+                                                    @foreach ($krsList as $krs)
+                                                        <tr>
+                                                            <td class="px-3 py-2">
+                                                                <span class="font-medium text-gray-900">{{ $krs->mataKuliah?->nama ?? '-' }}</span>
+                                                                <span class="block text-[11px] text-gray-500">{{ $krs->mataKuliah?->kode ?? '-' }}</span>
+                                                            </td>
+                                                            <td class="px-3 py-2 font-semibold text-gray-700">{{ $krs->mataKuliah?->sks ?? 0 }}</td>
+                                                            <td class="px-3 py-2 text-gray-600">{{ $krs->semester }}</td>
+                                                            <td class="px-3 py-2 text-gray-600">{{ $krs->tahun_ajaran }}</td>
+                                                            <td class="px-3 py-2 text-gray-600">{{ $krs->status }}</td>
+                                                            <td class="px-3 py-2">
+                                                                <div class="flex justify-end gap-2">
+                                                                    <a href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $krs->id]) }}" class="rounded-md border border-gray-300 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-100">
+                                                                        Edit
+                                                                    </a>
+                                                                    <form method="POST" action="{{ route('admin.resources.destroy', [$resourceKey, $krs->id]) }}" onsubmit="return confirm('Hapus KRS ini?')">
+                                                                        @csrf
+                                                                        @method('DELETE')
+                                                                        <button type="submit" class="rounded-md border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-50">
+                                                                            Hapus
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </details>
+                            @empty
+                                <p class="px-5 py-8 text-center text-sm text-gray-500">Belum ada data.</p>
+                            @endforelse
+                        </div>
+
+                        <div class="border-t border-gray-200 p-4">
+                            {{ $krsGroups->links() }}
+                        </div>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                     <tr>
-                                        <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ $record->id }}</td>
+                                        <th class="px-4 py-3">ID</th>
                                         @foreach ($config['fields'] as $field => $fieldConfig)
                                             @continue($fieldConfig['hide_table'] ?? false)
-                                            <td class="max-w-xs truncate px-4 py-3">{{ $fieldValue($record, $field, $fieldConfig) }}</td>
+                                            <th class="px-4 py-3">{{ $fieldConfig['label'] }}</th>
                                         @endforeach
-                                        <td class="px-4 py-3">
-                                            <div class="flex justify-end gap-2">
-                                                <a
-                                                    href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $record->id]) }}"
-                                                    class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                                                >
-                                                    Edit
-                                                </a>
-                                                <form method="POST" action="{{ route('admin.resources.destroy', [$resourceKey, $record->id]) }}" onsubmit="return confirm('Hapus data ini?')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
-                                                        Hapus
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
+                                        <th class="px-4 py-3 text-right">Aksi</th>
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="{{ count(array_filter($config['fields'], fn ($field) => ! ($field['hide_table'] ?? false))) + 2 }}" class="px-4 py-8 text-center text-gray-500">
-                                            Belum ada data.
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @forelse ($records as $record)
+                                        <tr>
+                                            <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ $record->id }}</td>
+                                            @foreach ($config['fields'] as $field => $fieldConfig)
+                                                @continue($fieldConfig['hide_table'] ?? false)
+                                                <td class="max-w-xs truncate px-4 py-3">{{ $fieldValue($record, $field, $fieldConfig) }}</td>
+                                            @endforeach
+                                            <td class="px-4 py-3">
+                                                <div class="flex justify-end gap-2">
+                                                    <a
+                                                        href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $record->id]) }}"
+                                                        class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                                                    >
+                                                        Edit
+                                                    </a>
+                                                    <form method="POST" action="{{ route('admin.resources.destroy', [$resourceKey, $record->id]) }}" onsubmit="return confirm('Hapus data ini?')">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
+                                                            Hapus
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="{{ count(array_filter($config['fields'], fn ($field) => ! ($field['hide_table'] ?? false))) + 2 }}" class="px-4 py-8 text-center text-gray-500">
+                                                Belum ada data.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
 
-                    <div class="border-t border-gray-200 p-4">
-                        {{ $records->links() }}
-                    </div>
+                        <div class="border-t border-gray-200 p-4">
+                            {{ $records->links() }}
+                        </div>
+                    @endif
                 </section>
             </main>
         </div>

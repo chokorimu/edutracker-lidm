@@ -8,6 +8,7 @@ use App\Models\UserProdi;
 use App\Models\UserSiswa;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -54,6 +55,33 @@ class LoginTest extends TestCase
             ->assertRedirect(route('dosen.dashboard'));
 
         $this->assertTrue(Auth::guard('dosen')->check());
+    }
+
+    public function test_dosen_login_repairs_legacy_plaintext_password(): void
+    {
+        DB::table('user_dosens')->insert([
+            'name' => 'Dosen Legacy',
+            'email' => 'legacy-dosen@example.test',
+            'password' => 'password123',
+            'nidn' => 'NIDN-LEGACY',
+            'fakultas' => 'Teknik',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->withSession([]);
+
+        Livewire::test('pages::auth.login')
+            ->set('email', 'legacy-dosen@example.test')
+            ->set('password', 'password123')
+            ->call('login')
+            ->assertRedirect(route('dosen.dashboard'));
+
+        $password = UserDosen::where('email', 'legacy-dosen@example.test')->value('password');
+
+        $this->assertTrue(Auth::guard('dosen')->check());
+        $this->assertTrue(Hash::check('password123', $password));
+        $this->assertNotSame('password123', $password);
     }
 
     public function test_siswa_can_login(): void

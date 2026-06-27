@@ -10,7 +10,7 @@ class UserDosenSeeder extends Seeder
 {
     public function run(): void
     {
-        UserDosen::firstOrCreate(
+        UserDosen::updateOrCreate(
             ['email' => 'dosen@edutrack.test'],
             [
                 'name' => 'Dr. Rahmat Hidayat, S.Kom., M.T.',

@@ -322,20 +322,54 @@
                         <div class="{{ $card }} p-6">
                             <h2 class="text-sm font-bold">Tren Historis IPK</h2>
                             @if(count($data['ipk_history']))
-                                @php $maxIpk = 4.0; @endphp
-                                <div class="mt-6 flex h-44 items-end gap-4 border-b border-l border-bone-dark p-3">
-                                    @foreach($data['ipk_history'] as $ipkEntry)
-                                        @php $height = max(8, ((float) $ipkEntry['ipk'] / $maxIpk) * 100); @endphp
-                                        <div class="flex min-w-0 flex-1 flex-col items-center gap-2">
-                                            <span class="text-[10px] {{ $muted }}">{{ number_format($ipkEntry['ipk'], 2) }}</span>
-                                            <div class="w-full rounded-t-lg bg-appleDark" style="height: {{ $height }}%"></div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                                <div class="mt-2 flex justify-between px-4 text-[10px] {{ $muted }}">
-                                    @foreach($data['ipk_history'] as $ipkEntry)
-                                        <span>{{ $ipkEntry['semester'] }}</span>
-                                    @endforeach
+                                @php
+                                    $chartWidth = 640;
+                                    $chartHeight = 220;
+                                    $paddingX = 42;
+                                    $paddingTop = 18;
+                                    $paddingBottom = 34;
+                                    $plotWidth = $chartWidth - ($paddingX * 2);
+                                    $plotHeight = $chartHeight - $paddingTop - $paddingBottom;
+                                    $maxIpk = 4.0;
+                                    $history = collect($data['ipk_history'])->values();
+                                    $lastIndex = max(1, $history->count() - 1);
+                                    $points = $history->map(function ($ipkEntry, $index) use ($paddingX, $paddingTop, $plotWidth, $plotHeight, $lastIndex, $maxIpk) {
+                                        $ipkValue = min($maxIpk, max(0, (float) $ipkEntry['ipk']));
+
+                                        return [
+                                            'x' => $paddingX + (($index / $lastIndex) * $plotWidth),
+                                            'y' => $paddingTop + ($plotHeight - (($ipkValue / $maxIpk) * $plotHeight)),
+                                            'ipk' => $ipkEntry['ipk'],
+                                            'semester' => $ipkEntry['semester'],
+                                        ];
+                                    });
+                                    $linePath = $points->map(fn ($point, $index) => ($index === 0 ? 'M' : 'L').' '.round($point['x'], 2).' '.round($point['y'], 2))->implode(' ');
+                                    $areaPath = $linePath.' L '.round($points->last()['x'], 2).' '.($chartHeight - $paddingBottom).' L '.round($points->first()['x'], 2).' '.($chartHeight - $paddingBottom).' Z';
+                                @endphp
+                                <div class="mt-6 overflow-x-auto">
+                                    <svg class="min-w-[560px]" viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" role="img" aria-label="Grafik Tren Historis IPK" data-ipk-chart>
+                                        <defs>
+                                            <linearGradient id="ipkTrendFill" x1="0" x2="0" y1="0" y2="1">
+                                                <stop offset="0%" stop-color="#111827" stop-opacity="0.18" />
+                                                <stop offset="100%" stop-color="#111827" stop-opacity="0.02" />
+                                            </linearGradient>
+                                        </defs>
+
+                                        @foreach([4, 3, 2, 1, 0] as $tick)
+                                            @php $tickY = $paddingTop + ($plotHeight - (($tick / $maxIpk) * $plotHeight)); @endphp
+                                            <line x1="{{ $paddingX }}" y1="{{ $tickY }}" x2="{{ $chartWidth - $paddingX }}" y2="{{ $tickY }}" stroke="#E7E0D6" stroke-width="1" />
+                                            <text x="{{ $paddingX - 12 }}" y="{{ $tickY + 4 }}" text-anchor="end" class="fill-current {{ $muted }}" font-size="10">{{ number_format($tick, 1) }}</text>
+                                        @endforeach
+
+                                        <path d="{{ $areaPath }}" fill="url(#ipkTrendFill)" />
+                                        <path d="{{ $linePath }}" fill="none" stroke="#111827" stroke-linecap="round" stroke-linejoin="round" stroke-width="4" />
+
+                                        @foreach($points as $point)
+                                            <circle cx="{{ $point['x'] }}" cy="{{ $point['y'] }}" r="5" fill="#111827" stroke="#FFFFFF" stroke-width="3" />
+                                            <text x="{{ $point['x'] }}" y="{{ $point['y'] - 12 }}" text-anchor="middle" class="fill-current {{ $muted }}" font-size="11">{{ number_format($point['ipk'], 2) }}</text>
+                                            <text x="{{ $point['x'] }}" y="{{ $chartHeight - 10 }}" text-anchor="middle" class="fill-current {{ $muted }}" font-size="10">{{ $point['semester'] }}</text>
+                                        @endforeach
+                                    </svg>
                                 </div>
                             @else
                                 <p class="mt-4 rounded-xl bg-bone p-4 text-sm {{ $muted }}">Belum ada riwayat IPK.</p>
