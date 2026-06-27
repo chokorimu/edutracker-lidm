@@ -141,4 +141,70 @@ class DosenResourceTest extends TestCase
         ]);
         $this->assertDatabaseCount('notifikasi_dosen', 1);
     }
+
+    public function test_update_tugas_excludes_current_task_before_recounting_workload(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Test',
+            'email' => 'dosen@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-001',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Test',
+            'email' => 'siswa@example.test',
+            'password' => 'password',
+            'nim' => '220101999',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Basis Data',
+            'kode' => 'BD-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+
+        Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => 'Tugas 1',
+            'bobot' => 20,
+            'deadline' => now()->addDays(2)->toDateString(),
+            'deskripsi' => 'Satu',
+        ]);
+        $tugas = Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => 'Tugas 2',
+            'bobot' => 20,
+            'deadline' => now()->addDays(2)->toDateString(),
+            'deskripsi' => 'Dua',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($dosen, 'dosen')
+            ->put(route('dosen.tugas.update', $tugas->id), [
+                'nama' => 'Tugas 2 Revisi',
+                'deskripsi' => 'Dua revisi',
+                'bobot' => 25,
+                'deadline' => now()->addDays(2)->toDateString(),
+                'status' => 'aktif',
+            ])
+            ->assertRedirect(route('dosen.dashboard', ['tab' => 'tugas']));
+
+        $this->assertDatabaseHas('tugas', [
+            'id' => $tugas->id,
+            'nama' => 'Tugas 2 Revisi',
+            'status_beban' => 'normal',
+        ]);
+    }
 }

@@ -157,10 +157,17 @@ class SiswaDashboardTest extends TestCase
             ->assertSee('Basis Data Lanjut')
             ->assertSee('Sangat Baik');
 
-        $this->actingAs($siswa, 'siswa')
-            ->get(route('siswa.dashboard', ['tab' => 'calendar', 'month' => now()->month, 'year' => now()->year, 'day' => 15]))
+        $response = $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard', ['tab' => 'calendar', 'month' => now()->month, 'year' => now()->year, 'day' => 15]));
+
+        $response
             ->assertOk()
             ->assertSee('Timeline Deadline')
             ->assertSee('Analisis Normalisasi');
+
+        $data = $response->original->getData()['data'];
+
+        $this->assertIsArray($data['monthly_tasks']);
+        $this->assertIsArray($data['monthly_tasks'][15] ?? null);
     }
 }
