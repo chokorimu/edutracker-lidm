@@ -9,6 +9,7 @@ use App\Models\NotifikasiDosen;
 use App\Models\Tugas;
 use App\Services\BebanCalculator;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -140,6 +141,80 @@ class DosenResourceController extends Controller
 
         return redirect()->route('dosen.dashboard', ['tab' => 'tugas'])
             ->with('status', 'Tugas berhasil ditambahkan.');
+    }
+
+    public function previewBeban(Request $request): JsonResponse
+    {
+        $user = Auth::guard('dosen')->user();
+
+        $validated = $request->validate([
+            'mata_kuliah_id' => 'required|exists:mata_kuliah,id',
+            'deadline' => 'required|date|after:now',
+        ]);
+
+        $mk = MataKuliah::findOrFail($validated['mata_kuliah_id']);
+        if ($mk->dosen_id !== $user->id) {
+            abort(403, 'Anda tidak berhak melihat beban mata kuliah ini.');
+        }
+
+        $deadline = Carbon::parse($validated['deadline']);
+        $weekStart = $deadline->copy()->startOfWeek();
+        $weekEnd = $deadline->copy()->endOfWeek();
+        $rows = BebanCalculator::weeklyLoadForCourse($mk->id, $weekStart, $weekEnd);
+        $students = $rows->map(function (array $row) {
+            $projectedCount = ((int) $row['count']) + 1;
+            $status = BebanCalculator::forCount($projectedCount);
+
+            return [
+                'siswa_id' => $row['siswa_id'],
+                'nim' => $row['nim'],
+                'nama' => $row['nama_siswa'],
+                'current_count' => (int) $row['count'],
+                'projected_count' => $projectedCount,
+                'status' => $status,
+                'label' => BebanCalculator::label($status),
+                'color' => BebanCalculator::colorClass($status),
+            ];
+        })->values();
+
+        $worstStatus = $students->pluck('status')
+            ->sortByDesc(fn ($status) => BebanCalculator::severity($status))
+            ->first() ?? BebanCalculator::LIGHT;
+
+        $needsWarning = in_array($worstStatus, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true);
+
+        $suggestions = $needsWarning
+            ? collect(BebanCalculator::rescheduleSuggestions($mk->id, $validated['deadline']))
+                ->map(fn (array $suggestion) => array_merge($suggestion, [
+                    'label_status' => BebanCalculator::label($suggestion['status']),
+                    'color' => BebanCalculator::colorClass($suggestion['status']),
+                ]))
+                ->values()
+                ->toArray()
+            : [];
+
+        return response()->json([
+            'course' => [
+                'id' => $mk->id,
+                'nama' => $mk->nama,
+                'kode' => $mk->kode,
+            ],
+            'week' => [
+                'start' => $weekStart->toDateString(),
+                'end' => $weekEnd->toDateString(),
+                'label' => $weekStart->translatedFormat('d M').' - '.$weekEnd->translatedFormat('d M Y'),
+            ],
+            'summary' => [
+                'students' => $students->count(),
+                'avg_tasks' => round($students->avg('projected_count') ?? 0, 1),
+                'worst_status' => $worstStatus,
+                'label' => BebanCalculator::label($worstStatus),
+                'color' => BebanCalculator::colorClass($worstStatus),
+                'needs_warning' => $needsWarning,
+            ],
+            'students' => $students,
+            'suggestions' => $suggestions,
+        ]);
     }
 
     public function updateTugas(Request $request, int $id): RedirectResponse
