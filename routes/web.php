@@ -24,6 +24,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 
 Route::middleware('dosen')->prefix('dosen')->name('dosen.')->group(function () {
     Route::get('/dashboard', [DosenResourceController::class, 'index'])->name('dashboard');
+    Route::post('/tugas/preview-beban', [DosenResourceController::class, 'previewBeban'])->name('tugas.preview-beban');
     Route::post('/tugas', [DosenResourceController::class, 'storeTugas'])->name('tugas.store');
     Route::put('/tugas/{id}', [DosenResourceController::class, 'updateTugas'])->name('tugas.update');
     Route::delete('/tugas/{id}', [DosenResourceController::class, 'destroyTugas'])->name('tugas.destroy');

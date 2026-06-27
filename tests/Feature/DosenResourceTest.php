@@ -7,6 +7,7 @@ use App\Models\MataKuliah;
 use App\Models\Tugas;
 use App\Models\UserDosen;
 use App\Models\UserSiswa;
+use App\Services\BebanCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -206,5 +207,105 @@ class DosenResourceTest extends TestCase
             'nama' => 'Tugas 2 Revisi',
             'status_beban' => 'normal',
         ]);
+    }
+
+    public function test_preview_beban_returns_projected_workload_and_suggestions(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Test',
+            'email' => 'dosen-preview@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-001',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Preview',
+            'email' => 'siswa-preview@example.test',
+            'password' => 'password',
+            'nim' => '220101998',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Rekayasa Perangkat Lunak',
+            'kode' => 'RPL-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+
+        $deadline = now()->addDays(4)->setTime(10, 0);
+        Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => 'Tugas 1',
+            'bobot' => 20,
+            'deadline' => $deadline->copy()->subDay()->toDateString(),
+            'deskripsi' => 'Satu',
+        ]);
+        Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => 'Tugas 2',
+            'bobot' => 20,
+            'deadline' => $deadline->copy()->subDay()->toDateString(),
+            'deskripsi' => 'Dua',
+        ]);
+
+        $this->actingAs($dosen, 'dosen')
+            ->postJson(route('dosen.tugas.preview-beban'), [
+                'mata_kuliah_id' => $mataKuliah->id,
+                'deadline' => $deadline->format('Y-m-d\TH:i'),
+            ])
+            ->assertOk()
+            ->assertJsonPath('course.id', $mataKuliah->id)
+            ->assertJsonPath('summary.students', 1)
+            ->assertJsonPath('summary.worst_status', BebanCalculator::HEAVY)
+            ->assertJsonPath('summary.label', 'Berat')
+            ->assertJsonPath('summary.color', BebanCalculator::colorClass(BebanCalculator::HEAVY))
+            ->assertJsonPath('summary.needs_warning', true)
+            ->assertJsonPath('students.0.current_count', 2)
+            ->assertJsonPath('students.0.projected_count', 3)
+            ->assertJsonPath('students.0.status', BebanCalculator::HEAVY)
+            ->assertJsonCount(3, 'suggestions');
+    }
+
+    public function test_preview_beban_forbids_other_dosen_course(): void
+    {
+        $owner = UserDosen::create([
+            'name' => 'Dosen Owner',
+            'email' => 'owner-preview@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-001',
+            'fakultas' => 'Teknik',
+        ]);
+        $other = UserDosen::create([
+            'name' => 'Dosen Other',
+            'email' => 'other-preview@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-002',
+            'fakultas' => 'Teknik',
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Basis Data',
+            'kode' => 'BD-001',
+            'sks' => 3,
+            'dosen_id' => $owner->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+
+        $this->actingAs($other, 'dosen')
+            ->postJson(route('dosen.tugas.preview-beban'), [
+                'mata_kuliah_id' => $mataKuliah->id,
+                'deadline' => now()->addDays(3)->format('Y-m-d\TH:i'),
+            ])
+            ->assertForbidden();
     }
 }
