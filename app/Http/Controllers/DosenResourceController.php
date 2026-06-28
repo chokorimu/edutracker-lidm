@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DosenPa;
 use App\Models\Krs;
 use App\Models\MataKuliah;
+use App\Models\NilaiTugas;
 use App\Models\NotifikasiDosen;
 use App\Models\Tugas;
 use App\Services\BebanCalculator;
@@ -17,29 +18,43 @@ use Illuminate\View\View;
 
 class DosenResourceController extends Controller
 {
-    private const TABS = ['tugas', 'beban', 'notifikasi', 'profil'];
+    private const TABS = ['kelas', 'beban', 'notifikasi', 'profil'];
 
     public function index(Request $request): View
     {
         $user = Auth::guard('dosen')->user();
-        $tab = $request->query('tab', 'tugas');
+        $tab = $request->query('tab', 'kelas');
 
         if (! in_array($tab, self::TABS, true)) {
-            $tab = 'tugas';
+            $tab = 'kelas';
         }
 
         $data = [];
 
         switch ($tab) {
-            case 'tugas':
-                $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)->get();
-                $mkIds = $data['mataKuliahList']->pluck('id');
-                $data['aggregatePreview'] = BebanCalculator::aggregatePreviewForDosen($user);
-                $data['tugasList'] = Tugas::whereIn('mata_kuliah_id', $mkIds)
-                    ->with('mataKuliah')
-                    ->latest()
-                    ->paginate(20)
-                    ->withQueryString();
+            case 'kelas':
+                $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)
+                    ->withCount('tugas')
+                    ->get();
+                $data['selectedMkId'] = $request->query('mk');
+
+                if ($data['selectedMkId']) {
+                    $mk = MataKuliah::where('dosen_id', $user->id)
+                        ->findOrFail($data['selectedMkId']);
+                    $data['selectedMk'] = $mk;
+                    $data['tugasList'] = Tugas::where('mata_kuliah_id', $mk->id)
+                        ->latest()
+                        ->get();
+                    $data['siswaList'] = Krs::where('mata_kuliah_id', $mk->id)
+                        ->with('siswa')
+                        ->get();
+                    $tugasIds = $data['tugasList']->pluck('id');
+                    $data['nilaiMap'] = NilaiTugas::whereIn('tugas_id', $tugasIds)
+                        ->get()
+                        ->groupBy('tugas_id')
+                        ->map(fn ($grades) => $grades->keyBy('siswa_id'));
+                    $data['aggregatePreview'] = BebanCalculator::aggregatePreviewForDosen($user);
+                }
                 break;
 
             case 'beban':
@@ -95,7 +110,6 @@ class DosenResourceController extends Controller
             'mata_kuliah_id' => 'required|exists:mata_kuliah,id',
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'bobot' => 'nullable|numeric|min:0|max:100',
             'deadline' => 'required|date|after:now',
             'override' => 'nullable|boolean',
         ]);
@@ -109,7 +123,7 @@ class DosenResourceController extends Controller
         $tugas->mata_kuliah_id = $validated['mata_kuliah_id'];
         $tugas->nama = $validated['nama'];
         $tugas->deskripsi = $validated['deskripsi'] ?? null;
-        $tugas->bobot = $validated['bobot'] ?? null;
+        $tugas->bobot = 0;
         $tugas->deadline = $validated['deadline'];
         $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline']);
         $tugas->override = $request->boolean('override');
@@ -126,6 +140,7 @@ class DosenResourceController extends Controller
         }
 
         $tugas->save();
+        $this->rebalanceBobot($tugas->mata_kuliah_id);
 
         if (in_array($tugas->status_beban, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true)) {
             NotifikasiDosen::create([
@@ -139,7 +154,7 @@ class DosenResourceController extends Controller
             ]);
         }
 
-        return redirect()->route('dosen.dashboard', ['tab' => 'tugas'])
+        return redirect()->route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $tugas->mata_kuliah_id])
             ->with('status', 'Tugas berhasil ditambahkan.');
     }
 
@@ -230,7 +245,6 @@ class DosenResourceController extends Controller
         $validated = $request->validate([
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'bobot' => 'nullable|numeric|min:0|max:100',
             'deadline' => 'required|date',
             'status' => 'required|in:aktif,selesai',
         ]);
@@ -239,7 +253,7 @@ class DosenResourceController extends Controller
         $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline'], $tugas->id);
         $tugas->save();
 
-        return redirect()->route('dosen.dashboard', ['tab' => 'tugas'])
+        return redirect()->route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $tugas->mata_kuliah_id])
             ->with('status', 'Tugas diperbarui.');
     }
 
@@ -252,10 +266,47 @@ class DosenResourceController extends Controller
             abort(403, 'Anda tidak berhak menghapus tugas ini.');
         }
 
+        $mataKuliahId = $tugas->mata_kuliah_id;
         $tugas->delete();
+        $this->rebalanceBobot($mataKuliahId);
 
-        return redirect()->route('dosen.dashboard', ['tab' => 'tugas'])
+        return redirect()->route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliahId])
             ->with('status', 'Tugas dihapus.');
+    }
+
+    public function storeNilai(Request $request, int $tugasId, int $siswaId): RedirectResponse
+    {
+        $user = Auth::guard('dosen')->user();
+        $tugas = Tugas::with('mataKuliah')->findOrFail($tugasId);
+
+        if ($tugas->mataKuliah->dosen_id !== $user->id) {
+            abort(403);
+        }
+
+        $enrolled = Krs::where('mata_kuliah_id', $tugas->mata_kuliah_id)
+            ->where('siswa_id', $siswaId)
+            ->exists();
+
+        if (! $enrolled) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'nilai' => 'required|numeric|min:0|max:100',
+            'komentar' => 'nullable|string|max:500',
+        ]);
+
+        NilaiTugas::updateOrCreate(
+            ['tugas_id' => $tugasId, 'siswa_id' => $siswaId],
+            ['nilai' => $validated['nilai'], 'komentar' => $validated['komentar'] ?? null]
+        );
+
+        $this->recalcNilaiAkhir($tugas->mata_kuliah_id, $siswaId);
+
+        return redirect()->route('dosen.dashboard', [
+            'tab' => 'kelas',
+            'mk' => $tugas->mata_kuliah_id,
+        ])->with('status', 'Nilai disimpan.');
     }
 
     public function markNotifikasiRead(int $id): RedirectResponse
@@ -287,7 +338,7 @@ class DosenResourceController extends Controller
 
         $allCourseIds = $courseIdsBySiswa->flatten()->unique()->values();
         $tugasCountByCourse = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-            ->whereBetween('deadline', [$weekStart->toDateString(), $weekEnd->toDateString()])
+            ->whereBetween('deadline', [$weekStart, $weekEnd])
             ->when($excludeTugasId, fn ($q) => $q->where('id', '!=', $excludeTugasId))
             ->get(['mata_kuliah_id'])
             ->groupBy('mata_kuliah_id')
@@ -317,5 +368,74 @@ class DosenResourceController extends Controller
         }
 
         return $worst;
+    }
+
+    private function rebalanceBobot(int $mataKuliahId): void
+    {
+        $tugas = Tugas::where('mata_kuliah_id', $mataKuliahId)->get();
+        $count = $tugas->count();
+
+        if ($count === 0) {
+            return;
+        }
+
+        $bobot = round(100 / $count, 4);
+        $tugasArr = $tugas->values();
+
+        foreach ($tugasArr as $i => $t) {
+            $t->bobot = ($i === $count - 1)
+                ? round(100 - ($bobot * ($count - 1)), 4)
+                : $bobot;
+            $t->saveQuietly();
+        }
+    }
+
+    private function recalcNilaiAkhir(int $mataKuliahId, int $siswaId): void
+    {
+        $tugasList = Tugas::where('mata_kuliah_id', $mataKuliahId)->get();
+
+        if ($tugasList->isEmpty()) {
+            return;
+        }
+
+        $nilaiList = NilaiTugas::whereIn('tugas_id', $tugasList->pluck('id'))
+            ->where('siswa_id', $siswaId)
+            ->get()
+            ->keyBy('tugas_id');
+
+        $totalBobot = 0;
+        $weightedSum = 0;
+
+        foreach ($tugasList as $tugas) {
+            if (isset($nilaiList[$tugas->id])) {
+                $weightedSum += $nilaiList[$tugas->id]->nilai * ($tugas->bobot / 100);
+                $totalBobot += $tugas->bobot;
+            }
+        }
+
+        if ($totalBobot > 0) {
+            $nilaiAkhir = round(($weightedSum / $totalBobot) * 100, 2);
+            Krs::where('mata_kuliah_id', $mataKuliahId)
+                ->where('siswa_id', $siswaId)
+                ->update([
+                    'nilai_akhir' => $nilaiAkhir,
+                    'nilai_huruf' => $this->toHuruf($nilaiAkhir),
+                ]);
+        }
+    }
+
+    private function toHuruf(float $nilai): string
+    {
+        return match (true) {
+            $nilai >= 85 => 'A',
+            $nilai >= 80 => 'A-',
+            $nilai >= 75 => 'B+',
+            $nilai >= 70 => 'B',
+            $nilai >= 65 => 'B-',
+            $nilai >= 60 => 'C+',
+            $nilai >= 55 => 'C',
+            $nilai >= 50 => 'D',
+            default => 'E',
+        };
     }
 }
