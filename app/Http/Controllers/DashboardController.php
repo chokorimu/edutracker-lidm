@@ -8,8 +8,10 @@ use App\Models\TugasSubmission;
 use App\Models\UserSiswa;
 use App\Services\BebanCalculator;
 use Carbon\Carbon;
+use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -136,7 +138,21 @@ class DashboardController extends Controller
         }
 
         $request->validate([
-            'file' => 'required|file|mimes:pdf|max:10240',
+            'file' => [
+                'bail',
+                'required',
+                'file',
+                'max:10240',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if (! $value instanceof UploadedFile || ! $this->isPdfUpload($value)) {
+                        $fail('File tugas harus berupa PDF.');
+                    }
+                },
+            ],
+        ], [
+            'file.required' => 'Pilih file PDF terlebih dahulu.',
+            'file.file' => 'File tugas tidak valid.',
+            'file.max' => 'Ukuran PDF maksimal 10 MB.',
         ]);
 
         $isLate = now()->gt(Carbon::parse($tugas->deadline));
@@ -167,7 +183,7 @@ class DashboardController extends Controller
             Storage::disk('local')->delete($oldPath);
         }
 
-        return redirect()->route('siswa.dashboard', ['tab' => 'tugas'])
+        return redirect()->route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $tugas->mata_kuliah_id])
             ->with('status', $isLate ? 'Tugas disubmit (terlambat).' : 'Tugas berhasil disubmit.');
     }
 
@@ -183,24 +199,40 @@ class DashboardController extends Controller
         return Storage::disk('local')->download($submission->file_path, $submission->file_name);
     }
 
+    private function isPdfUpload(UploadedFile $file): bool
+    {
+        if (strtolower($file->getClientOriginalExtension()) !== 'pdf') {
+            return false;
+        }
+
+        $path = $file->getRealPath();
+        $header = $path ? file_get_contents($path, false, null, 0, 1024) : false;
+
+        if (is_string($header) && str_contains($header, '%PDF-')) {
+            return true;
+        }
+
+        return in_array($file->getMimeType(), ['application/pdf', 'application/x-pdf'], true);
+    }
+
     private function buildProfileData(UserSiswa $user, string $weeklyStatus): array
     {
         $nim = $user->nim;
         $angkatan = $this->extractAngkatan($nim);
-        $latestIpk = $user->ipkHistory()->latest('semester')->first();
+        $currentSemester = $this->currentAcademicSemester($user);
+        $allIpk = $user->ipkHistory()->pluck('ipk');
         $dosenPa = $user->dosenPa()->with('dosen')->latest()->first();
         $dosenPaName = $dosenPa?->dosen?->name ?? '-';
 
         $krsList = $user->krs()
             ->with('mataKuliah')
-            ->where('semester', $user->semester)
+            ->where('semester', $currentSemester)
             ->get();
 
         $sksSemester = $krsList->sum(fn ($krs) => (int) ($krs->mataKuliah?->sks ?? 0));
-        $sksLulus = (int) $user->krs()
-            ->where('status', 'selesai')
-            ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
-            ->sum('mata_kuliah.sks');
+        $sksLulus = (int) $user->ipkHistory()
+            ->where('semester', '<', $currentSemester)
+            ->sum('total_sks');
 
         return [
             'profile' => [
@@ -208,9 +240,9 @@ class DashboardController extends Controller
                 'nama' => $user->name,
                 'email' => $user->email,
                 'prodi' => $user->prodi ?? '-',
-                'semester' => $user->semester ?? 1,
+                'semester' => $currentSemester,
                 'angkatan' => $angkatan,
-                'ipk' => $latestIpk?->ipk ?? '-',
+                'ipk' => $allIpk->isNotEmpty() ? number_format($allIpk->avg(), 2) : '-',
                 'sks_lulus' => $sksLulus,
                 'sks_semester' => $sksSemester,
                 'dosen_pa' => $dosenPaName,
@@ -221,9 +253,10 @@ class DashboardController extends Controller
 
     private function buildMatakuliahData(UserSiswa $user, Carbon $startOfWeek, Carbon $endOfWeek): array
     {
+        $currentSemester = $this->currentAcademicSemester($user);
         $krsList = $user->krs()
             ->with('mataKuliah')
-            ->where('semester', $user->semester)
+            ->where('semester', $currentSemester)
             ->get();
 
         $currentCourseIds = $krsList->pluck('mata_kuliah_id')->filter()->values();
@@ -275,6 +308,17 @@ class DashboardController extends Controller
         return [
             'matakuliah' => $matakuliah,
         ];
+    }
+
+    private function currentAcademicSemester(UserSiswa $user): int
+    {
+        $lastCompletedSemester = $user->ipkHistory()->max('semester');
+
+        if ($lastCompletedSemester !== null) {
+            return min(((int) $lastCompletedSemester) + 1, 14);
+        }
+
+        return max((int) ($user->semester ?? 1), 1);
     }
 
     private function buildTugasData($allCourseIds): array

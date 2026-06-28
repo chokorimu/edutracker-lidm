@@ -40,11 +40,21 @@ class AdminResourceController extends Controller
         $editing = $editId ? $modelClass::find($editId) : null;
         $records = $modelClass::latest('id')->paginate(10)->withQueryString();
         $krsGroups = null;
+        $ipkHistoryGroups = null;
 
         if ($resourceKey === 'krs') {
             $records = Krs::with(['siswa', 'mataKuliah'])->latest('id')->paginate(10)->withQueryString();
             $krsGroups = UserSiswa::whereHas('krs')
                 ->with(['krs' => fn ($query) => $query->with('mataKuliah')->orderBy('semester')->orderBy('tahun_ajaran')->orderBy('id')])
+                ->orderBy('name')
+                ->paginate(10, ['*'], 'students_page')
+                ->withQueryString();
+        }
+
+        if ($resourceKey === 'ipk-history') {
+            $records = IpkHistory::with('siswa')->latest('id')->paginate(10)->withQueryString();
+            $ipkHistoryGroups = UserSiswa::whereHas('ipkHistory')
+                ->with(['ipkHistory' => fn ($query) => $query->orderBy('semester')->orderBy('tahun_ajaran')->orderBy('id')])
                 ->orderBy('name')
                 ->paginate(10, ['*'], 'students_page')
                 ->withQueryString();
@@ -60,6 +70,7 @@ class AdminResourceController extends Controller
             'counts' => $this->counts($resources),
             'options' => $this->formOptions(),
             'krsGroups' => $krsGroups,
+            'ipkHistoryGroups' => $ipkHistoryGroups,
         ]);
     }
 
@@ -303,11 +314,11 @@ class AdminResourceController extends Controller
         $isNumericType = in_array($fieldConfig['type'] ?? 'text', ['number', 'select'], true);
 
         if ($isNumericType && isset($fieldConfig['min'])) {
-            $rules[] = 'min:' . $fieldConfig['min'];
+            $rules[] = 'min:'.$fieldConfig['min'];
         }
 
         if ($isNumericType && isset($fieldConfig['max'])) {
-            $rules[] = 'max:' . $fieldConfig['max'];
+            $rules[] = 'max:'.$fieldConfig['max'];
         }
 
         if ($field === 'email') {
