@@ -78,7 +78,8 @@ class DashboardController extends Controller
     {
         $user = Auth::guard('siswa')->user();
         $validated = $request->validate([
-            'preferences' => 'array',
+            'preferences'   => 'nullable|array',
+            'preferences.*' => 'boolean',
         ]);
 
         $user->update([
@@ -495,6 +496,9 @@ class DashboardController extends Controller
 
     private function emptySiswaData(): array
     {
+        $prevMonth = now()->subMonthNoOverflow();
+        $nextMonth = now()->addMonthNoOverflow();
+
         return [
             'profile' => [
                 'nim' => '-', 'nama' => '-', 'email' => '-', 'prodi' => '-', 'semester' => 1, 'angkatan' => '-', 'ipk' => '-', 'sks_lulus' => 0, 'sks_semester' => 0, 'dosen_pa' => '-', 'weekly_status' => BebanCalculator::LIGHT,
@@ -509,12 +513,15 @@ class DashboardController extends Controller
             'selected_day' => now()->day,
             'selected_date' => now(),
             'selected_day_tasks' => [],
-            'calendar_previous' => ['month' => now()->subMonth()->month, 'year' => now()->subMonth()->year],
-            'calendar_next' => ['month' => now()->addMonth()->month, 'year' => now()->addMonth()->year],
+            // BUG-2 fix: use shared instances so month and year always match
+            'calendar_previous' => ['month' => $prevMonth->month, 'year' => $prevMonth->year],
+            'calendar_next'     => ['month' => $nextMonth->month, 'year' => $nextMonth->year],
             'weekly_task_count' => 0,
             'status_beban_label' => 'Tidak ada data',
             'status_beban_color' => 'text-gray-400',
-            'weekly_status' => ['label' => 'Tidak ada data', 'color' => 'text-gray-400', 'count' => 0],
+            // BUG-1 fix: renamed from 'weekly_status' (which collided with profile['weekly_status'])
+            // to 'workload_week_status' to match the structure from buildWorkloadData()
+            'workload_week_status' => ['label' => 'Tidak ada data', 'color' => 'text-gray-400', 'count' => 0],
             'risk_score' => 0,
             'sks_recommendation' => ['sks' => 0, 'reason' => '-'],
             'deadline_terdekat' => 0,
