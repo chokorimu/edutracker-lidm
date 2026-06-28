@@ -33,6 +33,12 @@ php artisan schedule:list
 - Heavy/overload warnings must happen before save unless `override` is checked.
 - Do not create one `notifikasi_dosen` per bimbingan student for a single task. That duplicates identical lecturer notifications.
 
+## Siswa Workload View
+
+- The siswa dashboard workload summary should not assume the current calendar week is the interesting one.
+- Use the workload focus week derived from task deadlines when rendering `weekly_task_count`, `status_beban_label`, and the distribution bars.
+- If the dashboard summary and dosen status disagree, check the week range first before touching `BebanCalculator::forCount()`.
+
 ## Early Warning Command
 
 - `UserSiswa::dosenPa()` is a has-many relation.
@@ -46,6 +52,12 @@ php artisan schedule:list
 - Current target: `resources/views/pages/siswa/⚡dashboard.blade.php`, around lines 465-471.
 - The rows `Keamanan Kata Sandi` and `Integrasi API SIAKAD` must not remain fake clickable controls.
 - Either implement real actions with routes/Livewire handlers/tests, or make the rows visibly disabled/read-only.
+
+## Deadline Input UI
+
+- Do not rely on `input[type="datetime-local"]` alone for task deadlines.
+- Use explicit date and time controls in the UI when the browser control is inconsistent or hides the time picker.
+- Keep the hidden `deadline` payload normalized as `Y-m-d H:i:s` before validation and save.
 
 ## Verification Before Final Answer
 

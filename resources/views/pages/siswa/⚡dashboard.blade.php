@@ -131,9 +131,9 @@
                     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         @foreach([
                             ['Total SKS Aktif', $profile['sks_semester'] ?? 0, 'text-appleDark', 'SKS semester ini'],
-                            ['Tugas Minggu Ini', $data['weekly_task_count'] ?? 0, 'text-appleDark', 'deadline aktif'],
+                            ['Tugas Pekan Fokus', $data['weekly_task_count'] ?? 0, 'text-appleDark', $data['workload_week_label'] ?? 'deadline aktif'],
                             ['Deadline 3 Hari', $data['deadline_terdekat'] ?? 0, 'text-appleOrange', 'perlu dipantau'],
-                            ['Status Beban', $data['status_beban_label'] ?? '-', $data['status_beban_color'] ?? 'text-appleDark', 'minggu berjalan'],
+                            ['Status Beban', $data['status_beban_label'] ?? '-', $data['status_beban_color'] ?? 'text-appleDark', $data['workload_week_label'] ?? 'pekan berjalan'],
                         ] as [$label, $value, $color, $caption])
                             <div class="{{ $cardClass }} p-5 hover:shadow-lg hover:-translate-y-1">
                                 <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $label }}</p>
@@ -148,7 +148,7 @@
                             <div class="mb-5 flex items-center justify-between gap-3">
                                 <div>
                                     <h2 class="text-sm font-bold">Distribusi Beban Mingguan</h2>
-                                    <p class="mt-1 text-xs {{ $mutedClass }}">Jumlah tugas berdasarkan hari deadline.</p>
+                                    <p class="mt-1 text-xs {{ $mutedClass }}">{{ $data['workload_week_label'] ?? 'Pekan berjalan' }} · jumlah tugas berdasarkan hari deadline.</p>
                                 </div>
                                 <span class="rounded-full bg-bone px-3 py-1 text-xs font-bold {{ $mutedClass }} ring-1 ring-bone-dark/50">{{ $data['weekly_task_count'] ?? 0 }} tugas</span>
                             </div>
