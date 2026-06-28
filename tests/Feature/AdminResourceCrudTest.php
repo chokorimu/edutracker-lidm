@@ -99,12 +99,6 @@ class AdminResourceCrudTest extends TestCase
                 'update' => ['nama' => 'Algoritma Update', 'kode' => 'ALG-001U', 'sks' => 3, 'dosen_id' => $dosen->id, 'tahun_ajaran' => '2027/2028', 'semester' => 3],
                 'match' => ['kode' => 'ALG-001U'],
             ],
-            'tugas' => [
-                'table' => 'tugas',
-                'create' => ['mata_kuliah_id' => $mataKuliah->id, 'nama' => 'Tugas CRUD', 'bobot' => 30, 'deadline' => '2026-07-02', 'deskripsi' => 'Buat', 'status_beban' => 'aktif', 'override' => '1'],
-                'update' => ['mata_kuliah_id' => $mataKuliah->id, 'nama' => 'Tugas CRUD Update', 'bobot' => 35, 'deadline' => '2026-07-03', 'deskripsi' => 'Ubah', 'status_beban' => 'selesai', 'override' => '0'],
-                'match' => ['nama' => 'Tugas CRUD Update'],
-            ],
             'dosen-pa' => [
                 'table' => 'dosen_pa',
                 'create' => ['dosen_id' => $dosen->id, 'siswa_id' => $siswa->id, 'tahun_ajaran' => '2026/2027'],
@@ -128,12 +122,6 @@ class AdminResourceCrudTest extends TestCase
                 'create' => ['siswa_id' => $siswa->id, 'mata_kuliah_id' => $mataKuliah->id, 'semester' => 3, 'tahun_ajaran' => '2026/2027', 'nilai_akhir' => 80, 'nilai_huruf' => 'A', 'status' => 'aktif'],
                 'update' => ['siswa_id' => $siswa->id, 'mata_kuliah_id' => $mataKuliah->id, 'semester' => 3, 'tahun_ajaran' => '2026/2027', 'nilai_akhir' => 85, 'nilai_huruf' => 'A', 'status' => 'selesai'],
                 'match' => ['status' => 'selesai'],
-            ],
-            'nilai-tugas' => [
-                'table' => 'nilai_tugas',
-                'create' => ['tugas_id' => $tugas->id, 'siswa_id' => $siswa->id, 'nilai' => 75, 'komentar' => 'Baik'],
-                'update' => ['tugas_id' => $tugas->id, 'siswa_id' => $siswa->id, 'nilai' => 90, 'komentar' => 'Sangat baik'],
-                'match' => ['nilai' => 90],
             ],
             'notifikasi' => [
                 'table' => 'notifikasi',

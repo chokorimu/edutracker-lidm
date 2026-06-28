@@ -168,12 +168,12 @@ class DashboardController extends Controller
             ->pluck('aggregate', 'mata_kuliah_id');
 
         $weeklyTaskCountsByCourse = Tugas::whereIn('mata_kuliah_id', $currentCourseIds)
-            ->whereBetween('deadline', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->whereBetween('deadline', [$startOfWeek, $endOfWeek])
             ->selectRaw('mata_kuliah_id, COUNT(*) as aggregate')
             ->groupBy('mata_kuliah_id')
             ->pluck('aggregate', 'mata_kuliah_id');
 
-        $matakuliah = $krsList->map(function ($krs) use ($taskCountsByCourse, $weeklyTaskCountsByCourse) {
+        $matakuliah = $krsList->map(function ($krs) use ($user, $taskCountsByCourse, $weeklyTaskCountsByCourse) {
             $mk = $krs->mataKuliah;
             if (! $mk) {
                 return null;
@@ -182,6 +182,16 @@ class DashboardController extends Controller
             $tugasCount = (int) $taskCountsByCourse->get($mk->id, 0);
             $weeklyTugasCount = (int) $weeklyTaskCountsByCourse->get($mk->id, 0);
             $statusBeban = BebanCalculator::forCount($weeklyTugasCount);
+            $tugasWithNilai = Tugas::where('mata_kuliah_id', $krs->mata_kuliah_id)
+                ->with(['nilaiTugas' => fn ($query) => $query->where('siswa_id', $user->id)])
+                ->orderBy('deadline')
+                ->get()
+                ->map(fn ($tugas) => [
+                    'nama' => $tugas->nama,
+                    'bobot' => $tugas->bobot,
+                    'deadline' => $tugas->deadline,
+                    'nilai' => $tugas->nilaiTugas->first()?->nilai,
+                ]);
 
             return [
                 'nama' => $mk->nama,
@@ -193,6 +203,7 @@ class DashboardController extends Controller
                 'beban_status' => $statusBeban,
                 'beban_color' => BebanCalculator::colorClass($statusBeban),
                 'status' => $krs->status === 'selesai' ? 'Selesai' : 'Aktif',
+                'tugas_nilai' => $tugasWithNilai,
             ];
         })->filter()->values()->toArray();
 
@@ -279,7 +290,7 @@ class DashboardController extends Controller
     private function buildWorkloadData($allCourseIds, Carbon $startOfWeek, Carbon $endOfWeek): array
     {
         $weeklyTasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-            ->whereBetween('deadline', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->whereBetween('deadline', [$startOfWeek, $endOfWeek])
             ->get(['deadline']);
 
         $weeklyTaskCount = $weeklyTasks->count();
@@ -347,7 +358,7 @@ class DashboardController extends Controller
 
         $monthlyTasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->with('mataKuliah')
-            ->whereBetween('deadline', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->whereBetween('deadline', [$monthStart, $monthEnd])
             ->orderBy('deadline')
             ->get()
             ->groupBy(function ($t) {

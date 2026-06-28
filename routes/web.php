@@ -5,12 +5,13 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DosenResourceController;
 use App\Http\Controllers\ProdiDashboardController;
 use Illuminate\Support\Facades\Route;
+use Livewire\Volt\Volt;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::livewire('/login', 'pages::auth.login')->name('login');
+Volt::route('/login', 'pages::auth.login')->name('login');
 
 Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminResourceController::class, 'index'])->name('dashboard');
@@ -28,6 +29,7 @@ Route::middleware('dosen')->prefix('dosen')->name('dosen.')->group(function () {
     Route::post('/tugas', [DosenResourceController::class, 'storeTugas'])->name('tugas.store');
     Route::put('/tugas/{id}', [DosenResourceController::class, 'updateTugas'])->name('tugas.update');
     Route::delete('/tugas/{id}', [DosenResourceController::class, 'destroyTugas'])->name('tugas.destroy');
+    Route::post('/nilai/{tugasId}/{siswaId}', [DosenResourceController::class, 'storeNilai'])->name('nilai.store');
     Route::patch('/notifikasi/{id}/read', [DosenResourceController::class, 'markNotifikasiRead'])->name('notifikasi.read');
     Route::post('/logout', [DashboardController::class, 'logoutDosen'])->name('logout');
 });

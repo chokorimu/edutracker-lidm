@@ -55,10 +55,6 @@ new class extends Component
             return null;
         }
 
-        if (request()->hasSession()) {
-            request()->session()->regenerate();
-        }
-
         return redirect()->route($route);
     }
 

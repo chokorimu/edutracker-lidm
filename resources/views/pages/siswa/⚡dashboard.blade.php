@@ -300,6 +300,18 @@
                                             <td class="px-5 py-4">
                                                 <p class="font-bold">{{ $mk['nama'] ?? 'Mata Kuliah' }}</p>
                                                 <p class="mt-1 text-xs {{ $mutedClass }}">{{ $mk['kode'] ?? '-' }}</p>
+                                                @if(!empty($mk['tugas_nilai']))
+                                                    <div class="mt-2 space-y-1">
+                                                        @foreach($mk['tugas_nilai'] as $tugas)
+                                                            <div class="flex justify-between gap-3 text-xs text-gray-500">
+                                                                <span>{{ $tugas['nama'] }} ({{ $tugas['bobot'] }}%)</span>
+                                                                <span class="{{ $tugas['nilai'] !== null ? 'font-semibold text-gray-800' : 'text-gray-400' }}">
+                                                                    {{ $tugas['nilai'] !== null ? number_format($tugas['nilai'], 1) : '-' }}
+                                                                </span>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td class="px-5 py-4 text-center font-semibold {{ $mutedClass }}">{{ $mk['sks'] ?? 0 }}</td>
                                             <td class="px-5 py-4 text-center font-semibold {{ $mutedClass }}">{{ $mk['tugas'] ?? 0 }}</td>
@@ -409,7 +421,7 @@
                                     $areaPath = $smoothPath . ' L ' . $pointsArray[$count-1]['x'] . ' ' . ($chartConfig['height'] - $chartConfig['paddingBottom']) . ' L ' . $pointsArray[0]['x'] . ' ' . ($chartConfig['height'] - $chartConfig['paddingBottom']) . ' Z';
                                 @endphp
                                 <div class="mt-6 overflow-x-auto">
-                                    <svg class="min-w-[560px]" viewBox="0 0 {{ $chartConfig['width'] }} {{ $chartConfig['height'] }}" role="img" aria-label="Grafik Tren Historis IPK">
+                                    <svg data-ipk-chart class="min-w-[560px]" viewBox="0 0 {{ $chartConfig['width'] }} {{ $chartConfig['height'] }}" role="img" aria-label="Grafik Tren Historis IPK">
                                         <defs>
                                             <linearGradient id="ipkTrendFill" x1="0" x2="0" y1="0" y2="1">
                                                 <stop offset="0%" stop-color="#111827" stop-opacity="0.15" />

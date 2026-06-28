@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Krs;
 use App\Models\MataKuliah;
+use App\Models\NilaiTugas;
 use App\Models\Tugas;
 use App\Models\UserDosen;
 use App\Models\UserSiswa;
@@ -14,6 +15,61 @@ use Tests\TestCase;
 class DosenResourceTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_kelas_tab_renders_course_list_and_detail(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Kelas',
+            'email' => 'dosen-kelas@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-KELAS',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Kelas',
+            'email' => 'siswa-kelas@example.test',
+            'password' => 'password',
+            'nim' => '220101996',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Interaksi Manusia Komputer',
+            'kode' => 'IMK-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+        Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => 'Wireframe',
+            'bobot' => 100,
+            'deadline' => now()->addDays(3)->format('Y-m-d H:i:s'),
+            'deskripsi' => 'Buat wireframe',
+        ]);
+
+        $this->actingAs($dosen, 'dosen')
+            ->get(route('dosen.dashboard', ['tab' => 'kelas']))
+            ->assertOk()
+            ->assertSee('Mata Kuliah Anda')
+            ->assertSee('Interaksi Manusia Komputer');
+
+        $this->actingAs($dosen, 'dosen')
+            ->get(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]))
+            ->assertOk()
+            ->assertSee('Tambah Tugas')
+            ->assertSee('Daftar Tugas & Nilai', false)
+            ->assertSee('Wireframe')
+            ->assertSee('Siswa Kelas');
+    }
 
     public function test_new_tugas_counts_toward_workload_warning(): void
     {
@@ -134,7 +190,7 @@ class DosenResourceTest extends TestCase
                 'deadline' => now()->addDays(2)->toDateString(),
                 'override' => '1',
             ])
-            ->assertRedirect(route('dosen.dashboard', ['tab' => 'tugas']));
+            ->assertRedirect(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]));
 
         $this->assertDatabaseHas('tugas', [
             'nama' => 'Tugas 3',
@@ -200,7 +256,7 @@ class DosenResourceTest extends TestCase
                 'deadline' => now()->addDays(2)->toDateString(),
                 'status' => 'aktif',
             ])
-            ->assertRedirect(route('dosen.dashboard', ['tab' => 'tugas']));
+            ->assertRedirect(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]));
 
         $this->assertDatabaseHas('tugas', [
             'id' => $tugas->id,
@@ -274,6 +330,80 @@ class DosenResourceTest extends TestCase
             ->assertJsonPath('students.0.projected_count', 3)
             ->assertJsonPath('students.0.status', BebanCalculator::HEAVY)
             ->assertJsonCount(3, 'suggestions');
+    }
+
+    public function test_dosen_can_store_nilai_and_update_krs_final_grade(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Nilai',
+            'email' => 'dosen-nilai@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-003',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Nilai',
+            'email' => 'siswa-nilai@example.test',
+            'password' => 'password',
+            'nim' => '220101997',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Pemrograman Web',
+            'kode' => 'PW-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+        $tugasA = Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => 'Tugas A',
+            'bobot' => 50,
+            'deadline' => now()->addDays(3)->format('Y-m-d H:i:s'),
+            'deskripsi' => 'A',
+        ]);
+        $tugasB = Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => 'Tugas B',
+            'bobot' => 50,
+            'deadline' => now()->addDays(4)->format('Y-m-d H:i:s'),
+            'deskripsi' => 'B',
+        ]);
+        NilaiTugas::create([
+            'tugas_id' => $tugasA->id,
+            'siswa_id' => $siswa->id,
+            'nilai' => 80,
+        ]);
+
+        $this->actingAs($dosen, 'dosen')
+            ->post(route('dosen.nilai.store', [$tugasB->id, $siswa->id]), [
+                'nilai' => 90,
+                'komentar' => 'Bagus',
+            ])
+            ->assertRedirect(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]))
+            ->assertSessionHas('status', 'Nilai disimpan.');
+
+        $this->assertDatabaseHas('nilai_tugas', [
+            'tugas_id' => $tugasB->id,
+            'siswa_id' => $siswa->id,
+            'nilai' => 90,
+            'komentar' => 'Bagus',
+        ]);
+        $this->assertDatabaseHas('krs', [
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nilai_akhir' => 85,
+            'nilai_huruf' => 'A',
+        ]);
     }
 
     public function test_preview_beban_forbids_other_dosen_course(): void

@@ -8,7 +8,6 @@ use App\Models\KalenderAkademik;
 use App\Models\Krs;
 use App\Models\Laporan;
 use App\Models\MataKuliah;
-use App\Models\NilaiTugas;
 use App\Models\Notifikasi;
 use App\Models\NotifikasiDosen;
 use App\Models\Pengaturan;
@@ -160,19 +159,6 @@ class AdminResourceController extends Controller
                     'semester' => ['label' => 'Semester', 'type' => 'number', 'required' => true, 'min' => 1, 'max' => 14],
                 ],
             ],
-            'tugas' => [
-                'label' => 'Tugas',
-                'model' => Tugas::class,
-                'fields' => [
-                    'mata_kuliah_id' => ['label' => 'Mata Kuliah', 'type' => 'select', 'required' => true, 'options' => 'mata_kuliah'],
-                    'nama' => ['label' => 'Nama', 'type' => 'text', 'required' => true],
-                    'bobot' => ['label' => 'Bobot', 'type' => 'number', 'required' => true, 'step' => '0.01', 'min' => 0],
-                    'deadline' => ['label' => 'Deadline', 'type' => 'date', 'required' => true],
-                    'deskripsi' => ['label' => 'Deskripsi', 'type' => 'textarea'],
-                    'status_beban' => ['label' => 'Status Beban', 'type' => 'text', 'required' => true],
-                    'override' => ['label' => 'Override', 'type' => 'checkbox'],
-                ],
-            ],
             'dosen-pa' => [
                 'label' => 'Dosen PA',
                 'model' => DosenPa::class,
@@ -216,16 +202,6 @@ class AdminResourceController extends Controller
                     'nilai_akhir' => ['label' => 'Nilai Akhir', 'type' => 'number', 'step' => '0.01', 'min' => 0, 'max' => 100],
                     'nilai_huruf' => ['label' => 'Nilai Huruf', 'type' => 'text'],
                     'status' => ['label' => 'Status', 'type' => 'text', 'required' => true],
-                ],
-            ],
-            'nilai-tugas' => [
-                'label' => 'Nilai Tugas',
-                'model' => NilaiTugas::class,
-                'fields' => [
-                    'tugas_id' => ['label' => 'Tugas', 'type' => 'select', 'required' => true, 'options' => 'tugas'],
-                    'siswa_id' => ['label' => 'Siswa', 'type' => 'select', 'required' => true, 'options' => 'siswas'],
-                    'nilai' => ['label' => 'Nilai', 'type' => 'number', 'step' => '0.01', 'min' => 0, 'max' => 100],
-                    'komentar' => ['label' => 'Komentar', 'type' => 'textarea'],
                 ],
             ],
             'notifikasi' => [
