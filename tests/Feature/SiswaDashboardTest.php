@@ -175,4 +175,61 @@ class SiswaDashboardTest extends TestCase
         $this->assertIsArray($data['monthly_tasks']);
         $this->assertIsArray($data['monthly_tasks'][15] ?? null);
     }
+
+    public function test_siswa_dashboard_focuses_on_loaded_deadline_week(): void
+    {
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Beban',
+            'email' => 'beban@test.test',
+            'password' => bcrypt('siswa123'),
+            'nim' => '220101003',
+            'prodi' => 'Informatika',
+            'semester' => 1,
+            'profile_completed' => true,
+        ]);
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Beban',
+            'email' => 'dosen-beban@test.test',
+            'password' => bcrypt('dosen123'),
+            'nidn' => 'NIDN-003',
+            'fakultas' => 'Teknik',
+        ]);
+        $mk = MataKuliah::create([
+            'nama' => 'Algoritma',
+            'kode' => 'ALG01',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'semester' => 1,
+            'tahun_ajaran' => '2026/2027',
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mk->id,
+            'semester' => 1,
+            'status' => 'aktif',
+            'tahun_ajaran' => '2026/2027',
+        ]);
+
+        $deadlineWeek = now()->addWeek()->startOfWeek();
+        foreach ([0, 1, 2] as $index) {
+            Tugas::create([
+                'mata_kuliah_id' => $mk->id,
+                'nama' => 'Tugas '.$index,
+                'bobot' => 33.33,
+                'deadline' => $deadlineWeek->copy()->addDays($index)->setTime(10, 0),
+                'deskripsi' => 'Tugas beban',
+            ]);
+        }
+
+        $response = $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard'));
+
+        $response->assertOk()->assertSee('Berat');
+
+        $data = $response->original->getData()['data'];
+
+        $this->assertSame(3, $data['weekly_task_count']);
+        $this->assertSame('Berat', $data['status_beban_label']);
+        $this->assertContains('#EF4444', collect($data['daily_workload'])->pluck('color'));
+    }
 }

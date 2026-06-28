@@ -105,12 +105,13 @@ class DosenResourceController extends Controller
     public function storeTugas(Request $request): RedirectResponse
     {
         $user = Auth::guard('dosen')->user();
+        $this->normalizeDeadlineInput($request);
 
         $validated = $request->validate([
             'mata_kuliah_id' => 'required|exists:mata_kuliah,id',
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'deadline' => 'required|date|after:now',
+            'deadline' => 'required|date_format:Y-m-d H:i:s|after:now',
             'override' => 'nullable|boolean',
         ]);
 
@@ -161,10 +162,11 @@ class DosenResourceController extends Controller
     public function previewBeban(Request $request): JsonResponse
     {
         $user = Auth::guard('dosen')->user();
+        $this->normalizeDeadlineInput($request);
 
         $validated = $request->validate([
             'mata_kuliah_id' => 'required|exists:mata_kuliah,id',
-            'deadline' => 'required|date|after:now',
+            'deadline' => 'required|date_format:Y-m-d H:i:s|after:now',
         ]);
 
         $mk = MataKuliah::findOrFail($validated['mata_kuliah_id']);
@@ -235,6 +237,7 @@ class DosenResourceController extends Controller
     public function updateTugas(Request $request, int $id): RedirectResponse
     {
         $user = Auth::guard('dosen')->user();
+        $this->normalizeDeadlineInput($request);
         $tugas = Tugas::findOrFail($id);
         $mk = $tugas->mataKuliah;
 
@@ -245,7 +248,7 @@ class DosenResourceController extends Controller
         $validated = $request->validate([
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'deadline' => 'required|date',
+            'deadline' => 'required|date_format:Y-m-d H:i:s',
             'status' => 'required|in:aktif,selesai',
         ]);
 
@@ -368,6 +371,33 @@ class DosenResourceController extends Controller
         }
 
         return $worst;
+    }
+
+    private function normalizeDeadlineInput(Request $request): void
+    {
+        if (! $request->filled('deadline_time') && $request->filled(['deadline_hour', 'deadline_minute'])) {
+            $request->merge([
+                'deadline_time' => $request->input('deadline_hour').':'.$request->input('deadline_minute'),
+            ]);
+        }
+
+        if (! $request->filled('deadline') && $request->filled(['deadline_date', 'deadline_time'])) {
+            $request->merge([
+                'deadline' => $request->input('deadline_date').' '.$request->input('deadline_time').':00',
+            ]);
+        }
+
+        if (! $request->filled('deadline')) {
+            return;
+        }
+
+        try {
+            $request->merge([
+                'deadline' => Carbon::parse($request->input('deadline'))->format('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable) {
+            // Leave invalid input untouched so validation returns the field error.
+        }
     }
 
     private function rebalanceBobot(int $mataKuliahId): void

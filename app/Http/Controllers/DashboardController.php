@@ -97,13 +97,12 @@ class DashboardController extends Controller
         }
 
         $now = now();
-        $startOfWeek = $now->copy()->startOfWeek();
-        $endOfWeek = $now->copy()->endOfWeek();
         $allCourseIds = $user->krs()
             ->pluck('mata_kuliah_id')
             ->filter()
             ->unique()
             ->values();
+        [$startOfWeek, $endOfWeek] = $this->resolveWorkloadWeek($allCourseIds, $now);
 
         $workloadData = $this->buildWorkloadData($allCourseIds, $startOfWeek, $endOfWeek);
 
@@ -294,6 +293,13 @@ class DashboardController extends Controller
             ->get(['deadline']);
 
         $weeklyTaskCount = $weeklyTasks->count();
+        $weeklyStatus = BebanCalculator::forCount($weeklyTaskCount);
+        $barColor = match ($weeklyStatus) {
+            BebanCalculator::NORMAL => '#F59E0B',
+            BebanCalculator::HEAVY => '#EF4444',
+            BebanCalculator::OVERLOAD => '#B91C1C',
+            default => '#10B981',
+        };
         $dailyTaskCounts = $weeklyTasks
             ->groupBy(fn ($task) => Carbon::parse($task->deadline)->toDateString())
             ->map->count();
@@ -306,11 +312,10 @@ class DashboardController extends Controller
             $dailyWorkload[] = [
                 'day' => $date->translatedFormat('D'),
                 'count' => $count,
-                'color' => $count >= 3 ? '#EF4444' : ($count >= 2 ? '#F59E0B' : '#10B981'),
+                'color' => $count > 0 ? $barColor : '#D1D5DB',
             ];
         }
 
-        $weeklyStatus = BebanCalculator::forCount($weeklyTaskCount);
         $statusBebanLabel = match ($weeklyStatus) {
             BebanCalculator::LIGHT => 'Ringan',
             BebanCalculator::NORMAL => 'Normal',
@@ -331,6 +336,7 @@ class DashboardController extends Controller
             'weekly_status_code' => $weeklyStatus,
             'payload' => [
                 'daily_workload' => $dailyWorkload,
+                'workload_week_label' => $startOfWeek->translatedFormat('d M').' - '.$endOfWeek->translatedFormat('d M Y'),
                 'weekly_task_count' => $weeklyTaskCount,
                 'status_beban_label' => $statusBebanLabel,
                 'status_beban_color' => $statusBebanColor,
@@ -341,6 +347,35 @@ class DashboardController extends Controller
                 ],
             ],
         ];
+    }
+
+    private function resolveWorkloadWeek($allCourseIds, Carbon $now): array
+    {
+        $defaultStart = $now->copy()->startOfWeek();
+        $defaultEnd = $now->copy()->endOfWeek();
+
+        if ($allCourseIds->isEmpty()) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        $tasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
+            ->whereBetween('deadline', [$defaultStart, $now->copy()->addWeeks(8)->endOfWeek()])
+            ->orderBy('deadline')
+            ->get(['deadline']);
+
+        if ($tasks->isEmpty()) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        $week = $tasks
+            ->groupBy(fn ($task) => Carbon::parse($task->deadline)->startOfWeek()->toDateString())
+            ->sortByDesc(fn ($tasks) => $tasks->count())
+            ->keys()
+            ->first();
+
+        $start = Carbon::parse($week)->startOfWeek();
+
+        return [$start, $start->copy()->endOfWeek()];
     }
 
     private function buildCalendarData(?Request $request, $allCourseIds, Carbon $now): array

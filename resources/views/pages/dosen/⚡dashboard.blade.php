@@ -157,9 +157,57 @@
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-600">Deadline</label>
-                                <input type="datetime-local" name="deadline" id="deadline"
-                                       value="{{ old('deadline') }}" required data-preview-deadline
-                                       class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                                @php
+                                    $deadlineValue = old('deadline');
+                                    $deadlineDateValue = old('deadline_date');
+                                    $deadlineTimeValue = old('deadline_time');
+                                    $deadlineHourValue = old('deadline_hour');
+                                    $deadlineMinuteValue = old('deadline_minute');
+                                    if ($deadlineValue) {
+                                        try {
+                                            $parsedDeadline = \Carbon\Carbon::parse($deadlineValue);
+                                            $deadlineValue = $parsedDeadline->format('Y-m-d H:i:s');
+                                            $deadlineDateValue = $deadlineDateValue ?: $parsedDeadline->format('Y-m-d');
+                                            $deadlineTimeValue = $deadlineTimeValue ?: $parsedDeadline->format('H:i');
+                                            $deadlineHourValue = $deadlineHourValue ?: $parsedDeadline->format('H');
+                                            $deadlineMinuteValue = $deadlineMinuteValue ?: $parsedDeadline->format('i');
+                                        } catch (\Throwable) {
+                                        }
+                                    } elseif ($deadlineTimeValue) {
+                                        [$deadlineHourValue, $deadlineMinuteValue] = array_pad(explode(':', $deadlineTimeValue, 2), 2, null);
+                                    }
+                                @endphp
+                                <input type="hidden" name="deadline" id="deadline" value="{{ $deadlineValue }}" data-preview-deadline>
+                                <input type="hidden" name="deadline_time" value="{{ $deadlineTimeValue }}" data-deadline-time>
+                                <div class="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                                    <div>
+                                        <span class="mb-1 block text-[11px] font-medium text-gray-500">Tanggal</span>
+                                        <input type="date" name="deadline_date" value="{{ $deadlineDateValue }}" required data-deadline-date
+                                               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <span class="mb-1 block text-[11px] font-medium text-gray-500">Jam</span>
+                                        <select name="deadline_hour" required data-deadline-hour
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                                            <option value="">Jam</option>
+                                            @for($hour = 0; $hour < 24; $hour++)
+                                                @php $hourValue = str_pad((string) $hour, 2, '0', STR_PAD_LEFT); @endphp
+                                                <option value="{{ $hourValue }}" @selected($deadlineHourValue === $hourValue)>{{ $hourValue }}</option>
+                                            @endfor
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <span class="mb-1 block text-[11px] font-medium text-gray-500">Menit</span>
+                                        <select name="deadline_minute" required data-deadline-minute
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                                            <option value="">Menit</option>
+                                            @for($minute = 0; $minute < 60; $minute++)
+                                                @php $minuteValue = str_pad((string) $minute, 2, '0', STR_PAD_LEFT); @endphp
+                                                <option value="{{ $minuteValue }}" @selected($deadlineMinuteValue === $minuteValue)>{{ $minuteValue }}</option>
+                                            @endfor
+                                        </select>
+                                    </div>
+                                </div>
                                 <p class="mt-1 text-xs text-gray-400" data-preview-week>Isi deadline untuk estimasi beban.</p>
                             </div>
                             <div class="sm:col-span-2">
@@ -314,12 +362,43 @@
                         (() => {
                             const form = document.querySelector("[data-preview-form]");
                             const deadlineInput = document.getElementById("deadline");
+                            const deadlineDateInput = document.querySelector("[data-deadline-date]");
+                            const deadlineTimeInput = document.querySelector("[data-deadline-time]");
+                            const deadlineHourInput = document.querySelector("[data-deadline-hour]");
+                            const deadlineMinuteInput = document.querySelector("[data-deadline-minute]");
+
+                            const splitDeadline = (value) => {
+                                const normalized = value.replace(" ", "T");
+                                const [datePart, timePart = ""] = normalized.split("T");
+                                return {
+                                    date: datePart || "",
+                                    time: timePart.slice(0, 5),
+                                };
+                            };
+
+                            const syncDeadline = () => {
+                                if (!deadlineInput || !deadlineDateInput || !deadlineTimeInput || !deadlineHourInput || !deadlineMinuteInput) {
+                                    return;
+                                }
+
+                                deadlineTimeInput.value = deadlineHourInput.value && deadlineMinuteInput.value
+                                    ? `${deadlineHourInput.value}:${deadlineMinuteInput.value}`
+                                    : "";
+
+                                deadlineInput.value = deadlineDateInput.value && deadlineTimeInput.value
+                                    ? `${deadlineDateInput.value} ${deadlineTimeInput.value}:00`
+                                    : "";
+                                deadlineInput.dispatchEvent(new Event("input", { bubbles: true }));
+                            };
 
                             document.querySelectorAll("[data-deadline-suggestion]").forEach((button) => {
                                 button.addEventListener("click", () => {
                                     if (deadlineInput) {
-                                        deadlineInput.value = button.dataset.deadlineSuggestion;
-                                        deadlineInput.dispatchEvent(new Event("input", { bubbles: true }));
+                                        const parts = splitDeadline(button.dataset.deadlineSuggestion);
+                                        deadlineDateInput.value = parts.date;
+                                        deadlineHourInput.value = parts.time.slice(0, 2);
+                                        deadlineMinuteInput.value = parts.time.slice(3, 5);
+                                        syncDeadline();
                                     }
                                 });
                             });
@@ -358,8 +437,11 @@
                                     button.className = `rounded-full border px-3 py-1 text-xs font-semibold hover:opacity-80 ${item.color}`;
                                     button.textContent = `${item.label} · ${item.count} tugas · ${item.label_status}`;
                                     button.addEventListener("click", () => {
-                                        previewDeadline.value = item.value;
-                                        previewDeadline.dispatchEvent(new Event("input", { bubbles: true }));
+                                        const parts = splitDeadline(item.value);
+                                        deadlineDateInput.value = parts.date;
+                                        deadlineHourInput.value = parts.time.slice(0, 2);
+                                        deadlineMinuteInput.value = parts.time.slice(3, 5);
+                                        syncDeadline();
                                     });
                                     suggestions.appendChild(button);
                                 });
@@ -462,7 +544,11 @@
                                 debounce = setTimeout(fetchPreview, 250);
                             };
 
+                            deadlineDateInput?.addEventListener("input", syncDeadline);
+                            deadlineHourInput?.addEventListener("change", syncDeadline);
+                            deadlineMinuteInput?.addEventListener("change", syncDeadline);
                             previewDeadline.addEventListener("input", schedulePreview);
+                            syncDeadline();
                             schedulePreview();
                         })();
                     </script>
