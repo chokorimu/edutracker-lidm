@@ -297,12 +297,17 @@ class AdminResourceController extends Controller
             default => $rules[] = 'string',
         };
 
-        if (isset($fieldConfig['min'])) {
-            $rules[] = 'min:'.$fieldConfig['min'];
+        // Only apply min/max as value constraints for numeric fields.
+        // For string/email fields, Laravel interprets min/max as character-length
+        // which is not what the field config intends.
+        $isNumericType = in_array($fieldConfig['type'] ?? 'text', ['number', 'select'], true);
+
+        if ($isNumericType && isset($fieldConfig['min'])) {
+            $rules[] = 'min:' . $fieldConfig['min'];
         }
 
-        if (isset($fieldConfig['max'])) {
-            $rules[] = 'max:'.$fieldConfig['max'];
+        if ($isNumericType && isset($fieldConfig['max'])) {
+            $rules[] = 'max:' . $fieldConfig['max'];
         }
 
         if ($field === 'email') {
@@ -475,13 +480,13 @@ class AdminResourceController extends Controller
 
         $totalStudents = $students->count();
         $avgIpk = $students->map(fn ($s) => $s->ipkHistory()->latest('semester')->first()?->ipk ?? 0)->avg() ?? 0;
-        $avgSks = $students->map(fn ($s) => $s->krs()->whereColumn('semester', 'user_siswa.semester')->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')->sum('mata_kuliah.sks'))->avg() ?? 0;
+        $avgSks = $students->map(fn ($s) => $s->krs()->where('krs.semester', $s->semester)->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')->sum('mata_kuliah.sks'))->avg() ?? 0;
 
         $overloadCount = 0;
         $collisionCount = 0;
 
         foreach ($students as $student) {
-            $sks = $student->krs()->whereColumn('semester', 'user_siswa.semester')
+            $sks = $student->krs()->where('krs.semester', $student->semester)
                 ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
                 ->sum('mata_kuliah.sks');
             if ($sks > 24) {
@@ -489,7 +494,7 @@ class AdminResourceController extends Controller
             }
 
             $tasks = $student->krs()
-                ->whereColumn('semester', 'user_siswa.semester')
+                ->where('krs.semester', $student->semester)
                 ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
                 ->join('tugas', 'tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
                 ->whereBetween('tugas.deadline', [$startDate, $endDate])

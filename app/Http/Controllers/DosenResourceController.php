@@ -438,13 +438,17 @@ class DosenResourceController extends Controller
 
         foreach ($tugasList as $tugas) {
             if (isset($nilaiList[$tugas->id])) {
-                $weightedSum += $nilaiList[$tugas->id]->nilai * ($tugas->bobot / 100);
+                // BUG-4 fix: accumulate nilai * bobot (not bobot/100) so division
+                // by totalBobot gives the correct weighted average over graded tasks only.
+                // Old: sum(nilai * bobot/100) / totalBobot * 100  → inflated when partial
+                // New: sum(nilai * bobot) / sum(graded bobot)      → always correct
+                $weightedSum += $nilaiList[$tugas->id]->nilai * $tugas->bobot;
                 $totalBobot += $tugas->bobot;
             }
         }
 
         if ($totalBobot > 0) {
-            $nilaiAkhir = round(($weightedSum / $totalBobot) * 100, 2);
+            $nilaiAkhir = round($weightedSum / $totalBobot, 2);
             Krs::where('mata_kuliah_id', $mataKuliahId)
                 ->where('siswa_id', $siswaId)
                 ->update([
