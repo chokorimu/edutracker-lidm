@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\IpkHistory;
 use App\Models\Krs;
 use App\Models\MataKuliah;
 use App\Models\Tugas;
@@ -302,5 +303,42 @@ class AdminResourceCrudTest extends TestCase
             ->assertSee('7 SKS')
             ->assertSee('Basis Data')
             ->assertSee('Algoritma');
+    }
+
+    public function test_admin_ipk_history_list_is_grouped_by_student_with_total_sks(): void
+    {
+        $admin = UserAdmin::create([
+            'name' => 'Admin Test',
+            'email' => 'admin-ipk-list@example.test',
+            'password' => 'password',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Mahalini',
+            'email' => 'mahalini@students.ac.id',
+            'password' => 'password',
+            'nim' => '200101001',
+            'prodi' => 'Informatika',
+            'semester' => 2,
+        ]);
+
+        foreach ([[1, 3.8, 20], [2, 3.7, 20], [3, 3.3, 24]] as [$semester, $ipk, $totalSks]) {
+            IpkHistory::create([
+                'siswa_id' => $siswa->id,
+                'ipk' => $ipk,
+                'semester' => $semester,
+                'tahun_ajaran' => '2025',
+                'total_sks' => $totalSks,
+                'rekomendasi_sks' => null,
+            ]);
+        }
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.dashboard', ['resource' => 'ipk-history']))
+            ->assertOk()
+            ->assertSee('Total 1 murid dengan 3 data IPK History.')
+            ->assertSee('Mahalini')
+            ->assertSee('3 semester')
+            ->assertSee('64 SKS')
+            ->assertSee('IPK 3.60');
     }
 }

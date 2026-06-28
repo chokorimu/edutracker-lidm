@@ -40,6 +40,7 @@ class DosenResourceController extends Controller
                     ->withCount('tugas')
                     ->get();
                 $data['selectedMkId'] = $request->query('mk');
+                $data['submissionMap'] = collect();
 
                 if ($data['selectedMkId']) {
                     $mk = MataKuliah::where('dosen_id', $user->id)

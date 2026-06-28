@@ -236,6 +236,58 @@ class SiswaDashboardTest extends TestCase
         $this->assertContains('#EF4444', collect($data['daily_workload'])->pluck('color'));
     }
 
+    public function test_profile_uses_ipk_history_for_active_semester_completed_sks_and_cumulative_ipk(): void
+    {
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Profil',
+            'email' => 'siswa-profil@example.test',
+            'password' => bcrypt('siswa123'),
+            'nim' => '220101005',
+            'prodi' => 'Informatika',
+            'semester' => 2,
+            'profile_completed' => true,
+        ]);
+        IpkHistory::create([
+            'siswa_id' => $siswa->id,
+            'semester' => 1,
+            'tahun_ajaran' => '2025/2026',
+            'ipk' => 3.80,
+            'total_sks' => 20,
+            'rekomendasi_sks' => 21,
+        ]);
+        IpkHistory::create([
+            'siswa_id' => $siswa->id,
+            'semester' => 2,
+            'tahun_ajaran' => '2025/2026',
+            'ipk' => 3.70,
+            'total_sks' => 20,
+            'rekomendasi_sks' => 24,
+        ]);
+        IpkHistory::create([
+            'siswa_id' => $siswa->id,
+            'semester' => 3,
+            'tahun_ajaran' => '2025/2026',
+            'ipk' => 3.30,
+            'total_sks' => 24,
+            'rekomendasi_sks' => null,
+        ]);
+
+        $response = $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard', ['tab' => 'profile']));
+
+        $response->assertOk()
+            ->assertSee('3.60')
+            ->assertSee('64')
+            ->assertSee('Semester 4');
+
+        $profile = $response->original->getData()['data']['profile'];
+
+        $this->assertSame('3.60', $profile['ipk']);
+        $this->assertSame(64, $profile['sks_lulus']);
+        $this->assertSame(0, $profile['sks_semester']);
+        $this->assertSame(4, $profile['semester']);
+    }
+
     public function test_siswa_can_submit_pdf_and_view_submission_status(): void
     {
         Storage::fake('local');
@@ -281,9 +333,11 @@ class SiswaDashboardTest extends TestCase
 
         $this->actingAs($siswa, 'siswa')
             ->post(route('siswa.tugas.submit', $tugas->id), [
-                'file' => UploadedFile::fake()->create('jawaban.pdf', 20, 'application/pdf'),
+                'file' => UploadedFile::fake()
+                    ->createWithContent('jawaban.pdf', "%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF\n")
+                    ->mimeType('application/octet-stream'),
             ])
-            ->assertRedirect(route('siswa.dashboard', ['tab' => 'tugas']))
+            ->assertRedirect(route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $mk->id]))
             ->assertSessionHas('status', 'Tugas berhasil disubmit.');
 
         $submission = TugasSubmission::firstOrFail();
@@ -300,6 +354,7 @@ class SiswaDashboardTest extends TestCase
             ->assertSee('Laporan Praktikum')
             ->assertSee('Selesai')
             ->assertSee('jawaban.pdf')
-            ->assertSee('Download');
+            ->assertSee('Download')
+            ->assertSee('Ganti PDF');
     }
 }

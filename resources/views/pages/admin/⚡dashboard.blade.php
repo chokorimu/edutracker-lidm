@@ -253,6 +253,8 @@
                             <h2 class="text-lg font-semibold">Daftar {{ $config['label'] }}</h2>
                             @if ($resourceKey === 'krs' && $krsGroups)
                                 <p class="text-sm text-gray-500">Total {{ $krsGroups->total() }} murid dengan {{ $records->total() }} data KRS.</p>
+                            @elseif ($resourceKey === 'ipk-history' && $ipkHistoryGroups)
+                                <p class="text-sm text-gray-500">Total {{ $ipkHistoryGroups->total() }} murid dengan {{ $records->total() }} data IPK History.</p>
                             @else
                                 <p class="text-sm text-gray-500">Total {{ $records->total() }} data.</p>
                             @endif
@@ -337,6 +339,84 @@
 
                         <div class="border-t border-gray-200 p-4">
                             {{ $krsGroups->links() }}
+                        </div>
+                    @elseif ($resourceKey === 'ipk-history' && $ipkHistoryGroups)
+                        <div class="divide-y divide-gray-100">
+                            @forelse ($ipkHistoryGroups as $siswa)
+                                @php
+                                    $historyList = $siswa->ipkHistory;
+                                    $totalSks = $historyList->sum(fn ($history) => (int) ($history->total_sks ?? 0));
+                                    $avgIpk = $historyList->avg('ipk');
+                                    $semester = $historyList->pluck('semester')->filter()->unique()->sort()->values()->join(', ');
+                                    $tahunAjaran = $historyList->pluck('tahun_ajaran')->filter()->unique()->values()->join(', ');
+                                @endphp
+                                <details class="group">
+                                    <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-gray-50">
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="font-semibold text-gray-900">{{ $siswa->name }}</span>
+                                                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">{{ $historyList->count() }} semester</span>
+                                                <span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{{ $totalSks }} SKS</span>
+                                                <span class="rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">IPK {{ number_format((float) $avgIpk, 2) }}</span>
+                                            </div>
+                                            <p class="mt-1 truncate text-xs text-gray-500">
+                                                {{ $siswa->nim ?? '-' }} · Semester {{ $semester ?: '-' }} · {{ $tahunAjaran ?: '-' }}
+                                            </p>
+                                        </div>
+                                        <svg class="h-4 w-4 flex-shrink-0 text-gray-400 transition group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </summary>
+
+                                    <div class="border-t border-gray-100 bg-gray-50 px-5 py-4">
+                                        <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                                <thead class="bg-gray-50 text-left font-semibold uppercase tracking-wide text-gray-500">
+                                                    <tr>
+                                                        <th class="px-3 py-2">Semester</th>
+                                                        <th class="px-3 py-2">Tahun Ajaran</th>
+                                                        <th class="px-3 py-2">IPK</th>
+                                                        <th class="px-3 py-2">Total SKS</th>
+                                                        <th class="px-3 py-2">Rekomendasi SKS</th>
+                                                        <th class="px-3 py-2 text-right">Aksi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-gray-100">
+                                                    @foreach ($historyList as $history)
+                                                        <tr>
+                                                            <td class="px-3 py-2 font-semibold text-gray-700">{{ $history->semester }}</td>
+                                                            <td class="px-3 py-2 text-gray-600">{{ $history->tahun_ajaran }}</td>
+                                                            <td class="px-3 py-2 text-gray-600">{{ number_format((float) $history->ipk, 2) }}</td>
+                                                            <td class="px-3 py-2 text-gray-600">{{ $history->total_sks }}</td>
+                                                            <td class="px-3 py-2 text-gray-600">{{ $history->rekomendasi_sks ?? '-' }}</td>
+                                                            <td class="px-3 py-2">
+                                                                <div class="flex justify-end gap-2">
+                                                                    <a href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $history->id]) }}" class="rounded-md border border-gray-300 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-100">
+                                                                        Edit
+                                                                    </a>
+                                                                    <form method="POST" action="{{ route('admin.resources.destroy', [$resourceKey, $history->id]) }}" onsubmit="return confirm('Hapus IPK History ini?')">
+                                                                        @csrf
+                                                                        @method('DELETE')
+                                                                        <button type="submit" class="rounded-md border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-50">
+                                                                            Hapus
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </details>
+                            @empty
+                                <p class="px-5 py-8 text-center text-sm text-gray-500">Belum ada data.</p>
+                            @endforelse
+                        </div>
+
+                        <div class="border-t border-gray-200 p-4">
+                            {{ $ipkHistoryGroups->links() }}
                         </div>
                     @else
                         <div class="overflow-x-auto">

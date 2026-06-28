@@ -2,6 +2,8 @@
     use App\Services\BebanCalculator;
     use Carbon\Carbon;
 
+    $profile = $data['profile'] ?? [];
+
     // HITUNG IPK KUMULATIF SEBAGAI MEAN DARI SEMUA SEMESTER
     $ipkHistory = collect($data['ipk_history'] ?? []);
     $ipkKumulatif = $ipkHistory->isNotEmpty() 
@@ -14,7 +16,6 @@
         ? "Rata-rata dari {$semesterCount} semester" 
         : ($semesterCount === 1 ? 'Semester terakhir' : 'Belum ada data');
 
-    $profile = $data['profile'] ?? [];
     $initials = strtoupper(substr($profile['nama'] ?? '-', 0, 2));
     $status = $profile['weekly_status'] ?? BebanCalculator::LIGHT;
 
@@ -604,18 +605,24 @@
                                         <form method="POST"
                                               action="{{ route('siswa.tugas.submit', $tugas['id']) }}"
                                               enctype="multipart/form-data"
-                                              class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                                              class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                                             @csrf
-                                            <input type="file" name="file" accept="application/pdf" required
-                                                   class="block w-full text-xs text-gray-600
+                                            <input type="hidden" name="task_id" value="{{ $tugas['id'] }}">
+                                            <input type="file" name="file" accept=".pdf,application/pdf" required
+                                                   class="block min-w-0 w-full rounded-xl border border-bone-dark bg-white px-3 py-2 text-xs text-gray-600
                                                           file:mr-3 file:rounded-lg file:border-0
                                                           file:bg-indigo-50 file:px-3 file:py-1.5
                                                           file:text-xs file:font-medium file:text-indigo-700
                                                           hover:file:bg-indigo-100">
                                             <button type="submit"
-                                                    class="shrink-0 rounded-lg {{ $tugas['submitted'] ? 'bg-gray-500 hover:bg-gray-600' : 'bg-indigo-600 hover:bg-indigo-700' }} px-4 py-2 text-xs font-medium text-white">
-                                                {{ $tugas['submitted'] ? 'Ganti File' : 'Submit' }}
+                                                    class="inline-flex min-h-10 w-full items-center justify-center rounded-xl {{ $tugas['submitted'] ? 'bg-gray-600 hover:bg-gray-700' : 'bg-indigo-600 hover:bg-indigo-700' }} px-4 py-2 text-xs font-bold text-white transition sm:w-auto sm:min-w-28">
+                                                {{ $tugas['submitted'] ? 'Ganti PDF' : 'Submit PDF' }}
                                             </button>
+                                            @if((string) old('task_id') === (string) $tugas['id'])
+                                                @error('file')
+                                                    <p class="text-xs font-semibold text-red-700 sm:col-span-2">{{ $message }}</p>
+                                                @enderror
+                                            @endif
                                         </form>
                                     </div>
                                 @empty
