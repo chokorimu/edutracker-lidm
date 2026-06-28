@@ -8,9 +8,12 @@ use App\Models\MataKuliah;
 use App\Models\NilaiTugas;
 use App\Models\Notifikasi;
 use App\Models\Tugas;
+use App\Models\TugasSubmission;
 use App\Models\UserDosen;
 use App\Models\UserSiswa;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SiswaDashboardTest extends TestCase
@@ -231,5 +234,72 @@ class SiswaDashboardTest extends TestCase
         $this->assertSame(3, $data['weekly_task_count']);
         $this->assertSame('Berat', $data['status_beban_label']);
         $this->assertContains('#EF4444', collect($data['daily_workload'])->pluck('color'));
+    }
+
+    public function test_siswa_can_submit_pdf_and_view_submission_status(): void
+    {
+        Storage::fake('local');
+
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Submit',
+            'email' => 'siswa-submit@example.test',
+            'password' => bcrypt('siswa123'),
+            'nim' => '220101004',
+            'prodi' => 'Informatika',
+            'semester' => 2,
+            'profile_completed' => true,
+        ]);
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Submit',
+            'email' => 'dosen-submit@example.test',
+            'password' => bcrypt('dosen123'),
+            'nidn' => 'NIDN-004',
+            'fakultas' => 'Teknik',
+        ]);
+        $mk = MataKuliah::create([
+            'nama' => 'Pemrograman Mobile',
+            'kode' => 'PMB01',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'semester' => 2,
+            'tahun_ajaran' => '2026/2027',
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mk->id,
+            'semester' => 2,
+            'status' => 'aktif',
+            'tahun_ajaran' => '2026/2027',
+        ]);
+        $tugas = Tugas::create([
+            'mata_kuliah_id' => $mk->id,
+            'nama' => 'Laporan Praktikum',
+            'bobot' => 100,
+            'deadline' => now()->addDay()->format('Y-m-d H:i:s'),
+            'deskripsi' => 'Upload PDF',
+        ]);
+
+        $this->actingAs($siswa, 'siswa')
+            ->post(route('siswa.tugas.submit', $tugas->id), [
+                'file' => UploadedFile::fake()->create('jawaban.pdf', 20, 'application/pdf'),
+            ])
+            ->assertRedirect(route('siswa.dashboard', ['tab' => 'tugas']))
+            ->assertSessionHas('status', 'Tugas berhasil disubmit.');
+
+        $submission = TugasSubmission::firstOrFail();
+
+        $this->assertSame($tugas->id, $submission->tugas_id);
+        $this->assertSame($siswa->id, $submission->siswa_id);
+        $this->assertSame('jawaban.pdf', $submission->file_name);
+        $this->assertSame('submitted', $submission->status);
+        Storage::disk('local')->assertExists($submission->file_path);
+
+        $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $mk->id]))
+            ->assertOk()
+            ->assertSee('Laporan Praktikum')
+            ->assertSee('Selesai')
+            ->assertSee('jawaban.pdf')
+            ->assertSee('Download');
     }
 }

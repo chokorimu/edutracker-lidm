@@ -20,6 +20,11 @@ class Tugas extends Model
         return $this->hasMany(NilaiTugas::class, 'tugas_id');
     }
 
+    public function submissions()
+    {
+        return $this->hasMany(TugasSubmission::class, 'tugas_id');
+    }
+
     public function notifikasiDosen()
     {
         return $this->hasMany(NotifikasiDosen::class, 'tugas_id');

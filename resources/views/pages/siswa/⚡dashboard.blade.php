@@ -24,6 +24,7 @@
         'monitoring'    => ['title' => 'Monitoring SKS', 'desc' => 'Distribusi SKS dan beban mata kuliah semester ini.'],
         'analytics'     => ['title' => 'Analitik Akademik', 'desc' => 'Performa, risiko, dan rekomendasi akademik.'],
         'notifications' => ['title' => 'Notifikasi', 'desc' => 'Pemberitahuan penting terkait aktivitas akademik.'],
+        'tugas'         => ['title' => 'Submit Tugas', 'desc' => 'Upload dan pantau status pengumpulan tugas.'],
         'profile'       => ['title' => 'Profil Mahasiswa', 'desc' => 'Identitas dan ringkasan akademik mahasiswa.'],
     ];
 
@@ -33,6 +34,7 @@
         'monitoring'    => ['label' => 'Monitoring SKS', 'icon' => 'M5 19V9m7 10V5m7 14v-7M3 19h18'],
         'analytics'     => ['label' => 'Analitik', 'icon' => 'M4 19V5m0 14h16M7 15l3-3 3 2 5-7'],
         'notifications' => ['label' => 'Notifikasi', 'icon' => 'M15 17h5l-1.5-2V11a6.5 6.5 0 0 0-13 0v4L4 17h5m6 0a3 3 0 0 1-6 0'],
+        'tugas'         => ['label' => 'Tugas', 'icon' => 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
         'profile'       => ['label' => 'Profil', 'icon' => 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0'],
     ];
 
@@ -512,6 +514,116 @@
                             <p class="p-6 text-sm {{ $mutedClass }} text-center">Belum ada notifikasi.</p>
                         @endforelse
                     </section>
+                @endif
+
+                {{-- TUGAS TAB --}}
+                @if($currentTab === 'tugas')
+                    @php $selectedMkId = request('mk'); @endphp
+
+                    @if(session('status'))
+                        <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
+                            {{ session('status') }}
+                        </div>
+                    @endif
+
+                    @if(!$selectedMkId)
+                        <section class="{{ $cardClass }} p-6">
+                            <h2 class="text-sm font-bold text-gray-700">Pilih Mata Kuliah</h2>
+                            <div class="mt-4 space-y-3">
+                                @forelse($data['tugas_tab'] ?? [] as $mk)
+                                    <a href="{{ route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $mk['mk_id']]) }}"
+                                       class="flex items-center justify-between gap-4 rounded-xl border border-bone-dark bg-white px-5 py-4 transition hover:border-indigo-400 hover:shadow-sm">
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-bold uppercase tracking-widest text-indigo-600">{{ $mk['kode'] }}</p>
+                                            <p class="mt-0.5 truncate text-sm font-semibold text-appleDark">{{ $mk['nama'] }}</p>
+                                        </div>
+                                        @php $pending = collect($mk['tugas'])->where('submitted', false)->count(); @endphp
+                                        @if($pending > 0)
+                                            <span class="shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700">
+                                                {{ $pending }} belum dikumpul
+                                            </span>
+                                        @else
+                                            <span class="shrink-0 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-700">Semua terkumpul</span>
+                                        @endif
+                                    </a>
+                                @empty
+                                    <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Tidak ada mata kuliah aktif.</p>
+                                @endforelse
+                            </div>
+                        </section>
+                    @else
+                        @php $currentMk = collect($data['tugas_tab'] ?? [])->firstWhere('mk_id', (int) $selectedMkId); @endphp
+
+                        @if(!$currentMk)
+                            <p class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">Mata kuliah tidak ditemukan.</p>
+                        @else
+                            <div class="flex items-center gap-3">
+                                <a href="{{ route('siswa.dashboard', ['tab' => 'tugas']) }}"
+                                   class="text-xs text-indigo-600 hover:underline">← Semua Kelas</a>
+                                <span class="text-gray-300">|</span>
+                                <span class="text-sm font-semibold">{{ $currentMk['kode'] }} — {{ $currentMk['nama'] }}</span>
+                            </div>
+
+                            <section class="space-y-4">
+                                @forelse($currentMk['tugas'] as $tugas)
+                                    @php
+                                        $deadline = Carbon::parse($tugas['deadline']);
+                                        $isLate = now()->gt($deadline) && !$tugas['submitted'];
+                                    @endphp
+                                    <div class="rounded-xl border {{ $tugas['submitted'] ? 'border-green-200 bg-green-50' : ($isLate ? 'border-red-200 bg-red-50' : 'border-bone-dark bg-white') }} p-5">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-semibold text-appleDark">{{ $tugas['nama'] }}</p>
+                                                <p class="mt-0.5 text-xs {{ $mutedClass }}">
+                                                    Deadline: {{ $deadline->translatedFormat('d M Y, H:i') }}
+                                                    · Bobot: {{ $tugas['bobot'] }}%
+                                                </p>
+                                                @if($tugas['submitted'])
+                                                    <p class="mt-1 text-xs font-medium {{ $tugas['status'] === 'late' ? 'text-orange-600' : 'text-green-700' }}">
+                                                        ✓ Dikumpulkan {{ Carbon::parse($tugas['submitted_at'])->translatedFormat('d M Y, H:i') }}
+                                                        {{ $tugas['status'] === 'late' ? '(Terlambat)' : '' }}
+                                                    </p>
+                                                    <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                                                        <span class="{{ $mutedClass }}">{{ $tugas['file_name'] }}</span>
+                                                        <a href="{{ route('siswa.submission.download', $tugas['id']) }}"
+                                                           class="font-medium text-indigo-600 hover:underline">Download</a>
+                                                    </div>
+                                                @elseif($isLate)
+                                                    <p class="mt-1 text-xs font-bold text-red-600">Deadline terlewat — submit akan tercatat terlambat</p>
+                                                @endif
+                                            </div>
+                                            @if($tugas['submitted'])
+                                                <span class="shrink-0 rounded-full bg-green-200 px-3 py-1 text-xs font-bold text-green-800">Selesai</span>
+                                            @elseif($isLate)
+                                                <span class="shrink-0 rounded-full bg-red-200 px-3 py-1 text-xs font-bold text-red-800">Terlambat</span>
+                                            @else
+                                                <span class="shrink-0 rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800">Belum</span>
+                                            @endif
+                                        </div>
+
+                                        <form method="POST"
+                                              action="{{ route('siswa.tugas.submit', $tugas['id']) }}"
+                                              enctype="multipart/form-data"
+                                              class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                                            @csrf
+                                            <input type="file" name="file" accept="application/pdf" required
+                                                   class="block w-full text-xs text-gray-600
+                                                          file:mr-3 file:rounded-lg file:border-0
+                                                          file:bg-indigo-50 file:px-3 file:py-1.5
+                                                          file:text-xs file:font-medium file:text-indigo-700
+                                                          hover:file:bg-indigo-100">
+                                            <button type="submit"
+                                                    class="shrink-0 rounded-lg {{ $tugas['submitted'] ? 'bg-gray-500 hover:bg-gray-600' : 'bg-indigo-600 hover:bg-indigo-700' }} px-4 py-2 text-xs font-medium text-white">
+                                                {{ $tugas['submitted'] ? 'Ganti File' : 'Submit' }}
+                                            </button>
+                                        </form>
+                                    </div>
+                                @empty
+                                    <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Belum ada tugas di mata kuliah ini.</p>
+                                @endforelse
+                            </section>
+                        @endif
+                    @endif
                 @endif
 
                 {{-- PROFILE TAB --}}

@@ -8,13 +8,16 @@ use App\Models\MataKuliah;
 use App\Models\NilaiTugas;
 use App\Models\NotifikasiDosen;
 use App\Models\Tugas;
+use App\Models\TugasSubmission;
 use App\Services\BebanCalculator;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DosenResourceController extends Controller
 {
@@ -53,6 +56,10 @@ class DosenResourceController extends Controller
                         ->get()
                         ->groupBy('tugas_id')
                         ->map(fn ($grades) => $grades->keyBy('siswa_id'));
+                    $data['submissionMap'] = TugasSubmission::whereIn('tugas_id', $tugasIds)
+                        ->get()
+                        ->groupBy('tugas_id')
+                        ->map(fn ($submissions) => $submissions->keyBy('siswa_id'));
                     $data['aggregatePreview'] = BebanCalculator::aggregatePreviewForDosen($user);
                 }
                 break;
@@ -310,6 +317,20 @@ class DosenResourceController extends Controller
             'tab' => 'kelas',
             'mk' => $tugas->mata_kuliah_id,
         ])->with('status', 'Nilai disimpan.');
+    }
+
+    public function downloadSubmission(int $submissionId): StreamedResponse
+    {
+        $user = Auth::guard('dosen')->user();
+        $submission = TugasSubmission::with('tugas.mataKuliah')->findOrFail($submissionId);
+
+        if ($submission->tugas->mataKuliah->dosen_id !== $user->id) {
+            abort(403);
+        }
+
+        abort_unless(Storage::disk('local')->exists($submission->file_path), 404);
+
+        return Storage::disk('local')->download($submission->file_path, $submission->file_name);
     }
 
     public function markNotifikasiRead(int $id): RedirectResponse
