@@ -6,10 +6,12 @@ use App\Models\Krs;
 use App\Models\MataKuliah;
 use App\Models\NilaiTugas;
 use App\Models\Tugas;
+use App\Models\TugasSubmission;
 use App\Models\UserDosen;
 use App\Models\UserSiswa;
 use App\Services\BebanCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DosenResourceTest extends TestCase
@@ -436,6 +438,81 @@ class DosenResourceTest extends TestCase
                 'mata_kuliah_id' => $mataKuliah->id,
                 'deadline' => now()->addDays(3)->format('Y-m-d\TH:i'),
             ])
+            ->assertForbidden();
+    }
+
+    public function test_dosen_can_view_and_download_student_submission(): void
+    {
+        Storage::fake('local');
+
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Submission',
+            'email' => 'dosen-submission@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-SUBMISSION',
+            'fakultas' => 'Teknik',
+        ]);
+        $otherDosen = UserDosen::create([
+            'name' => 'Dosen Lain',
+            'email' => 'dosen-lain@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-LAIN',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Submission',
+            'email' => 'siswa-submission@example.test',
+            'password' => 'password',
+            'nim' => '220101995',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Sistem Terdistribusi',
+            'kode' => 'STD-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+        $tugas = Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => 'Paper Konsensus',
+            'bobot' => 100,
+            'deadline' => now()->addDays(2)->format('Y-m-d H:i:s'),
+            'deskripsi' => 'PDF paper',
+        ]);
+        Storage::disk('local')->put('submissions/paper.pdf', 'pdf-content');
+        $submission = TugasSubmission::create([
+            'tugas_id' => $tugas->id,
+            'siswa_id' => $siswa->id,
+            'file_path' => 'submissions/paper.pdf',
+            'file_name' => 'paper-konsensus.pdf',
+            'submitted_at' => now(),
+            'status' => 'submitted',
+        ]);
+
+        $this->actingAs($dosen, 'dosen')
+            ->get(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]))
+            ->assertOk()
+            ->assertSee('File Submission')
+            ->assertSee('paper-konsensus.pdf')
+            ->assertSee('Tepat waktu');
+
+        $this->actingAs($dosen, 'dosen')
+            ->get(route('dosen.submission.download', $submission->id))
+            ->assertOk()
+            ->assertDownload('paper-konsensus.pdf');
+
+        $this->actingAs($otherDosen, 'dosen')
+            ->get(route('dosen.submission.download', $submission->id))
             ->assertForbidden();
     }
 }

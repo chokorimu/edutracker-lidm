@@ -318,12 +318,14 @@
                                                         <th class="pb-1 font-medium">Nilai (0-100)</th>
                                                         <th class="pb-1 font-medium">Komentar</th>
                                                         <th></th>
+                                                        <th class="pb-1 font-medium">File Submission</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     @foreach($data['siswaList'] as $krs)
                                                         @php
                                                             $existing = $data['nilaiMap'][$tugas->id][$krs->siswa_id] ?? null;
+                                                            $submission = $data['submissionMap'][$tugas->id][$krs->siswa_id] ?? null;
                                                         @endphp
                                                         <tr class="border-t border-gray-50">
                                                             <td class="py-1.5 pr-2 font-medium text-gray-700">{{ $krs->siswa->name }}</td>
@@ -346,6 +348,23 @@
                                                                         {{ $existing ? 'Update' : 'Simpan' }}
                                                                     </button>
                                                                 </form>
+                                                            </td>
+                                                            <td class="py-1.5 pr-2">
+                                                                @if($submission)
+                                                                    <div class="flex max-w-52 flex-col gap-0.5">
+                                                                        <a href="{{ route('dosen.submission.download', $submission->id) }}"
+                                                                           class="truncate text-[10px] font-medium text-indigo-600 hover:underline"
+                                                                           title="{{ $submission->file_name }}">
+                                                                            Download {{ $submission->file_name }}
+                                                                        </a>
+                                                                        <span class="text-[10px] {{ $submission->status === 'late' ? 'font-bold text-orange-500' : 'text-gray-400' }}">
+                                                                            {{ $submission->status === 'late' ? 'Terlambat' : 'Tepat waktu' }}
+                                                                            · {{ \Carbon\Carbon::parse($submission->submitted_at)->translatedFormat('d M H:i') }}
+                                                                        </span>
+                                                                    </div>
+                                                                @else
+                                                                    <span class="text-[10px] font-bold text-red-500">Belum submit</span>
+                                                                @endif
                                                             </td>
                                                         </tr>
                                                     @endforeach

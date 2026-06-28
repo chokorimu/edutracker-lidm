@@ -30,12 +30,21 @@ Route::middleware('dosen')->prefix('dosen')->name('dosen.')->group(function () {
     Route::put('/tugas/{id}', [DosenResourceController::class, 'updateTugas'])->name('tugas.update');
     Route::delete('/tugas/{id}', [DosenResourceController::class, 'destroyTugas'])->name('tugas.destroy');
     Route::post('/nilai/{tugasId}/{siswaId}', [DosenResourceController::class, 'storeNilai'])->name('nilai.store');
+    Route::get('/submission/{submissionId}/download', [DosenResourceController::class, 'downloadSubmission'])->name('submission.download');
     Route::patch('/notifikasi/{id}/read', [DosenResourceController::class, 'markNotifikasiRead'])->name('notifikasi.read');
     Route::post('/logout', [DashboardController::class, 'logoutDosen'])->name('logout');
 });
 
 Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])
     ->name('siswa.dashboard')
+    ->middleware('siswa');
+
+Route::post('/siswa/tugas/{tugasId}/submit', [DashboardController::class, 'submitTugas'])
+    ->name('siswa.tugas.submit')
+    ->middleware('siswa');
+
+Route::get('/siswa/tugas/{tugasId}/submission', [DashboardController::class, 'downloadSubmission'])
+    ->name('siswa.submission.download')
     ->middleware('siswa');
 
 Route::post('/siswa/preferences', [DashboardController::class, 'savePreferences'])

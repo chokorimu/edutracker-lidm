@@ -33,6 +33,11 @@ class UserSiswa extends Authenticatable
         return $this->hasMany(NilaiTugas::class, 'siswa_id');
     }
 
+    public function tugasSubmissions()
+    {
+        return $this->hasMany(TugasSubmission::class, 'siswa_id');
+    }
+
     public function notifikasi()
     {
         return $this->hasMany(Notifikasi::class, 'siswa_id');

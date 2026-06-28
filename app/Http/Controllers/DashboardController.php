@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Krs;
 use App\Models\Tugas;
+use App\Models\TugasSubmission;
 use App\Models\UserSiswa;
 use App\Services\BebanCalculator;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -30,7 +34,7 @@ class DashboardController extends Controller
     public function siswa(Request $request): View|RedirectResponse
     {
         $user = Auth::guard('siswa')->user();
-        $tabs = ['dashboard', 'calendar', 'monitoring', 'analytics', 'notifications', 'profile'];
+        $tabs = ['dashboard', 'calendar', 'monitoring', 'analytics', 'notifications', 'tugas', 'profile'];
         $currentTab = $request->query('tab', 'dashboard');
 
         if (! in_array($currentTab, $tabs, true)) {
@@ -78,7 +82,7 @@ class DashboardController extends Controller
     {
         $user = Auth::guard('siswa')->user();
         $validated = $request->validate([
-            'preferences'   => 'nullable|array',
+            'preferences' => 'nullable|array',
             'preferences.*' => 'boolean',
         ]);
 
@@ -114,8 +118,69 @@ class DashboardController extends Controller
             $this->buildNotifikasiData($user),
             $workloadData['payload'],
             $this->buildCalendarData($request, $allCourseIds, $now),
+            $this->buildTugasSubmissionData($user),
             $this->buildAnalyticsData($user, $allCourseIds, $startOfWeek, $endOfWeek),
         );
+    }
+
+    public function submitTugas(Request $request, int $tugasId): RedirectResponse
+    {
+        $user = Auth::guard('siswa')->user();
+        $tugas = Tugas::findOrFail($tugasId);
+        $enrolled = Krs::where('siswa_id', $user->id)
+            ->where('mata_kuliah_id', $tugas->mata_kuliah_id)
+            ->exists();
+
+        if (! $enrolled) {
+            abort(403);
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:pdf|max:10240',
+        ]);
+
+        $isLate = now()->gt(Carbon::parse($tugas->deadline));
+        $file = $request->file('file');
+        $filename = sprintf(
+            '%d_%d_%s.pdf',
+            $tugasId,
+            $user->id,
+            now()->format('YmdHis')
+        );
+        $path = $file->storeAs('submissions', $filename, 'local');
+        $existingSubmission = TugasSubmission::where('tugas_id', $tugasId)
+            ->where('siswa_id', $user->id)
+            ->first();
+        $oldPath = $existingSubmission?->file_path;
+
+        TugasSubmission::updateOrCreate(
+            ['tugas_id' => $tugasId, 'siswa_id' => $user->id],
+            [
+                'file_path' => $path,
+                'file_name' => $file->getClientOriginalName(),
+                'submitted_at' => now(),
+                'status' => $isLate ? 'late' : 'submitted',
+            ]
+        );
+
+        if ($oldPath && $oldPath !== $path && Storage::disk('local')->exists($oldPath)) {
+            Storage::disk('local')->delete($oldPath);
+        }
+
+        return redirect()->route('siswa.dashboard', ['tab' => 'tugas'])
+            ->with('status', $isLate ? 'Tugas disubmit (terlambat).' : 'Tugas berhasil disubmit.');
+    }
+
+    public function downloadSubmission(Request $request, int $tugasId): StreamedResponse
+    {
+        $user = Auth::guard('siswa')->user();
+        $submission = TugasSubmission::where('tugas_id', $tugasId)
+            ->where('siswa_id', $user->id)
+            ->firstOrFail();
+
+        abort_unless(Storage::disk('local')->exists($submission->file_path), 404);
+
+        return Storage::disk('local')->download($submission->file_path, $submission->file_name);
     }
 
     private function buildProfileData(UserSiswa $user, string $weeklyStatus): array
@@ -251,6 +316,52 @@ class DashboardController extends Controller
 
         return [
             'tugas_mendatang' => $tugasMendatang,
+        ];
+    }
+
+    private function buildTugasSubmissionData(UserSiswa $user): array
+    {
+        $krsList = Krs::where('siswa_id', $user->id)
+            ->with(['mataKuliah.tugas' => fn ($query) => $query->orderBy('deadline')])
+            ->get();
+
+        $submissionMap = TugasSubmission::where('siswa_id', $user->id)
+            ->get()
+            ->keyBy('tugas_id');
+
+        $tugasTabData = $krsList->map(function ($krs) use ($submissionMap) {
+            $mataKuliah = $krs->mataKuliah;
+
+            if (! $mataKuliah) {
+                return null;
+            }
+
+            $tugasList = $mataKuliah->tugas->map(function ($tugas) use ($submissionMap) {
+                $submission = $submissionMap->get($tugas->id);
+
+                return [
+                    'id' => $tugas->id,
+                    'nama' => $tugas->nama,
+                    'deadline' => $tugas->deadline,
+                    'bobot' => $tugas->bobot,
+                    'submitted' => $submission !== null,
+                    'submission_id' => $submission?->id,
+                    'file_name' => $submission?->file_name,
+                    'submitted_at' => $submission?->submitted_at,
+                    'status' => $submission?->status ?? 'belum',
+                ];
+            });
+
+            return [
+                'mk_id' => $krs->mata_kuliah_id,
+                'kode' => $mataKuliah->kode,
+                'nama' => $mataKuliah->nama,
+                'tugas' => $tugasList,
+            ];
+        })->filter()->values();
+
+        return [
+            'tugas_tab' => $tugasTabData,
         ];
     }
 
@@ -504,6 +615,7 @@ class DashboardController extends Controller
                 'nim' => '-', 'nama' => '-', 'email' => '-', 'prodi' => '-', 'semester' => 1, 'angkatan' => '-', 'ipk' => '-', 'sks_lulus' => 0, 'sks_semester' => 0, 'dosen_pa' => '-', 'weekly_status' => BebanCalculator::LIGHT,
             ],
             'matakuliah' => [],
+            'tugas_tab' => [],
             'tugas_mendatang' => [],
             'notifikasi' => [],
             'daily_workload' => [],
@@ -515,7 +627,7 @@ class DashboardController extends Controller
             'selected_day_tasks' => [],
             // BUG-2 fix: use shared instances so month and year always match
             'calendar_previous' => ['month' => $prevMonth->month, 'year' => $prevMonth->year],
-            'calendar_next'     => ['month' => $nextMonth->month, 'year' => $nextMonth->year],
+            'calendar_next' => ['month' => $nextMonth->month, 'year' => $nextMonth->year],
             'weekly_task_count' => 0,
             'status_beban_label' => 'Tidak ada data',
             'status_beban_color' => 'text-gray-400',
