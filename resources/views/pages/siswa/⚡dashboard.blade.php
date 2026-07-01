@@ -190,6 +190,27 @@
                             </div>
                         </div>
                     </section>
+
+                    @if(!empty($data['tugas_terlambat']))
+                        <aside class="fixed bottom-5 left-5 z-20 w-[calc(100vw-2.5rem)] max-w-sm rounded-2xl border border-red-200 bg-white p-4 shadow-xl shadow-red-900/10 lg:left-72">
+                            <div class="mb-3 flex items-start justify-between gap-3">
+                                <div>
+                                    <h2 class="text-sm font-bold text-appleDark">Tugas Terlambat</h2>
+                                    <p class="mt-1 text-xs {{ $mutedClass }}">Deadline lewat dan belum disubmit.</p>
+                                </div>
+                                <span class="rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold text-appleRed ring-1 ring-red-100">{{ count($data['tugas_terlambat']) }}</span>
+                            </div>
+                            <div class="max-h-72 space-y-2 overflow-y-auto pr-1">
+                                @foreach($data['tugas_terlambat'] as $tugas)
+                                    <div class="rounded-xl border border-red-100 bg-red-50/60 p-3">
+                                        <p class="truncate text-sm font-bold text-appleDark">{{ $tugas['judul'] ?? 'Tugas' }}</p>
+                                        <p class="mt-1 text-xs text-appleMuted">{{ $tugas['matkul'] ?? '-' }}</p>
+                                        <p class="mt-2 text-[11px] font-semibold text-appleRed">{{ $tugas['deadline'] ?? '-' }} · {{ $tugas['jam'] ?? '-' }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </aside>
+                    @endif
                 @endif
 
                 {{-- CALENDAR TAB --}}
@@ -651,6 +672,17 @@
                                         <p class="mt-1 font-semibold {{ $class }}">{{ $value }}</p>
                                     </div>
                                 @endforeach
+                                @if(!empty($profile['prediksi_lulus']))
+                                    <div>
+                                        <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Prediksi Lulus</p>
+                                        <p class="mt-1 font-semibold">
+                                            Semester {{ $profile['prediksi_lulus']['prediksi_semester'] }}
+                                            <span class="block text-xs font-medium {{ $mutedClass }}">
+                                                Sisa {{ $profile['prediksi_lulus']['sisa_semester'] }} semester · {{ $profile['prediksi_lulus']['sisa_sks'] }} SKS
+                                            </span>
+                                        </p>
+                                    </div>
+                                @endif
                             </div>
                         </div>
 
