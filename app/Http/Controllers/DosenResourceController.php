@@ -6,6 +6,7 @@ use App\Models\DosenPa;
 use App\Models\Krs;
 use App\Models\MataKuliah;
 use App\Models\NilaiTugas;
+use App\Models\Notifikasi;
 use App\Models\NotifikasiDosen;
 use App\Models\Tugas;
 use App\Models\TugasSubmission;
@@ -161,6 +162,8 @@ class DosenResourceController extends Controller
                 'tipe' => 'beban_tinggi',
                 'sumber' => 'system',
             ]);
+
+            $this->notifyStudentsAboutHighWorkload($tugas, $mk);
         }
 
         return redirect()->route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $tugas->mata_kuliah_id])
@@ -393,6 +396,28 @@ class DosenResourceController extends Controller
         }
 
         return $worst;
+    }
+
+    private function notifyStudentsAboutHighWorkload(Tugas $tugas, MataKuliah $mataKuliah): void
+    {
+        $deadline = Carbon::parse($tugas->deadline);
+        $weekStart = $deadline->copy()->startOfWeek();
+        $weekEnd = $deadline->copy()->endOfWeek();
+
+        BebanCalculator::weeklyLoadForCourse($mataKuliah->id, $weekStart, $weekEnd)
+            ->filter(fn (array $row) => in_array($row['status'], [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true))
+            ->each(function (array $row) use ($tugas, $mataKuliah, $deadline): void {
+                $label = BebanCalculator::label($row['status']);
+
+                Notifikasi::create([
+                    'siswa_id' => $row['siswa_id'],
+                    'judul' => "Beban Akademik {$label}",
+                    'pesan' => "Tugas {$tugas->nama} di {$mataKuliah->nama} membuat beban minggu {$deadline->translatedFormat('d M Y')} menjadi {$label}. Atur prioritas dan konsultasikan jika perlu.",
+                    'tipe' => 'peringatan',
+                    'sumber' => 'system',
+                    'is_read' => false,
+                ]);
+            });
     }
 
     private function normalizeDeadlineInput(Request $request): void

@@ -135,7 +135,8 @@
                                 @foreach($data['aggregatePreview'] as $preview)
                                     <div class="rounded-lg border p-3 {{ $preview['color'] }}">
                                         <p class="text-xs font-semibold">{{ $preview['nama'] }} ({{ $preview['kode'] }})</p>
-                                        <p class="mt-1 text-[11px]">{{ $preview['students'] }} mahasiswa · rata-rata {{ $preview['avg_tasks'] }} tugas minggu ini</p>
+                                        <p class="mt-1 text-[11px]">{{ $preview['students'] }} mahasiswa · rata-rata {{ $preview['avg_tasks'] }} tugas</p>
+                                        <p class="mt-1 text-[11px]">Minggu: {{ $preview['week_label'] ?? '-' }}</p>
                                         <p class="mt-1 text-[11px] font-bold">Status terberat: {{ $preview['label'] }}</p>
                                     </div>
                                 @endforeach
