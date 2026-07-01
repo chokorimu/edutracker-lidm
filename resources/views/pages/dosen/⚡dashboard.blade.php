@@ -599,6 +599,20 @@
                         </div>
                     @endif
 
+                    @if($data['mataKuliahList']->count() > 1)
+                        <div class="mb-4">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Mata Kuliah</label>
+                            <select onchange="window.location.href='{{ route('dosen.dashboard') }}?tab=beban&mk_beban=' + this.value"
+                                    class="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                                @foreach($data['mataKuliahList'] as $mk)
+                                    <option value="{{ $mk->id }}" {{ $data['selectedBebanMkId'] == $mk->id ? 'selected' : '' }}>
+                                        {{ $mk->kode }} — {{ $mk->nama }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
                     @forelse($data['workloadData'] as $mk)
                         <div class="border border-gray-200 rounded-lg p-4 mb-4">
                             <h3 class="font-medium text-sm mb-2">{{ $mk['nama'] }} ({{ $mk['kode'] }})</h3>

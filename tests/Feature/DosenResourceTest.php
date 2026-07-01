@@ -127,6 +127,69 @@ class DosenResourceTest extends TestCase
             ->assertSee($deadline->copy()->startOfWeek()->translatedFormat('d M'), false);
     }
 
+    public function test_beban_tab_filters_workload_table_by_selected_course(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Beban',
+            'email' => 'dosen-beban-filter@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-BEBAN',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Beban',
+            'email' => 'siswa-beban-filter@example.test',
+            'password' => 'password',
+            'nim' => '220101994',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $firstCourse = MataKuliah::create([
+            'nama' => 'Basis Data',
+            'kode' => 'BD-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+        $secondCourse = MataKuliah::create([
+            'nama' => 'Pemrograman Web',
+            'kode' => 'PW-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $firstCourse->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $secondCourse->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+
+        $response = $this->actingAs($dosen, 'dosen')
+            ->get(route('dosen.dashboard', ['tab' => 'beban', 'mk_beban' => $secondCourse->id]));
+
+        $response->assertOk()
+            ->assertSee('Pilih Mata Kuliah')
+            ->assertSee('Pemrograman Web (PW-001)');
+
+        $data = $response->original->getData()['data'];
+
+        $this->assertSame((string) $secondCourse->id, $data['selectedBebanMkId']);
+        $this->assertCount(1, $data['workloadData']);
+        $this->assertSame($secondCourse->id, $data['workloadData']->first()['id']);
+    }
+
     public function test_new_tugas_counts_toward_workload_warning(): void
     {
         $dosen = UserDosen::create([
@@ -255,7 +318,7 @@ class DosenResourceTest extends TestCase
         $this->assertDatabaseCount('notifikasi_dosen', 1);
         $this->assertDatabaseHas('notifikasi', [
             'siswa_id' => $siswa->id,
-            'judul' => 'Beban Akademik Berat',
+            'judul' => 'Beban Minggu Ini Naik: Berat',
             'tipe' => 'peringatan',
             'sumber' => 'system',
             'is_read' => false,
