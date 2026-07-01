@@ -179,7 +179,7 @@ class SiswaDashboardTest extends TestCase
         $this->assertIsArray($data['monthly_tasks'][15] ?? null);
     }
 
-    public function test_siswa_dashboard_focuses_on_loaded_deadline_week(): void
+    public function test_siswa_dashboard_uses_current_week_for_workload(): void
     {
         $siswa = UserSiswa::create([
             'name' => 'Siswa Beban',
@@ -213,6 +213,15 @@ class SiswaDashboardTest extends TestCase
             'tahun_ajaran' => '2026/2027',
         ]);
 
+        $currentWeek = now()->startOfWeek();
+        Tugas::create([
+            'mata_kuliah_id' => $mk->id,
+            'nama' => 'Tugas minggu berjalan',
+            'bobot' => 25,
+            'deadline' => $currentWeek->copy()->addDay()->setTime(10, 0),
+            'deskripsi' => 'Tugas beban',
+        ]);
+
         $deadlineWeek = now()->addWeek()->startOfWeek();
         foreach ([0, 1, 2] as $index) {
             Tugas::create([
@@ -227,13 +236,15 @@ class SiswaDashboardTest extends TestCase
         $response = $this->actingAs($siswa, 'siswa')
             ->get(route('siswa.dashboard'));
 
-        $response->assertOk()->assertSee('Berat');
+        $response->assertOk();
 
         $data = $response->original->getData()['data'];
 
-        $this->assertSame(3, $data['weekly_task_count']);
-        $this->assertSame('Berat', $data['status_beban_label']);
-        $this->assertContains('#EF4444', collect($data['daily_workload'])->pluck('color'));
+        $this->assertSame(1, $data['weekly_task_count']);
+        $this->assertSame(
+            $currentWeek->translatedFormat('d M').' - '.$currentWeek->copy()->endOfWeek()->translatedFormat('d M Y'),
+            $data['workload_week_label']
+        );
     }
 
     public function test_profile_uses_ipk_history_for_active_semester_completed_sks_and_cumulative_ipk(): void
@@ -327,9 +338,14 @@ class SiswaDashboardTest extends TestCase
             'mata_kuliah_id' => $mk->id,
             'nama' => 'Laporan Praktikum',
             'bobot' => 100,
-            'deadline' => now()->addDay()->format('Y-m-d H:i:s'),
+            'deadline' => now()->endOfWeek()->subHour()->format('Y-m-d H:i:s'),
             'deskripsi' => 'Upload PDF',
         ]);
+
+        $response = $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard'));
+
+        $this->assertSame(1, $response->original->getData()['data']['weekly_task_count']);
 
         $this->actingAs($siswa, 'siswa')
             ->post(route('siswa.tugas.submit', $tugas->id), [
@@ -347,6 +363,11 @@ class SiswaDashboardTest extends TestCase
         $this->assertSame('jawaban.pdf', $submission->file_name);
         $this->assertSame('submitted', $submission->status);
         Storage::disk('local')->assertExists($submission->file_path);
+
+        $response = $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard'));
+
+        $this->assertSame(0, $response->original->getData()['data']['weekly_task_count']);
 
         $this->actingAs($siswa, 'siswa')
             ->get(route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $mk->id]))

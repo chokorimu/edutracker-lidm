@@ -66,29 +66,33 @@ class BebanCalculator
 
     public static function weeklyLoadForCourse(int $mataKuliahId, $weekStart, $weekEnd): Collection
     {
+        $weekStart = Carbon::parse($weekStart)->startOfDay();
+        $weekEnd = Carbon::parse($weekEnd)->endOfDay();
         $krsInCourse = Krs::where('mata_kuliah_id', $mataKuliahId)->with('siswa')->get();
         $siswaIds = $krsInCourse->pluck('siswa_id');
 
         $students = UserSiswa::whereIn('id', $siswaIds)->get()->keyBy('id');
 
-        $courseIdsBySiswa = Krs::whereIn('siswa_id', $siswaIds)
-
+        $krsBySiswa = Krs::whereIn('siswa_id', $siswaIds)
             ->get()
-            ->groupBy('siswa_id')
-            ->map(fn ($g) => $g->pluck('mata_kuliah_id'));
+            ->groupBy('siswa_id');
 
-        $allCourseIds = $courseIdsBySiswa->flatten()->unique();
+        $allCourseIds = $krsBySiswa
+            ->flatten(1)
+            ->pluck('mata_kuliah_id')
+            ->unique()
+            ->values();
         $taskCountsByCourse = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-            ->whereBetween('deadline', [$weekStart->toDateString(), $weekEnd->toDateString()])
+            ->whereBetween('deadline', [$weekStart, $weekEnd])
             ->get()
             ->groupBy('mata_kuliah_id')
             ->map(fn ($tasks) => $tasks->count());
 
-        return $krsInCourse->map(function ($krs) use ($students, $courseIdsBySiswa, $taskCountsByCourse) {
-            $currentSemester = $students->get($krs->siswa_id)?->semester;
-            $courseIds = $currentSemester !== null
-                ? Krs::where('siswa_id', $krs->siswa_id)->where('semester', $currentSemester)->pluck('mata_kuliah_id')
-                : $courseIdsBySiswa->get($krs->siswa_id, collect());
+        return $krsInCourse->map(function ($krs) use ($students, $krsBySiswa, $taskCountsByCourse) {
+            $courseIds = $krsBySiswa
+                ->get($krs->siswa_id, collect())
+                ->where('semester', $krs->semester)
+                ->pluck('mata_kuliah_id');
             $count = $courseIds->sum(fn ($id) => $taskCountsByCourse->get($id, 0));
             $siswa = $krs->siswa ?? $students->get($krs->siswa_id);
 
@@ -96,6 +100,7 @@ class BebanCalculator
                 'siswa_id' => $krs->siswa_id,
                 'nim' => $siswa?->nim ?? '-',
                 'nama_siswa' => $siswa?->name ?? '-',
+                'semester' => $krs->semester,
                 'count' => $count,
                 'status' => self::forCount($count),
             ];
@@ -281,8 +286,7 @@ class BebanCalculator
 
     public static function aggregatePreviewForDosen(UserDosen $dosen): array
     {
-        $weekStart = now()->startOfWeek();
-        $weekEnd = now()->endOfWeek();
+        [$weekStart, $weekEnd] = self::resolveDosenPreviewWeek($dosen);
 
         return MataKuliah::where('dosen_id', $dosen->id)
             ->get()
@@ -301,10 +305,42 @@ class BebanCalculator
                     'worst_status' => $worst,
                     'label' => self::label($worst),
                     'color' => self::colorClass($worst),
+                    'week_label' => $weekStart->translatedFormat('d M').' - '.$weekEnd->translatedFormat('d M Y'),
                 ];
             })
             ->values()
             ->toArray();
+    }
+
+    private static function resolveDosenPreviewWeek(UserDosen $dosen): array
+    {
+        $now = now();
+        $defaultStart = $now->copy()->startOfWeek();
+        $defaultEnd = $now->copy()->endOfWeek();
+        $courseIds = MataKuliah::where('dosen_id', $dosen->id)->pluck('id');
+
+        if ($courseIds->isEmpty()) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        $tasks = Tugas::whereIn('mata_kuliah_id', $courseIds)
+            ->whereBetween('deadline', [$defaultStart, $now->copy()->addWeeks(8)->endOfWeek()])
+            ->orderBy('deadline')
+            ->get(['deadline']);
+
+        if ($tasks->isEmpty()) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        $week = $tasks
+            ->groupBy(fn ($task) => Carbon::parse($task->deadline)->startOfWeek()->toDateString())
+            ->sortByDesc(fn ($tasks) => $tasks->count())
+            ->keys()
+            ->first();
+
+        $start = Carbon::parse($week)->startOfWeek();
+
+        return [$start, $start->copy()->endOfWeek()];
     }
 
     public static function paRiskCards(UserDosen $dosen): array

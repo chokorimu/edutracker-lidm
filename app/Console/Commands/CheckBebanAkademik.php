@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\DosenPa;
 use App\Models\Krs;
 use App\Models\Notifikasi;
 use App\Models\NotifikasiDosen;
@@ -55,7 +54,7 @@ class CheckBebanAkademik extends Command
                 ->groupBy('krs.siswa_id')
                 ->pluck('collision_count', 'krs.siswa_id');
 
-                $students->load('dosenPa.dosen');
+            $students->load('dosenPa.dosen');
 
             foreach ($students as $siswa) {
                 try {
@@ -71,7 +70,7 @@ class CheckBebanAkademik extends Command
                             'is_read' => false,
                         ]);
 
-                        $dosenPa = $latestPaPerStudent[$siswa->id] ?? $siswa->dosenPa->sortByDesc('created_at')->first();
+                        $dosenPa = $siswa->dosenPa->sortByDesc('created_at')->first();
                         if ($dosenPa?->dosen) {
                             NotifikasiDosen::create([
                                 'dosen_id' => $dosenPa->dosen_id,
@@ -96,7 +95,7 @@ class CheckBebanAkademik extends Command
                             'is_read' => false,
                         ]);
 
-                        $dosenPa = $latestPaPerStudent[$siswa->id] ?? $siswa->dosenPa->sortByDesc('created_at')->first();
+                        $dosenPa = $siswa->dosenPa->sortByDesc('created_at')->first();
                         if ($dosenPa?->dosen) {
                             NotifikasiDosen::create([
                                 'dosen_id' => $dosenPa->dosen_id,

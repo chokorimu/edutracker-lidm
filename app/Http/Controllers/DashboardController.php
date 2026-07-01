@@ -111,7 +111,7 @@ class DashboardController extends Controller
             ->values();
         [$startOfWeek, $endOfWeek] = $this->resolveWorkloadWeek($allCourseIds, $now);
 
-        $workloadData = $this->buildWorkloadData($allCourseIds, $startOfWeek, $endOfWeek);
+        $workloadData = $this->buildWorkloadData($allCourseIds, $startOfWeek, $endOfWeek, $user);
 
         return array_merge(
             $this->buildProfileData($user, $workloadData['weekly_status_code']),
@@ -442,11 +442,14 @@ class DashboardController extends Controller
         ];
     }
 
-    private function buildWorkloadData($allCourseIds, Carbon $startOfWeek, Carbon $endOfWeek): array
+    private function buildWorkloadData($allCourseIds, Carbon $startOfWeek, Carbon $endOfWeek, UserSiswa $user): array
     {
+        $submittedTugasIds = TugasSubmission::where('siswa_id', $user->id)->pluck('tugas_id');
+
         $weeklyTasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->whereBetween('deadline', [$startOfWeek, $endOfWeek])
-            ->get(['deadline']);
+            ->whereNotIn('id', $submittedTugasIds)
+            ->get(['id', 'deadline']);
 
         $weeklyTaskCount = $weeklyTasks->count();
         $weeklyStatus = BebanCalculator::forCount($weeklyTaskCount);
@@ -507,31 +510,7 @@ class DashboardController extends Controller
 
     private function resolveWorkloadWeek($allCourseIds, Carbon $now): array
     {
-        $defaultStart = $now->copy()->startOfWeek();
-        $defaultEnd = $now->copy()->endOfWeek();
-
-        if ($allCourseIds->isEmpty()) {
-            return [$defaultStart, $defaultEnd];
-        }
-
-        $tasks = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-            ->whereBetween('deadline', [$defaultStart, $now->copy()->addWeeks(8)->endOfWeek()])
-            ->orderBy('deadline')
-            ->get(['deadline']);
-
-        if ($tasks->isEmpty()) {
-            return [$defaultStart, $defaultEnd];
-        }
-
-        $week = $tasks
-            ->groupBy(fn ($task) => Carbon::parse($task->deadline)->startOfWeek()->toDateString())
-            ->sortByDesc(fn ($tasks) => $tasks->count())
-            ->keys()
-            ->first();
-
-        $start = Carbon::parse($week)->startOfWeek();
-
-        return [$start, $start->copy()->endOfWeek()];
+        return [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()];
     }
 
     private function buildCalendarData(?Request $request, $allCourseIds, Carbon $now): array

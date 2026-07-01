@@ -135,7 +135,8 @@
                                 @foreach($data['aggregatePreview'] as $preview)
                                     <div class="rounded-lg border p-3 {{ $preview['color'] }}">
                                         <p class="text-xs font-semibold">{{ $preview['nama'] }} ({{ $preview['kode'] }})</p>
-                                        <p class="mt-1 text-[11px]">{{ $preview['students'] }} mahasiswa · rata-rata {{ $preview['avg_tasks'] }} tugas minggu ini</p>
+                                        <p class="mt-1 text-[11px]">{{ $preview['students'] }} mahasiswa · rata-rata {{ $preview['avg_tasks'] }} tugas</p>
+                                        <p class="mt-1 text-[11px]">Minggu: {{ $preview['week_label'] ?? '-' }}</p>
                                         <p class="mt-1 text-[11px] font-bold">Status terberat: {{ $preview['label'] }}</p>
                                     </div>
                                 @endforeach
@@ -595,6 +596,20 @@
                                     <p class="text-xs mt-2">{{ $student['task_count'] }} tugas minggu ini · {{ $student['label'] }}</p>
                                 </div>
                             @endforeach
+                        </div>
+                    @endif
+
+                    @if($data['mataKuliahList']->count() > 1)
+                        <div class="mb-4">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Mata Kuliah</label>
+                            <select onchange="window.location.href='{{ route('dosen.dashboard') }}?tab=beban&mk_beban=' + this.value"
+                                    class="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                                @foreach($data['mataKuliahList'] as $mk)
+                                    <option value="{{ $mk->id }}" {{ $data['selectedBebanMkId'] == $mk->id ? 'selected' : '' }}>
+                                        {{ $mk->kode }} — {{ $mk->nama }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                     @endif
 
