@@ -74,7 +74,7 @@ class DosenResourceTest extends TestCase
             ->assertSee('Siswa Kelas');
     }
 
-    public function test_kelas_task_preview_uses_krs_semester_and_nearest_task_week(): void
+    public function test_kelas_task_preview_uses_krs_semester_and_current_week(): void
     {
         $dosen = UserDosen::create([
             'name' => 'Dosen Preview Kelas',
@@ -147,9 +147,9 @@ class DosenResourceTest extends TestCase
             ->get(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]))
             ->assertOk()
             ->assertSee('Dasar Basis Data (IF104)')
-            ->assertSee('1 mahasiswa · rata-rata 2 tugas')
-            ->assertSee('Status terberat: Normal')
-            ->assertSee($deadline->copy()->startOfWeek()->translatedFormat('d M'), false);
+            ->assertSee('2 mahasiswa · rata-rata 0 tugas')
+            ->assertSee('Status terberat: Ringan')
+            ->assertSee(now()->startOfWeek()->translatedFormat('d M'), false);
     }
 
     public function test_beban_tab_filters_workload_table_by_selected_course(): void
@@ -464,19 +464,19 @@ class DosenResourceTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $deadline = now()->addDays(4)->setTime(10, 0);
+        $deadline = now()->addWeek()->startOfWeek()->addDay()->setTime(10, 0);
         $firstTask = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 1',
             'bobot' => 20,
-            'deadline' => $deadline->copy()->subDay()->toDateString(),
+            'deadline' => $deadline->copy()->subDay()->format('Y-m-d H:i:s'),
             'deskripsi' => 'Satu',
         ]);
         $secondTask = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 2',
             'bobot' => 20,
-            'deadline' => $deadline->copy()->subDay()->toDateString(),
+            'deadline' => $deadline->copy()->subDay()->format('Y-m-d H:i:s'),
             'deskripsi' => 'Dua',
         ]);
         foreach ([$firstTask, $secondTask] as $task) {

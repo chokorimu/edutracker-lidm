@@ -360,15 +360,23 @@ class SiswaDashboardTest extends TestCase
             'status' => 'late',
         ]);
 
-        $response = $this->actingAs($siswa, 'siswa')
+        $dashboardResponse = $this->actingAs($siswa, 'siswa')
             ->get(route('siswa.dashboard'));
 
-        $response->assertOk()
+        $dashboardResponse->assertOk()
+            ->assertDontSee('Tugas Terlambat')
+            ->assertDontSee('Laporan Routing')
+            ->assertDontSee('Laporan Switching');
+
+        $calendarResponse = $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard', ['tab' => 'calendar']));
+
+        $calendarResponse->assertOk()
             ->assertSee('Tugas Terlambat')
             ->assertSee('Laporan Routing')
             ->assertDontSee('Laporan Switching');
 
-        $data = $response->original->getData()['data'];
+        $data = $calendarResponse->original->getData()['data'];
 
         $this->assertCount(1, $data['tugas_terlambat']);
         $this->assertSame($pending->nama, $data['tugas_terlambat'][0]['judul']);
