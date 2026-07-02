@@ -10,6 +10,7 @@ use App\Models\Notifikasi;
 use App\Models\NotifikasiDosen;
 use App\Models\Tugas;
 use App\Models\TugasSubmission;
+use App\Models\UserDosen;
 use App\Services\BebanCalculator;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -62,7 +63,10 @@ class DosenResourceController extends Controller
                         ->get()
                         ->groupBy('tugas_id')
                         ->map(fn ($submissions) => $submissions->keyBy('siswa_id'));
-                    $data['aggregatePreview'] = BebanCalculator::aggregatePreviewForDosen($user);
+                    $data['aggregatePreview'] = $this->withPendingSubmissionCounts(
+                        BebanCalculator::aggregatePreviewForDosen($user),
+                        $user
+                    );
                 }
                 break;
 
@@ -191,22 +195,24 @@ class DosenResourceController extends Controller
         $deadline = Carbon::parse($validated['deadline']);
         $weekStart = $deadline->copy()->startOfWeek();
         $weekEnd = $deadline->copy()->endOfWeek();
+        $pendingStudentIds = $this->pendingStudentIdsForCourseWeek($mk->id, $weekStart, $weekEnd);
         $rows = BebanCalculator::weeklyLoadForCourse($mk->id, $weekStart, $weekEnd);
-        $students = $rows->map(function (array $row) {
-            $projectedCount = ((int) $row['count']) + 1;
-            $status = BebanCalculator::forCount($projectedCount);
+        $students = $rows->filter(fn (array $row) => $pendingStudentIds->contains($row['siswa_id']))
+            ->map(function (array $row) {
+                $projectedCount = ((int) $row['count']) + 1;
+                $status = BebanCalculator::forCount($projectedCount);
 
-            return [
-                'siswa_id' => $row['siswa_id'],
-                'nim' => $row['nim'],
-                'nama' => $row['nama_siswa'],
-                'current_count' => (int) $row['count'],
-                'projected_count' => $projectedCount,
-                'status' => $status,
-                'label' => BebanCalculator::label($status),
-                'color' => BebanCalculator::colorClass($status),
-            ];
-        })->values();
+                return [
+                    'siswa_id' => $row['siswa_id'],
+                    'nim' => $row['nim'],
+                    'nama' => $row['nama_siswa'],
+                    'current_count' => (int) $row['count'],
+                    'projected_count' => $projectedCount,
+                    'status' => $status,
+                    'label' => BebanCalculator::label($status),
+                    'color' => BebanCalculator::colorClass($status),
+                ];
+            })->values();
 
         $worstStatus = $students->pluck('status')
             ->sortByDesc(fn ($status) => BebanCalculator::severity($status))
@@ -348,6 +354,102 @@ class DosenResourceController extends Controller
 
         return redirect()->route('dosen.dashboard', ['tab' => 'notifikasi'])
             ->with('status', 'Notifikasi dibaca.');
+    }
+
+    private function withPendingSubmissionCounts(array $previews, UserDosen $dosen): array
+    {
+        [$weekStart, $weekEnd] = $this->resolveDosenAggregatePreviewWeek($dosen);
+
+        return collect($previews)
+            ->map(function (array $preview) use ($weekStart, $weekEnd) {
+                $stats = $this->pendingSubmissionStatsForCourseWeek($preview['id'], $weekStart, $weekEnd);
+
+                return array_merge($preview, [
+                    'students' => $stats['students'],
+                    'avg_tasks' => $stats['avg_tasks'],
+                ]);
+            })
+            ->values()
+            ->toArray();
+    }
+
+    private function resolveDosenAggregatePreviewWeek(UserDosen $dosen): array
+    {
+        $now = now();
+        $defaultStart = $now->copy()->startOfWeek();
+        $defaultEnd = $now->copy()->endOfWeek();
+        $courseIds = MataKuliah::where('dosen_id', $dosen->id)->pluck('id');
+
+        if ($courseIds->isEmpty()) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        $tasks = Tugas::whereIn('mata_kuliah_id', $courseIds)
+            ->whereBetween('deadline', [$defaultStart, $now->copy()->addWeeks(8)->endOfWeek()])
+            ->orderBy('deadline')
+            ->get(['deadline']);
+
+        if ($tasks->isEmpty()) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        $week = $tasks
+            ->groupBy(fn ($task) => Carbon::parse($task->deadline)->startOfWeek()->toDateString())
+            ->sortByDesc(fn ($tasks) => $tasks->count())
+            ->keys()
+            ->first();
+
+        $start = Carbon::parse($week)->startOfWeek();
+
+        return [$start, $start->copy()->endOfWeek()];
+    }
+
+    private function pendingStudentIdsForCourseWeek(int $mataKuliahId, Carbon $weekStart, Carbon $weekEnd)
+    {
+        return $this->pendingSubmissionStatsForCourseWeek($mataKuliahId, $weekStart, $weekEnd)['student_ids'];
+    }
+
+    private function pendingSubmissionStatsForCourseWeek(int $mataKuliahId, Carbon $weekStart, Carbon $weekEnd): array
+    {
+        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
+
+        if ($studentIds->isEmpty()) {
+            return [
+                'student_ids' => collect(),
+                'students' => 0,
+                'avg_tasks' => 0,
+            ];
+        }
+
+        $taskIds = Tugas::where('mata_kuliah_id', $mataKuliahId)
+            ->whereBetween('deadline', [$weekStart, $weekEnd])
+            ->pluck('id');
+
+        if ($taskIds->isEmpty()) {
+            return [
+                'student_ids' => $studentIds,
+                'students' => $studentIds->count(),
+                'avg_tasks' => 0,
+            ];
+        }
+
+        $submittedCounts = TugasSubmission::whereIn('tugas_id', $taskIds)
+            ->whereIn('siswa_id', $studentIds)
+            ->selectRaw('siswa_id, COUNT(*) as aggregate')
+            ->groupBy('siswa_id')
+            ->pluck('aggregate', 'siswa_id');
+
+        $pendingCounts = $studentIds
+            ->mapWithKeys(fn ($studentId) => [
+                $studentId => max(0, $taskIds->count() - (int) $submittedCounts->get($studentId, 0)),
+            ])
+            ->filter(fn ($count) => $count > 0);
+
+        return [
+            'student_ids' => $pendingCounts->keys()->values(),
+            'students' => $pendingCounts->count(),
+            'avg_tasks' => round($pendingCounts->avg() ?? 0, 1),
+        ];
     }
 
     private function computeStatusBeban(int $mataKuliahId, string $deadline, ?int $excludeTugasId = null): string

@@ -124,9 +124,6 @@
                         @error('beban_warning')
                             <div class="mb-3 rounded-lg border border-orange-300 bg-orange-50 p-3 text-xs text-orange-800">
                                 {{ $message }}
-                                <label class="mt-2 flex cursor-pointer items-center gap-2">
-                                    <input type="checkbox" name="override" value="1" form="form-tugas"> Tetap lanjut
-                                </label>
                             </div>
                         @enderror
 
@@ -264,6 +261,16 @@
                                         <tbody data-preview-student-rows></tbody>
                                     </table>
                                 </div>
+                            </div>
+
+                            <div class="rounded-lg border border-orange-200 bg-orange-50 p-3 sm:col-span-2">
+                                <label class="flex cursor-pointer items-start gap-2 text-xs text-orange-900">
+                                    <input type="checkbox" name="override" value="1" @checked(old('override')) class="mt-0.5 rounded border-orange-300 text-orange-600 focus:ring-orange-500">
+                                    <span>
+                                        <span class="block font-semibold">Tetap lanjut dengan override</span>
+                                        <span class="mt-0.5 block text-orange-800/80">Gunakan saat preview menampilkan warning beban atau kelas masih memiliki submit parsial.</span>
+                                    </span>
+                                </label>
                             </div>
 
                             <div class="sm:col-span-2">

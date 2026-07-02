@@ -289,7 +289,9 @@ class SiswaDashboardTest extends TestCase
         $response->assertOk()
             ->assertSee('3.60')
             ->assertSee('64')
-            ->assertSee('Semester 4');
+            ->assertSee('Semester 4')
+            ->assertSee('Prediksi Lulus')
+            ->assertSee('Semester 8');
 
         $profile = $response->original->getData()['data']['profile'];
 
@@ -297,6 +299,79 @@ class SiswaDashboardTest extends TestCase
         $this->assertSame(64, $profile['sks_lulus']);
         $this->assertSame(0, $profile['sks_semester']);
         $this->assertSame(4, $profile['semester']);
+        $this->assertSame(80, $profile['prediksi_lulus']['sisa_sks']);
+        $this->assertSame(4, $profile['prediksi_lulus']['sisa_semester']);
+        $this->assertSame(8, $profile['prediksi_lulus']['prediksi_semester']);
+    }
+
+    public function test_dashboard_shows_only_unsubmitted_overdue_tasks(): void
+    {
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Overdue',
+            'email' => 'siswa-overdue@example.test',
+            'password' => bcrypt('siswa123'),
+            'nim' => '220101006',
+            'prodi' => 'Informatika',
+            'semester' => 2,
+            'profile_completed' => true,
+        ]);
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Overdue',
+            'email' => 'dosen-overdue@example.test',
+            'password' => bcrypt('dosen123'),
+            'nidn' => 'NIDN-006',
+            'fakultas' => 'Teknik',
+        ]);
+        $mk = MataKuliah::create([
+            'nama' => 'Jaringan Komputer',
+            'kode' => 'JK01',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'semester' => 2,
+            'tahun_ajaran' => '2026/2027',
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mk->id,
+            'semester' => 2,
+            'status' => 'aktif',
+            'tahun_ajaran' => '2026/2027',
+        ]);
+        $pending = Tugas::create([
+            'mata_kuliah_id' => $mk->id,
+            'nama' => 'Laporan Routing',
+            'bobot' => 50,
+            'deadline' => now()->subDay()->format('Y-m-d H:i:s'),
+            'deskripsi' => 'Belum submit',
+        ]);
+        $submitted = Tugas::create([
+            'mata_kuliah_id' => $mk->id,
+            'nama' => 'Laporan Switching',
+            'bobot' => 50,
+            'deadline' => now()->subDays(2)->format('Y-m-d H:i:s'),
+            'deskripsi' => 'Sudah submit',
+        ]);
+        TugasSubmission::create([
+            'tugas_id' => $submitted->id,
+            'siswa_id' => $siswa->id,
+            'file_path' => 'submissions/switching.pdf',
+            'file_name' => 'switching.pdf',
+            'submitted_at' => now(),
+            'status' => 'late',
+        ]);
+
+        $response = $this->actingAs($siswa, 'siswa')
+            ->get(route('siswa.dashboard'));
+
+        $response->assertOk()
+            ->assertSee('Tugas Terlambat')
+            ->assertSee('Laporan Routing')
+            ->assertDontSee('Laporan Switching');
+
+        $data = $response->original->getData()['data'];
+
+        $this->assertCount(1, $data['tugas_terlambat']);
+        $this->assertSame($pending->nama, $data['tugas_terlambat'][0]['judul']);
     }
 
     public function test_siswa_can_submit_pdf_and_view_submission_status(): void

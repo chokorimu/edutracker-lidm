@@ -116,7 +116,7 @@ class DashboardController extends Controller
         return array_merge(
             $this->buildProfileData($user, $workloadData['weekly_status_code']),
             $this->buildMatakuliahData($user, $startOfWeek, $endOfWeek),
-            $this->buildTugasData($allCourseIds),
+            $this->buildTugasData($allCourseIds, $user),
             $this->buildNotifikasiData($user),
             $workloadData['payload'],
             $this->buildCalendarData($request, $allCourseIds, $now),
@@ -233,6 +233,7 @@ class DashboardController extends Controller
         $sksLulus = (int) $user->ipkHistory()
             ->where('semester', '<', $currentSemester)
             ->sum('total_sks');
+        $graduationPrediction = $this->graduationPrediction($sksLulus, $currentSemester);
 
         return [
             'profile' => [
@@ -245,6 +246,7 @@ class DashboardController extends Controller
                 'ipk' => $allIpk->isNotEmpty() ? number_format($allIpk->avg(), 2) : '-',
                 'sks_lulus' => $sksLulus,
                 'sks_semester' => $sksSemester,
+                'prediksi_lulus' => $graduationPrediction,
                 'dosen_pa' => $dosenPaName,
                 'weekly_status' => $weeklyStatus,
             ],
@@ -321,8 +323,9 @@ class DashboardController extends Controller
         return max((int) ($user->semester ?? 1), 1);
     }
 
-    private function buildTugasData($allCourseIds): array
+    private function buildTugasData($allCourseIds, UserSiswa $user): array
     {
+        $submittedTugasIds = TugasSubmission::where('siswa_id', $user->id)->pluck('tugas_id');
         $tugasMendatang = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->whereDate('deadline', '>=', now()->startOfDay())
             ->with('mataKuliah')
@@ -357,9 +360,48 @@ class DashboardController extends Controller
                 ];
             })
             ->toArray();
+        $tugasTerlambat = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
+            ->where('deadline', '<', now())
+            ->whereNotIn('id', $submittedTugasIds)
+            ->with('mataKuliah')
+            ->orderByDesc('deadline')
+            ->take(5)
+            ->get()
+            ->map(fn ($t) => [
+                'judul' => $t->nama,
+                'matkul' => $t->mataKuliah?->nama ?? '-',
+                'deadline' => $t->deadline ? Carbon::parse($t->deadline)->translatedFormat('j F Y') : '-',
+                'jam' => $t->deadline ? Carbon::parse($t->deadline)->format('H:i') : '-',
+                'terlambat' => $t->deadline ? Carbon::parse($t->deadline)->diffForHumans() : '-',
+            ])
+            ->toArray();
 
         return [
             'tugas_mendatang' => $tugasMendatang,
+            'tugas_terlambat' => $tugasTerlambat,
+        ];
+    }
+
+    private function graduationPrediction(int $sksLulus, int $currentSemester): ?array
+    {
+        if ($currentSemester < 2) {
+            return null;
+        }
+
+        $remainingSks = max(0, 144 - $sksLulus);
+        $averageSks = $currentSemester > 1 ? $sksLulus / ($currentSemester - 1) : 0;
+
+        if ($averageSks <= 0) {
+            return null;
+        }
+
+        $remainingSemesters = (int) ceil($remainingSks / $averageSks);
+
+        return [
+            'sisa_sks' => $remainingSks,
+            'rata_sks' => round($averageSks, 1),
+            'sisa_semester' => $remainingSemesters,
+            'prediksi_semester' => $currentSemester + $remainingSemesters,
         ];
     }
 
@@ -635,11 +677,12 @@ class DashboardController extends Controller
 
         return [
             'profile' => [
-                'nim' => '-', 'nama' => '-', 'email' => '-', 'prodi' => '-', 'semester' => 1, 'angkatan' => '-', 'ipk' => '-', 'sks_lulus' => 0, 'sks_semester' => 0, 'dosen_pa' => '-', 'weekly_status' => BebanCalculator::LIGHT,
+                'nim' => '-', 'nama' => '-', 'email' => '-', 'prodi' => '-', 'semester' => 1, 'angkatan' => '-', 'ipk' => '-', 'sks_lulus' => 0, 'sks_semester' => 0, 'prediksi_lulus' => null, 'dosen_pa' => '-', 'weekly_status' => BebanCalculator::LIGHT,
             ],
             'matakuliah' => [],
             'tugas_tab' => [],
             'tugas_mendatang' => [],
+            'tugas_terlambat' => [],
             'notifikasi' => [],
             'daily_workload' => [],
             'monthly_tasks' => [],

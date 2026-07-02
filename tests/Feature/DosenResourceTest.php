@@ -68,6 +68,7 @@ class DosenResourceTest extends TestCase
             ->get(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]))
             ->assertOk()
             ->assertSee('Tambah Tugas')
+            ->assertSee('Tetap lanjut dengan override')
             ->assertSee('Daftar Tugas & Nilai', false)
             ->assertSee('Wireframe')
             ->assertSee('Siswa Kelas');
@@ -90,6 +91,14 @@ class DosenResourceTest extends TestCase
             'prodi' => 'Informatika',
             'semester' => 2,
         ]);
+        $submittedSiswa = UserSiswa::create([
+            'name' => 'Siswa Preview Selesai',
+            'email' => 'siswa-preview-selesai@example.test',
+            'password' => 'password',
+            'nim' => '220101994',
+            'prodi' => 'Informatika',
+            'semester' => 2,
+        ]);
         $mataKuliah = MataKuliah::create([
             'nama' => 'Dasar Basis Data',
             'kode' => 'IF104',
@@ -105,18 +114,34 @@ class DosenResourceTest extends TestCase
             'tahun_ajaran' => '2026/2027',
             'status' => 'aktif',
         ]);
+        Krs::create([
+            'siswa_id' => $submittedSiswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
 
         $deadline = now()->addWeek()->startOfWeek()->addDay()->setTime(10, 0);
 
+        $tasks = collect();
         foreach (['Normalisasi', 'ERD'] as $taskName) {
-            Tugas::create([
+            $tasks->push(Tugas::create([
                 'mata_kuliah_id' => $mataKuliah->id,
                 'nama' => $taskName,
                 'bobot' => 50,
                 'deadline' => $deadline->format('Y-m-d H:i:s'),
                 'deskripsi' => $taskName,
-            ]);
+            ]));
         }
+        $tasks->each(fn (Tugas $task) => TugasSubmission::create([
+            'tugas_id' => $task->id,
+            'siswa_id' => $submittedSiswa->id,
+            'file_path' => 'submissions/preview-kelas.pdf',
+            'file_name' => 'preview-kelas.pdf',
+            'submitted_at' => now(),
+            'status' => 'submitted',
+        ]));
 
         $this->actingAs($dosen, 'dosen')
             ->get(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]))
@@ -408,6 +433,14 @@ class DosenResourceTest extends TestCase
             'prodi' => 'Informatika',
             'semester' => 4,
         ]);
+        $submittedSiswa = UserSiswa::create([
+            'name' => 'Siswa Sudah Submit',
+            'email' => 'siswa-submitted-preview@example.test',
+            'password' => 'password',
+            'nim' => '220101997',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
         $mataKuliah = MataKuliah::create([
             'nama' => 'Rekayasa Perangkat Lunak',
             'kode' => 'RPL-001',
@@ -423,22 +456,39 @@ class DosenResourceTest extends TestCase
             'tahun_ajaran' => '2026/2027',
             'status' => 'aktif',
         ]);
+        Krs::create([
+            'siswa_id' => $submittedSiswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
 
         $deadline = now()->addDays(4)->setTime(10, 0);
-        Tugas::create([
+        $firstTask = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 1',
             'bobot' => 20,
             'deadline' => $deadline->copy()->subDay()->toDateString(),
             'deskripsi' => 'Satu',
         ]);
-        Tugas::create([
+        $secondTask = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 2',
             'bobot' => 20,
             'deadline' => $deadline->copy()->subDay()->toDateString(),
             'deskripsi' => 'Dua',
         ]);
+        foreach ([$firstTask, $secondTask] as $task) {
+            TugasSubmission::create([
+                'tugas_id' => $task->id,
+                'siswa_id' => $submittedSiswa->id,
+                'file_path' => 'submissions/preview.pdf',
+                'file_name' => 'preview.pdf',
+                'submitted_at' => now(),
+                'status' => 'submitted',
+            ]);
+        }
 
         $this->actingAs($dosen, 'dosen')
             ->postJson(route('dosen.tugas.preview-beban'), [
