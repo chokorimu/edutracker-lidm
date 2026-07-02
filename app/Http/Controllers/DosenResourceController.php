@@ -446,12 +446,18 @@ class DosenResourceController extends Controller
             ->map(fn ($rows) => $rows->pluck('mata_kuliah_id'));
 
         $allCourseIds = $courseIdsBySiswa->flatten()->unique()->values();
-        $tugasCountByCourse = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
+        $weeklyTugas = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
             ->whereBetween('deadline', [$weekStart, $weekEnd])
             ->when($excludeTugasId, fn ($q) => $q->where('id', '!=', $excludeTugasId))
-            ->get(['mata_kuliah_id'])
-            ->groupBy('mata_kuliah_id')
-            ->map->count();
+            ->get(['id', 'mata_kuliah_id'])
+            ->groupBy('mata_kuliah_id');
+
+        $weeklyTugasIds = $weeklyTugas->flatten()->pluck('id');
+        $submittedPairs = TugasSubmission::whereIn('tugas_id', $weeklyTugasIds)
+            ->whereIn('siswa_id', $siswaIds)
+            ->get(['tugas_id', 'siswa_id'])
+            ->groupBy('siswa_id')
+            ->map(fn ($rows) => $rows->pluck('tugas_id')->toArray());
 
         $worst = BebanCalculator::LIGHT;
         $severity = [
@@ -463,8 +469,11 @@ class DosenResourceController extends Controller
 
         foreach ($siswaIds as $siswaId) {
             $studentCourseIds = $courseIdsBySiswa->get($siswaId, collect());
+            $submittedTugasIds = $submittedPairs->get($siswaId, []);
 
-            $count = $studentCourseIds->sum(fn ($courseId) => $tugasCountByCourse->get($courseId, 0)) + 1;
+            $count = $studentCourseIds->sum(function ($courseId) use ($weeklyTugas, $submittedTugasIds) {
+                return $weeklyTugas->get($courseId, collect())->pluck('id')->diff($submittedTugasIds)->count();
+            }) + 1;
 
             $status = BebanCalculator::forCount($count);
 

@@ -25,7 +25,7 @@ new class extends Component
 
     <aside class="w-64 bg-gray-900 text-gray-200 flex flex-col">
         <div class="p-4 text-xl font-bold text-white border-b border-gray-700">
-            EduTrack Admin
+            edutrack daily Admin
         </div>
         <nav class="flex-1 p-4 space-y-1">
             @foreach ([

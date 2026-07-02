@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduTrack — Kuliah seimbang, tanpa burnout.</title>
+    <title>edutrack daily — Kuliah seimbang, tanpa burnout.</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -53,7 +53,7 @@
 <body class="text-appleDark h-screen overflow-hidden flex flex-col justify-between antialiased selection:bg-appleDark selection:text-white">
 
     <header class="w-full bg-bone-light/80 backdrop-blur-xl border-b border-bone-dark/40 px-6 md:px-16 py-5 flex justify-between items-center z-50 fixed top-0 left-0 right-0">
-        <span class="text-xl font-bold tracking-tighter lowercase select-none">EduTrack</span>
+        <span class="text-xl font-bold tracking-tighter lowercase select-none">edutrack daily</span>
         <a href="/login" class="bg-appleDark text-white px-5 py-2 rounded-full text-xs font-medium tracking-tight hover:bg-appleDark/90 transition-all duration-300 active:scale-95 shadow-sm">
             Masuk
         </a>
@@ -78,7 +78,7 @@
                     <div class="md:col-span-6 space-y-4">
                         <span class="text-xs font-bold tracking-widest uppercase text-appleMuted">01 / Ringkasan</span>
                         <h1 class="text-4xl md:text-6xl font-bold tracking-tight text-appleDark leading-[1.1]">Kuliah seimbang.<br>Tanpa burnout.</h1>
-                        <p class="text-base text-appleMuted max-w-md font-normal leading-relaxed">EduTrack memantau beban studi secara real-time. Menghubungkan mahasiswa, dosen, dan prodi dalam satu ekosistem berbasis data.</p>
+                        <p class="text-base text-appleMuted max-w-md font-normal leading-relaxed">edutrack daily memantau beban studi secara real-time. Menghubungkan mahasiswa, dosen, dan prodi dalam satu ekosistem berbasis data.</p>
                     </div>
                     <div class="md:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="bg-white border border-bone-dark p-6 rounded-[24px] space-y-2">
@@ -152,10 +152,6 @@
                         <div class="bg-white border border-bone-dark p-5 rounded-[24px] space-y-2">
                             <div class="text-xs font-bold text-appleDark">5. Test</div>
                             <p class="text-[11px] text-appleMuted leading-normal">Validasi langsung pada pengguna aktif kampus.</p>
-                        </div>
-                        <div class="bg-white border border-bone-dark p-5 rounded-[24px] space-y-2 border-appleDark/20">
-                            <div class="text-xs font-bold text-appleDark">User POV</div>
-                            <p class="text-[11px] text-appleMuted leading-normal">"Butuh visualisasi beban tugas transparan demi hindari stres akademik."</p>
                         </div>
                     </div>
                 </div>
@@ -254,7 +250,7 @@
     </main>
 
     <footer class="w-full bg-bone-light/40 backdrop-blur-sm py-6 px-6 md:px-16 flex justify-between items-center z-50 fixed bottom-0 left-0 right-0">
-        <span class="text-[10px] font-semibold tracking-widest text-appleMuted uppercase hidden sm:block select-none">EduTrack platform engine</span>
+        <span class="text-[10px] font-semibold tracking-widest text-appleMuted uppercase hidden sm:block select-none">edutrack daily platform engine</span>
         <div class="flex space-x-2 mx-auto sm:mx-0" id="indicatorBar">
             <button onclick="slideActive(0)" class="w-2 h-2 rounded-full bg-appleDark transition-all duration-500"></button>
             <button onclick="slideActive(1)" class="w-2 h-2 rounded-full bg-bone-dark transition-all duration-500"></button>

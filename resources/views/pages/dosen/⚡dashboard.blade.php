@@ -2,16 +2,25 @@
 @extends('layouts.app')
 
 @section('content')
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        sidebar.classList.toggle('-translate-x-full');
+        backdrop.classList.toggle('hidden');
+    }
+</script>
+
 <div class="flex h-screen overflow-hidden bg-gray-50">
     {{-- Sidebar --}}
-    <aside class="flex w-56 flex-shrink-0 flex-col border-r border-gray-200 bg-white">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-56 flex-shrink-0 flex-col border-r border-gray-200 bg-white -translate-x-full md:relative md:translate-x-0 transition-transform duration-200 ease-in-out">
         {{-- Logo --}}
         <div class="flex h-14 items-center border-b border-gray-100 px-5">
-            <span class="text-sm font-semibold text-gray-800">EduTracker</span>
+            <span class="text-sm font-semibold text-gray-800">edutrack daily</span>
         </div>
 
         {{-- Nav links --}}
-        <nav class="flex-1 space-y-0.5 px-3 py-4">
+        <nav class="flex-1 space-y-0.5 px-3 py-4 overflow-y-auto">
             @php
                 $navItems = [
                     'kelas' => ['label' => 'Kelas', 'icon' => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'],
@@ -57,18 +66,26 @@
         </div>
     </aside>
 
+    {{-- Mobile Sidebar Backdrop --}}
+    <div id="sidebar-backdrop" class="fixed inset-0 z-30 bg-black/50 hidden md:hidden" onclick="toggleSidebar()"></div>
+
     {{-- Main content --}}
-    <main class="flex flex-1 flex-col overflow-y-auto">
+    <main class="flex flex-1 flex-col overflow-y-auto w-full">
         {{-- Top bar --}}
-        <header class="flex h-14 flex-shrink-0 items-center border-b border-gray-200 bg-white px-6">
-            <h1 class="text-sm font-semibold text-gray-700">
+        <header class="flex h-14 flex-shrink-0 items-center border-b border-gray-200 bg-white px-4 md:px-6">
+            <button onclick="toggleSidebar()" class="md:hidden mr-3 text-gray-500 hover:text-gray-700">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <h1 class="text-sm font-semibold text-gray-700 truncate">
                 @php $pageTitle = ['kelas' => 'Kelas', 'beban' => 'Beban Mahasiswa', 'notifikasi' => 'Notifikasi', 'profil' => 'Profil']; @endphp
                 {{ $pageTitle[$currentTab] ?? 'Dashboard' }}
             </h1>
         </header>
 
         {{-- Page content --}}
-        <div class="flex-1 p-6">
+        <div class="flex-1 p-4 md:p-6">
             @if (session('status'))
                 <div class="mb-4 rounded-md border border-green-300 bg-green-100 px-4 py-3 text-sm text-green-700">
                     {{ session('status') }}
@@ -85,12 +102,12 @@
                         @if($data['mataKuliahList']->isEmpty())
                             <p class="text-sm text-gray-500">Belum ada mata kuliah.</p>
                         @else
-                            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <div class="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                 @foreach($data['mataKuliahList'] as $mk)
                                     <a href="{{ route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mk->id]) }}"
                                        class="block rounded-xl border border-gray-200 bg-white p-4 transition hover:border-indigo-400 hover:shadow-sm">
                                         <p class="text-xs font-bold uppercase tracking-widest text-indigo-600">{{ $mk->kode }}</p>
-                                        <p class="mt-1 text-sm font-semibold text-gray-800">{{ $mk->nama }}</p>
+                                        <p class="mt-1 text-sm font-semibold text-gray-800 truncate">{{ $mk->nama }}</p>
                                         <p class="mt-1 text-xs text-gray-500">{{ $mk->sks }} SKS · {{ $mk->tugas_count }} tugas</p>
                                     </a>
                                 @endforeach
@@ -101,12 +118,12 @@
                     @php $mk = $data['selectedMk']; @endphp
                     <div class="mb-4 flex items-center gap-3">
                         <a href="{{ route('dosen.dashboard', ['tab' => 'kelas']) }}"
-                           class="text-xs text-indigo-600 hover:underline">← Semua Kelas</a>
+                           class="text-xs text-indigo-600 hover:underline whitespace-nowrap">← Semua Kelas</a>
                         <span class="text-gray-300">|</span>
-                        <span class="text-sm font-semibold">{{ $mk->kode }} — {{ $mk->nama }}</span>
+                        <span class="text-sm font-semibold truncate min-w-0">{{ $mk->kode }} — {{ $mk->nama }}</span>
                     </div>
 
-                    <div class="mb-6 rounded-xl border border-gray-200 bg-white p-5">
+                    <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 md:p-5">
                         <h3 class="mb-3 text-sm font-semibold text-gray-700">Tambah Tugas</h3>
 
                         @if(session('deadline_suggestions'))
@@ -216,11 +233,11 @@
 
                             <div class="hidden rounded-lg border border-gray-200 bg-gray-50 p-4 sm:col-span-2" data-preview-panel>
                                 <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                    <div>
+                                    <div class="min-w-0">
                                         <h3 class="text-sm font-semibold text-gray-900">Preview Beban Mahasiswa</h3>
-                                        <p class="mt-1 text-xs text-gray-500" data-preview-week>Isi mata kuliah dan deadline untuk melihat estimasi.</p>
+                                        <p class="mt-1 text-xs text-gray-500 truncate" data-preview-week>Isi mata kuliah dan deadline untuk melihat estimasi.</p>
                                     </div>
-                                    <span class="inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-semibold" data-preview-status></span>
+                                    <span class="inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap" data-preview-status></span>
                                 </div>
 
                                 <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -275,7 +292,7 @@
 
                             <div class="sm:col-span-2">
                                 <button type="submit"
-                                        class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                                        class="w-full sm:w-auto rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                                     Simpan Tugas
                                 </button>
                             </div>
@@ -283,22 +300,22 @@
                     </div>
 
                     <div class="rounded-xl border border-gray-200 bg-white">
-                        <div class="border-b border-gray-100 px-5 py-3">
+                        <div class="border-b border-gray-100 px-4 md:px-5 py-3">
                             <h3 class="text-sm font-semibold text-gray-700">Daftar Tugas & Nilai</h3>
                         </div>
 
                         @if($data['tugasList']->isEmpty())
-                            <p class="px-5 py-4 text-sm text-gray-500">Belum ada tugas di kelas ini.</p>
+                            <p class="px-4 md:px-5 py-4 text-sm text-gray-500">Belum ada tugas di kelas ini.</p>
                         @else
                             @foreach($data['tugasList'] as $tugas)
-                                <div class="border-b border-gray-100 px-5 py-4 last:border-0">
-                                    <div class="mb-3 flex items-center justify-between gap-4">
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-800">{{ $tugas->nama }}</p>
-                                            <p class="text-xs text-gray-500">
-                                                Deadline: {{ \Carbon\Carbon::parse($tugas->deadline)->format('d/m/Y H:i') }}
-                                                · Bobot: {{ $tugas->bobot }}%
-                                                <span class="ml-1 rounded px-1 py-0.5 text-[10px] font-bold
+                                <div class="border-b border-gray-100 px-4 md:px-5 py-4 last:border-0">
+                                    <div class="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-semibold text-gray-800 truncate">{{ $tugas->nama }}</p>
+                                            <p class="text-xs text-gray-500 flex flex-wrap items-center gap-1">
+                                                <span>Deadline: {{ \Carbon\Carbon::parse($tugas->deadline)->format('d/m/Y H:i') }}</span>
+                                                <span>· Bobot: {{ $tugas->bobot }}%</span>
+                                                <span class="rounded px-1 py-0.5 text-[10px] font-bold
                                                     {{ $tugas->status_beban === BebanCalculator::LIGHT ? 'bg-green-100 text-green-700' : '' }}
                                                     {{ $tugas->status_beban === BebanCalculator::NORMAL ? 'bg-yellow-100 text-yellow-700' : '' }}
                                                     {{ $tugas->status_beban === BebanCalculator::HEAVY ? 'bg-orange-100 text-orange-700' : '' }}
@@ -310,19 +327,19 @@
                                         <form method="POST" action="{{ route('dosen.tugas.destroy', $tugas->id) }}"
                                               onsubmit="return confirm('Hapus tugas ini?')">
                                             @csrf @method('DELETE')
-                                            <button type="submit" class="text-xs text-red-500 hover:underline">Hapus</button>
+                                            <button type="submit" class="text-xs text-red-500 hover:underline whitespace-nowrap">Hapus</button>
                                         </form>
                                     </div>
 
                                     @if($data['siswaList']->isEmpty())
                                         <p class="text-xs text-gray-400">Tidak ada mahasiswa terdaftar di KRS.</p>
                                     @else
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-xs">
+                                        <div class="overflow-x-auto -mx-4 md:-mx-5 px-4 md:px-5">
+                                            <table class="w-full text-xs min-w-[600px]">
                                                 <thead>
                                                     <tr class="text-left text-gray-500">
-                                                        <th class="w-1/3 pb-1 font-medium">Mahasiswa</th>
-                                                        <th class="w-1/4 pb-1 font-medium">NIM</th>
+                                                        <th class="w-1/4 pb-1 font-medium">Mahasiswa</th>
+                                                        <th class="w-1/5 pb-1 font-medium">NIM</th>
                                                         <th class="pb-1 font-medium">Nilai (0-100)</th>
                                                         <th class="pb-1 font-medium">Komentar</th>
                                                         <th></th>
@@ -336,8 +353,8 @@
                                                             $submission = $data['submissionMap'][$tugas->id][$krs->siswa_id] ?? null;
                                                         @endphp
                                                         <tr class="border-t border-gray-50">
-                                                            <td class="py-1.5 pr-2 font-medium text-gray-700">{{ $krs->siswa->name }}</td>
-                                                            <td class="py-1.5 pr-2 text-gray-500">{{ $krs->siswa->nim }}</td>
+                                                            <td class="py-1.5 pr-2 font-medium text-gray-700 whitespace-nowrap">{{ $krs->siswa->name }}</td>
+                                                            <td class="py-1.5 pr-2 text-gray-500 whitespace-nowrap">{{ $krs->siswa->nim }}</td>
                                                             <td class="py-1.5 pr-2" colspan="3">
                                                                 <form method="POST"
                                                                       action="{{ route('dosen.nilai.store', [$tugas->id, $krs->siswa_id]) }}"
@@ -346,32 +363,32 @@
                                                                     <input type="number" name="nilai" min="0" max="100" step="0.01"
                                                                            value="{{ $existing?->nilai }}"
                                                                            placeholder="-"
-                                                                           class="w-20 rounded border border-gray-300 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none">
+                                                                           class="w-20 min-w-[5rem] rounded border border-gray-300 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none">
                                                                     <input type="text" name="komentar"
                                                                            value="{{ $existing?->komentar }}"
                                                                            placeholder="Komentar (opsional)"
-                                                                           class="w-40 rounded border border-gray-300 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none">
+                                                                           class="flex-1 min-w-[8rem] rounded border border-gray-300 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none">
                                                                     <button type="submit"
-                                                                            class="rounded bg-indigo-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-indigo-700">
+                                                                            class="rounded bg-indigo-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 whitespace-nowrap">
                                                                         {{ $existing ? 'Update' : 'Simpan' }}
                                                                     </button>
                                                                 </form>
                                                             </td>
                                                             <td class="py-1.5 pr-2">
                                                                 @if($submission)
-                                                                    <div class="flex max-w-52 flex-col gap-0.5">
+                                                                    <div class="flex max-w-[12rem] sm:max-w-52 flex-col gap-0.5">
                                                                         <a href="{{ route('dosen.submission.download', $submission->id) }}"
                                                                            class="truncate text-[10px] font-medium text-indigo-600 hover:underline"
                                                                            title="{{ $submission->file_name }}">
                                                                             Download {{ $submission->file_name }}
                                                                         </a>
-                                                                        <span class="text-[10px] {{ $submission->status === 'late' ? 'font-bold text-orange-500' : 'text-gray-400' }}">
+                                                                        <span class="text-[10px] {{ $submission->status === 'late' ? 'font-bold text-orange-500' : 'text-gray-400' }} whitespace-nowrap">
                                                                             {{ $submission->status === 'late' ? 'Terlambat' : 'Tepat waktu' }}
                                                                             · {{ \Carbon\Carbon::parse($submission->submitted_at)->translatedFormat('d M H:i') }}
                                                                         </span>
                                                                     </div>
                                                                 @else
-                                                                    <span class="text-[10px] font-bold text-red-500">Belum submit</span>
+                                                                    <span class="text-[10px] font-bold text-red-500 whitespace-nowrap">Belum submit</span>
                                                                 @endif
                                                             </td>
                                                         </tr>
@@ -585,7 +602,7 @@
         {{-- ===== BEBAN ===== --}}
         @elseif ($currentTab === 'beban')
             <div class="space-y-6">
-                <div class="bg-white rounded-lg shadow p-6">
+                <div class="bg-white rounded-lg shadow p-4 md:p-6">
                     <h2 class="text-lg font-semibold mb-4">Beban Tugas Mahasiswa</h2>
                     <p class="text-xs text-gray-400 mb-4">Minggu ini: {{ $data['weekStart']->format('d/m/Y') }} – {{ $data['weekEnd']->format('d/m/Y') }}</p>
 
@@ -594,11 +611,11 @@
                             @foreach($data['paRiskCards'] as $student)
                                 <div class="border rounded-lg p-4 {{ $student['color'] }}">
                                     <div class="flex justify-between gap-3">
-                                        <div>
-                                            <h3 class="text-sm font-bold">{{ $student['nama'] }}</h3>
-                                            <p class="text-[11px] opacity-80">{{ $student['nim'] }}</p>
+                                        <div class="min-w-0">
+                                            <h3 class="text-sm font-bold truncate">{{ $student['nama'] }}</h3>
+                                            <p class="text-[11px] opacity-80 truncate">{{ $student['nim'] }}</p>
                                         </div>
-                                        <span class="text-lg font-bold">{{ $student['risk_score'] }}%</span>
+                                        <span class="text-lg font-bold whitespace-nowrap">{{ $student['risk_score'] }}%</span>
                                     </div>
                                     <p class="text-xs mt-2">{{ $student['task_count'] }} tugas minggu ini · {{ $student['label'] }}</p>
                                 </div>
@@ -622,7 +639,7 @@
 
                     @forelse($data['workloadData'] as $mk)
                         <div class="border border-gray-200 rounded-lg p-4 mb-4">
-                            <h3 class="font-medium text-sm mb-2">{{ $mk['nama'] }} ({{ $mk['kode'] }})</h3>
+                            <h3 class="font-medium text-sm mb-2 truncate">{{ $mk['nama'] }} ({{ $mk['kode'] }})</h3>
 
                             @php
                                 // Merge this‑week and next‑week results from the controller.
@@ -643,50 +660,52 @@
                             @endphp
 
                             @if($students->count())
-                                <table class="w-full text-xs">
-                                    <thead>
-                                        <tr class="border-b border-gray-200 text-left">
-                                            <th class="py-1 px-1">Nama</th>
-                                            <th class="py-1 px-1">NIM</th>
-                                            <th class="py-1 px-1">Minggu Ini</th>
-                                            <th class="py-1 px-1">Minggu Depan</th>
-                                            <th class="py-1 px-1">Bimbingan</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                    @foreach($students as $s)
-                                            <tr class="border-b border-gray-100">
-                                                <td class="py-1 px-1">{{ $s['nama'] }}</td>
-                                                <td class="py-1 px-1">{{ $s['nim'] ?? $s['siswa_id'] }}</td>
-                                                <td class="py-1 px-1">
-                                                    <span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium
-                                                        {{ $s['weekLoad'] === BebanCalculator::LIGHT ? 'bg-green-100 text-green-700' : '' }}
-                                                        {{ $s['weekLoad'] === BebanCalculator::NORMAL ? 'bg-yellow-100 text-yellow-700' : '' }}
-                                                        {{ $s['weekLoad'] === BebanCalculator::HEAVY ? 'bg-orange-100 text-orange-700' : '' }}
-                                                        {{ $s['weekLoad'] === BebanCalculator::OVERLOAD ? 'bg-red-200 text-red-800' : '' }}">
-                                                        {{ $s['weekCount'] }} ({{ $s['weekLoad'] }})
-                                                    </span>
-                                                </td>
-                                                <td class="py-1 px-1">
-                                                    <span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium
-                                                        {{ $s['nextWeekLoad'] === BebanCalculator::LIGHT ? 'bg-green-100 text-green-700' : '' }}
-                                                        {{ $s['nextWeekLoad'] === BebanCalculator::NORMAL ? 'bg-yellow-100 text-yellow-700' : '' }}
-                                                        {{ $s['nextWeekLoad'] === BebanCalculator::HEAVY ? 'bg-orange-100 text-orange-700' : '' }}
-                                                        {{ $s['nextWeekLoad'] === BebanCalculator::OVERLOAD ? 'bg-red-200 text-red-800' : '' }}">
-                                                        {{ $s['nextWeekCount'] }} ({{ $s['nextWeekLoad'] }})
-                                                    </span>
-                                                </td>
-                                                <td class="py-1 px-1">
-                                                    @if($s['isBimbingan'])
-                                                        <span class="text-blue-600 font-bold">✓</span>
-                                                    @else
-                                                        <span class="text-gray-300">–</span>
-                                                    @endif
-                                                </td>
+                                <div class="overflow-x-auto -mx-4 px-4">
+                                    <table class="w-full text-xs min-w-[500px]">
+                                        <thead>
+                                            <tr class="border-b border-gray-200 text-left">
+                                                <th class="py-1 px-1">Nama</th>
+                                                <th class="py-1 px-1">NIM</th>
+                                                <th class="py-1 px-1">Minggu Ini</th>
+                                                <th class="py-1 px-1">Minggu Depan</th>
+                                                <th class="py-1 px-1">Bimbingan</th>
                                             </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($students as $s)
+                                                <tr class="border-b border-gray-100">
+                                                    <td class="py-1 px-1 whitespace-nowrap">{{ $s['nama'] }}</td>
+                                                    <td class="py-1 px-1 whitespace-nowrap">{{ $s['nim'] ?? $s['siswa_id'] }}</td>
+                                                    <td class="py-1 px-1">
+                                                        <span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap
+                                                            {{ $s['weekLoad'] === BebanCalculator::LIGHT ? 'bg-green-100 text-green-700' : '' }}
+                                                            {{ $s['weekLoad'] === BebanCalculator::NORMAL ? 'bg-yellow-100 text-yellow-700' : '' }}
+                                                            {{ $s['weekLoad'] === BebanCalculator::HEAVY ? 'bg-orange-100 text-orange-700' : '' }}
+                                                            {{ $s['weekLoad'] === BebanCalculator::OVERLOAD ? 'bg-red-200 text-red-800' : '' }}">
+                                                            {{ $s['weekCount'] }} ({{ $s['weekLoad'] }})
+                                                        </span>
+                                                    </td>
+                                                    <td class="py-1 px-1">
+                                                        <span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap
+                                                            {{ $s['nextWeekLoad'] === BebanCalculator::LIGHT ? 'bg-green-100 text-green-700' : '' }}
+                                                            {{ $s['nextWeekLoad'] === BebanCalculator::NORMAL ? 'bg-yellow-100 text-yellow-700' : '' }}
+                                                            {{ $s['nextWeekLoad'] === BebanCalculator::HEAVY ? 'bg-orange-100 text-orange-700' : '' }}
+                                                            {{ $s['nextWeekLoad'] === BebanCalculator::OVERLOAD ? 'bg-red-200 text-red-800' : '' }}">
+                                                            {{ $s['nextWeekCount'] }} ({{ $s['nextWeekLoad'] }})
+                                                        </span>
+                                                    </td>
+                                                    <td class="py-1 px-1 text-center">
+                                                        @if($s['isBimbingan'])
+                                                            <span class="text-blue-600 font-bold">✓</span>
+                                                        @else
+                                                            <span class="text-gray-300">–</span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
                             @else
                                 <p class="text-gray-400 text-xs">Tidak ada mahasiswa terdaftar.</p>
                             @endif
@@ -700,25 +719,24 @@
         {{-- ===== NOTIFIKASI ===== --}}
         @elseif ($currentTab === 'notifikasi')
             <div class="space-y-4">
-                <div class="bg-white rounded-lg shadow p-6">
+                <div class="bg-white rounded-lg shadow p-4 md:p-6">
                     <h2 class="text-lg font-semibold mb-4">Notifikasi</h2>
 
                     @if($data['notifikasiList']->count())
                         @foreach($data['notifikasiList'] as $notif)
                             <div class="border border-gray-200 rounded-lg p-4 mb-3 {{ $notif->is_read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200' }}">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <h4 class="font-medium text-sm">{{ $notif->judul }}</h4>
+                                <div class="flex justify-between items-start gap-3">
+                                    <div class="min-w-0 flex-1">
+                                        <h4 class="font-medium text-sm truncate">{{ $notif->judul }}</h4>
                                         <p class="text-xs text-gray-600 mt-1">{{ $notif->pesan }}</p>
-                                        <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
+                                        <p class="text-xs text-gray-400 mt-1 whitespace-nowrap">{{ $notif->created_at->diffForHumans() }}</p>
                                         @if($notif->tipe === 'beban_tinggi')
-                                            <span class="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">Beban Tinggi</span>
+                                            <span class="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full whitespace-nowrap">Beban Tinggi</span>
                                         @endif
                                     </div>
                                     @if(!$notif->is_read)
-                                        <form method="POST" action="{{ route('dosen.notifikasi.read', $notif->id) }}" class="ml-2">
-                                            @csrf
-                                            @method('PATCH')
+                                        <form method="POST" action="{{ route('dosen.notifikasi.read', $notif->id) }}" class="ml-2 flex-shrink-0">
+                                            @csrf @method('PATCH')
                                             <button type="submit"
                                                     class="text-blue-600 hover:text-blue-800 text-xs font-medium whitespace-nowrap">
                                                 Tandai Dibaca
@@ -740,17 +758,17 @@
         {{-- ===== PROFIL ===== --}}
         @elseif ($currentTab === 'profil')
             <div class="space-y-6">
-                <div class="bg-white rounded-lg shadow p-6">
+                <div class="bg-white rounded-lg shadow p-4 md:p-6">
                     <h2 class="text-lg font-semibold mb-4">Profil Dosen</h2>
 
                     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
                             <dt class="text-gray-500">Nama</dt>
-                            <dd class="font-medium">{{ $user->name }}</dd>
+                            <dd class="font-medium truncate">{{ $user->name }}</dd>
                         </div>
                         <div>
                             <dt class="text-gray-500">Email</dt>
-                            <dd class="font-medium">{{ $user->email }}</dd>
+                            <dd class="font-medium truncate">{{ $user->email }}</dd>
                         </div>
                         <div>
                             <dt class="text-gray-500">NIDN</dt>
@@ -773,13 +791,13 @@
 
                 {{-- Mata Kuliah List --}}
                 @if($data['mataKuliahList']->count())
-                    <div class="bg-white rounded-lg shadow p-6">
+                    <div class="bg-white rounded-lg shadow p-4 md:p-6">
                         <h3 class="text-md font-semibold mb-3">Mata Kuliah Diajar</h3>
                         <ul class="space-y-2">
                             @foreach($data['mataKuliahList'] as $mk)
-                                <li class="border border-gray-200 rounded-md px-4 py-2 text-sm flex justify-between">
-                                    <span>{{ $mk->nama }} ({{ $mk->kode }})</span>
-                                    <span class="text-gray-500">{{ $mk->sks }} SKS</span>
+                                <li class="border border-gray-200 rounded-md px-4 py-2 text-sm flex justify-between gap-2">
+                                    <span class="truncate min-w-0">{{ $mk->nama }} ({{ $mk->kode }})</span>
+                                    <span class="text-gray-500 whitespace-nowrap">{{ $mk->sks }} SKS</span>
                                 </li>
                             @endforeach
                         </ul>

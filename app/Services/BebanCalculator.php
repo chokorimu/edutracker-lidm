@@ -7,6 +7,7 @@ use App\Models\Krs;
 use App\Models\MataKuliah;
 use App\Models\NilaiTugas;
 use App\Models\Tugas;
+use App\Models\TugasSubmission;
 use App\Models\UserDosen;
 use App\Models\UserSiswa;
 use Carbon\Carbon;
@@ -82,18 +83,28 @@ class BebanCalculator
             ->pluck('mata_kuliah_id')
             ->unique()
             ->values();
-        $taskCountsByCourse = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-            ->whereBetween('deadline', [$weekStart, $weekEnd])
-            ->get()
-            ->groupBy('mata_kuliah_id')
-            ->map(fn ($tasks) => $tasks->count());
 
-        return $krsInCourse->map(function ($krs) use ($students, $krsBySiswa, $taskCountsByCourse) {
+        $weeklyTugas = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
+            ->whereBetween('deadline', [$weekStart, $weekEnd])
+            ->get(['id', 'mata_kuliah_id'])
+            ->groupBy('mata_kuliah_id');
+
+        $weeklyTugasIds = $weeklyTugas->flatten()->pluck('id');
+        $submittedPairs = TugasSubmission::whereIn('tugas_id', $weeklyTugasIds)
+            ->whereIn('siswa_id', $siswaIds)
+            ->get(['tugas_id', 'siswa_id'])
+            ->groupBy('siswa_id')
+            ->map(fn ($rows) => $rows->pluck('tugas_id')->toArray());
+
+        return $krsInCourse->map(function ($krs) use ($students, $krsBySiswa, $weeklyTugas, $submittedPairs) {
             $courseIds = $krsBySiswa
                 ->get($krs->siswa_id, collect())
                 ->where('semester', $krs->semester)
                 ->pluck('mata_kuliah_id');
-            $count = $courseIds->sum(fn ($id) => $taskCountsByCourse->get($id, 0));
+            $submittedTugasIds = $submittedPairs->get($krs->siswa_id, []);
+            $count = $courseIds->sum(function ($courseId) use ($weeklyTugas, $submittedTugasIds) {
+                return $weeklyTugas->get($courseId, collect())->pluck('id')->diff($submittedTugasIds)->count();
+            });
             $siswa = $krs->siswa ?? $students->get($krs->siswa_id);
 
             return [
@@ -110,12 +121,19 @@ class BebanCalculator
     public static function studentWeeklySummary(UserSiswa $student, $weekStart, $weekEnd): array
     {
         $courseIds = Krs::where('siswa_id', $student->id)->pluck('mata_kuliah_id');
-        $taskCount = Tugas::whereIn('mata_kuliah_id', $courseIds)
+
+        $weeklyTugasIds = Tugas::whereIn('mata_kuliah_id', $courseIds)
             ->whereBetween('deadline', [
                 Carbon::parse($weekStart)->toDateString(),
                 Carbon::parse($weekEnd)->toDateString(),
             ])
-            ->count();
+            ->pluck('id');
+
+        $submittedIds = TugasSubmission::where('siswa_id', $student->id)
+            ->whereIn('tugas_id', $weeklyTugasIds)
+            ->pluck('tugas_id');
+
+        $taskCount = $weeklyTugasIds->diff($submittedIds)->count();
         $status = self::forCount($taskCount);
 
         return [
@@ -148,9 +166,13 @@ class BebanCalculator
                         $weekEnd->toDateString(),
                     ]);
             })
+            ->leftJoin('tugas_submission', function ($join) use ($student) {
+                $join->on('tugas_submission.tugas_id', '=', 'tugas.id')
+                    ->where('tugas_submission.siswa_id', $student->id);
+            })
             ->selectRaw('
-                COUNT(tugas.id) as weekly_task_count,
-                SUM(CASE WHEN tugas.deadline >= ? AND tugas.deadline <= ? THEN 1 ELSE 0 END) as urgent_count
+                COUNT(CASE WHEN tugas.id IS NOT NULL AND tugas_submission.id IS NULL THEN 1 END) as weekly_task_count,
+                SUM(CASE WHEN tugas.id IS NOT NULL AND tugas_submission.id IS NULL AND tugas.deadline >= ? AND tugas.deadline <= ? THEN 1 ELSE 0 END) as urgent_count
             ', [
                 now()->startOfDay()->toDateString(),
                 now()->addDays(self::URGENT_TASK_DAYS)->endOfDay()->toDateString(),
