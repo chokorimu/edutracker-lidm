@@ -85,7 +85,7 @@ new class extends Component
 <div class="min-h-screen flex flex-col justify-between bg-[#FBFBF9] text-[#1D1D1F] antialiased selection:bg-[#1D1D1F] selection:text-white font-sans">
 
     <header class="w-full bg-[#FBFBF9]/80 backdrop-blur-xl border-b border-[#E8E8ED] px-6 md:px-16 py-5 flex justify-between items-center z-50">
-        <a href="/" class="text-xl font-bold tracking-tighter lowercase select-none hover:opacity-80 transition-opacity">edutracker</a>
+        <a href="/" class="text-xl font-bold tracking-tighter lowercase select-none hover:opacity-80 transition-opacity">edutrack daily</a>
         <span class="text-xs font-bold uppercase tracking-widest text-[#86868B]">Portal Autentikasi</span>
     </header>
 

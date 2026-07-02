@@ -215,6 +215,86 @@ class DosenResourceTest extends TestCase
         $this->assertSame($secondCourse->id, $data['workloadData']->first()['id']);
     }
 
+    public function test_beban_tab_excludes_submitted_tasks_per_student(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Beban Personal',
+            'email' => 'dosen-beban-personal@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-BEBAN-PERSONAL',
+            'fakultas' => 'Teknik',
+        ]);
+        $submittedSiswa = UserSiswa::create([
+            'name' => 'Siswa Sudah Selesai',
+            'email' => 'siswa-selesai@example.test',
+            'password' => 'password',
+            'nim' => '220102001',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $pendingSiswa = UserSiswa::create([
+            'name' => 'Siswa Belum Submit',
+            'email' => 'siswa-belum-submit@example.test',
+            'password' => 'password',
+            'nim' => '220102002',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Sistem Terdistribusi',
+            'kode' => 'ST-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+
+        foreach ([$submittedSiswa, $pendingSiswa] as $siswa) {
+            Krs::create([
+                'siswa_id' => $siswa->id,
+                'mata_kuliah_id' => $mataKuliah->id,
+                'semester' => 4,
+                'tahun_ajaran' => '2026/2027',
+                'status' => 'aktif',
+            ]);
+        }
+
+        $tasks = collect(['Kuis', 'Laporan', 'Presentasi'])->map(fn (string $name) => Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => $name,
+            'bobot' => 20,
+            'deadline' => now()->addDay()->setTime(10, 0)->format('Y-m-d H:i:s'),
+            'deskripsi' => $name,
+        ]));
+
+        $tasks->each(fn (Tugas $task) => TugasSubmission::create([
+            'tugas_id' => $task->id,
+            'siswa_id' => $submittedSiswa->id,
+            'file_path' => 'submissions/done.pdf',
+            'file_name' => 'done.pdf',
+            'submitted_at' => now(),
+            'status' => 'submitted',
+        ]));
+
+        $response = $this->actingAs($dosen, 'dosen')
+            ->get(route('dosen.dashboard', ['tab' => 'beban', 'mk_beban' => $mataKuliah->id]));
+
+        $response->assertOk();
+
+        $rows = $response->original->getData()['data']['workloadData']->first()['thisWeek']->keyBy('siswa_id');
+
+        $this->assertSame(0, $rows->get($submittedSiswa->id)['count']);
+        $this->assertSame(BebanCalculator::LIGHT, $rows->get($submittedSiswa->id)['status']);
+        $this->assertSame(3, $rows->get($pendingSiswa->id)['count']);
+        $this->assertSame(BebanCalculator::HEAVY, $rows->get($pendingSiswa->id)['status']);
+
+        $summary = BebanCalculator::studentWeeklySummary($submittedSiswa, now()->startOfWeek(), now()->endOfWeek());
+
+        $this->assertSame(0, $summary['task_count']);
+        $this->assertSame(BebanCalculator::LIGHT, $summary['status']);
+        $this->assertSame(0, $summary['risk_score']);
+    }
+
     public function test_new_tugas_counts_toward_workload_warning(): void
     {
         $dosen = UserDosen::create([
@@ -275,6 +355,73 @@ class DosenResourceTest extends TestCase
             ->assertSessionHas('deadline_suggestions');
 
         $this->assertDatabaseMissing('tugas', ['nama' => 'Tugas 3']);
+    }
+
+    public function test_new_tugas_warning_excludes_existing_submitted_tasks(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Submitted Warning',
+            'email' => 'dosen-submitted-warning@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-SUBMITTED-WARNING',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Submitted Warning',
+            'email' => 'siswa-submitted-warning@example.test',
+            'password' => 'password',
+            'nim' => '220102003',
+            'prodi' => 'Informatika',
+            'semester' => 4,
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Keamanan Informasi',
+            'kode' => 'KI-001',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 4,
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mataKuliah->id,
+            'semester' => 4,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+
+        $tasks = collect(['Tugas 1', 'Tugas 2'])->map(fn (string $name) => Tugas::create([
+            'mata_kuliah_id' => $mataKuliah->id,
+            'nama' => $name,
+            'bobot' => 20,
+            'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
+            'deskripsi' => $name,
+        ]));
+
+        $tasks->each(fn (Tugas $task) => TugasSubmission::create([
+            'tugas_id' => $task->id,
+            'siswa_id' => $siswa->id,
+            'file_path' => 'submissions/submitted.pdf',
+            'file_name' => 'submitted.pdf',
+            'submitted_at' => now(),
+            'status' => 'submitted',
+        ]));
+
+        $this->actingAs($dosen, 'dosen')
+            ->post(route('dosen.tugas.store'), [
+                'mata_kuliah_id' => $mataKuliah->id,
+                'nama' => 'Tugas 3',
+                'deskripsi' => 'Tiga',
+                'bobot' => 20,
+                'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
+            ])
+            ->assertSessionDoesntHaveErrors('beban_warning')
+            ->assertRedirect(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]));
+
+        $this->assertDatabaseHas('tugas', [
+            'nama' => 'Tugas 3',
+            'status_beban' => BebanCalculator::LIGHT,
+        ]);
     }
 
     public function test_override_saves_one_dosen_notification_for_high_workload(): void
