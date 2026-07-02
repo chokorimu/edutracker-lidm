@@ -315,32 +315,8 @@ class BebanCalculator
     private static function resolveDosenPreviewWeek(UserDosen $dosen): array
     {
         $now = now();
-        $defaultStart = $now->copy()->startOfWeek();
-        $defaultEnd = $now->copy()->endOfWeek();
-        $courseIds = MataKuliah::where('dosen_id', $dosen->id)->pluck('id');
 
-        if ($courseIds->isEmpty()) {
-            return [$defaultStart, $defaultEnd];
-        }
-
-        $tasks = Tugas::whereIn('mata_kuliah_id', $courseIds)
-            ->whereBetween('deadline', [$defaultStart, $now->copy()->addWeeks(8)->endOfWeek()])
-            ->orderBy('deadline')
-            ->get(['deadline']);
-
-        if ($tasks->isEmpty()) {
-            return [$defaultStart, $defaultEnd];
-        }
-
-        $week = $tasks
-            ->groupBy(fn ($task) => Carbon::parse($task->deadline)->startOfWeek()->toDateString())
-            ->sortByDesc(fn ($tasks) => $tasks->count())
-            ->keys()
-            ->first();
-
-        $start = Carbon::parse($week)->startOfWeek();
-
-        return [$start, $start->copy()->endOfWeek()];
+        return [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()];
     }
 
     public static function paRiskCards(UserDosen $dosen): array
