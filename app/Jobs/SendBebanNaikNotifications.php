@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 
 class SendBebanNaikNotifications implements ShouldQueue
 {
@@ -107,6 +108,12 @@ class SendBebanNaikNotifications implements ShouldQueue
             // Chunk to avoid exceeding MySQL max_allowed_packet
             foreach (array_chunk($notificationsToInsert, 500) as $chunk) {
                 Notifikasi::insert($chunk);
+            }
+
+            // Bust siswa dashboard cache for affected students
+            $affectedSiswaIds = array_unique(array_column($notificationsToInsert, 'siswa_id'));
+            foreach ($affectedSiswaIds as $siswaId) {
+                Cache::forget("siswa_dashboard_{$siswaId}");
             }
         }
     }
