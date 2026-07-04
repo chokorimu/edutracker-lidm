@@ -11,7 +11,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Volt::route('/login', 'pages::auth.login')->name('login');
+Volt::route('/login', 'pages::auth.login')->name('login')->middleware('throttle:login');
 
 Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminResourceController::class, 'index'])->name('dashboard');
@@ -26,7 +26,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 
 Route::middleware('dosen')->prefix('dosen')->name('dosen.')->group(function () {
     Route::get('/dashboard', [DosenResourceController::class, 'index'])->name('dashboard');
-    Route::post('/tugas/preview-beban', [DosenResourceController::class, 'previewBeban'])->name('tugas.preview-beban');
+    Route::post('/tugas/preview-beban', [DosenResourceController::class, 'previewBeban'])->name('tugas.preview-beban')->middleware('throttle:heavy');
     Route::post('/tugas', [DosenResourceController::class, 'storeTugas'])->name('tugas.store');
     Route::put('/tugas/{id}', [DosenResourceController::class, 'updateTugas'])->name('tugas.update');
     Route::delete('/tugas/{id}', [DosenResourceController::class, 'destroyTugas'])->name('tugas.destroy');
@@ -42,7 +42,7 @@ Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])
 
 Route::post('/siswa/tugas/{tugasId}/submit', [DashboardController::class, 'submitTugas'])
     ->name('siswa.tugas.submit')
-    ->middleware('siswa');
+    ->middleware(['siswa', 'throttle:upload']);
 
 Route::get('/siswa/tugas/{tugasId}/submission', [DashboardController::class, 'downloadSubmission'])
     ->name('siswa.submission.download')
