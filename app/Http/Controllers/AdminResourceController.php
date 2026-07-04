@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -85,6 +86,7 @@ class AdminResourceController extends Controller
         $data = $this->validatedData($request, $resource, $config);
 
         $config['model']::create($data);
+        $this->invalidateAdminCache();
 
         return redirect()
             ->route('admin.dashboard', ['resource' => $resource])
@@ -98,6 +100,7 @@ class AdminResourceController extends Controller
         $data = $this->validatedData($request, $resource, $config, $record);
 
         $record->update($data);
+        $this->invalidateAdminCache();
 
         return redirect()
             ->route('admin.dashboard', ['resource' => $resource])
@@ -110,6 +113,7 @@ class AdminResourceController extends Controller
         $record = $config['model']::findOrFail($id);
 
         $record->delete();
+        $this->invalidateAdminCache();
 
         return redirect()
             ->route('admin.dashboard', ['resource' => $resource])
@@ -438,33 +442,35 @@ class AdminResourceController extends Controller
 
     private function formOptions(): array
     {
-        $mataKuliah = MataKuliah::orderBy('tahun_ajaran')
-            ->orderBy('semester')
-            ->orderBy('nama')
-            ->get(['id', 'nama', 'kode', 'semester', 'tahun_ajaran']);
+        return Cache::remember('admin_form_options', 600, function () {
+            $mataKuliah = MataKuliah::orderBy('tahun_ajaran')
+                ->orderBy('semester')
+                ->orderBy('nama')
+                ->get(['id', 'nama', 'kode', 'semester', 'tahun_ajaran']);
 
-        return [
-            'admins' => UserAdmin::orderBy('name')->get(['id', 'name', 'email']),
-            'dosens' => UserDosen::orderBy('name')->get(['id', 'name', 'email']),
-            'siswas' => UserSiswa::orderBy('name')->get(['id', 'name', 'email']),
-            'mata_kuliah' => $mataKuliah,
-            'krs_packages' => $mataKuliah
-                ->groupBy(fn (MataKuliah $mataKuliah) => $mataKuliah->tahun_ajaran.'|'.$mataKuliah->semester)
-                ->map(function ($items, string $key) {
-                    [$tahunAjaran, $semester] = explode('|', $key, 2);
+            return [
+                'admins' => UserAdmin::orderBy('name')->get(['id', 'name', 'email']),
+                'dosens' => UserDosen::orderBy('name')->get(['id', 'name', 'email']),
+                'siswas' => UserSiswa::orderBy('name')->get(['id', 'name', 'email']),
+                'mata_kuliah' => $mataKuliah,
+                'krs_packages' => $mataKuliah
+                    ->groupBy(fn (MataKuliah $mataKuliah) => $mataKuliah->tahun_ajaran.'|'.$mataKuliah->semester)
+                    ->map(function ($items, string $key) {
+                        [$tahunAjaran, $semester] = explode('|', $key, 2);
 
-                    return [
-                        'key' => $key,
-                        'label' => "Semester {$semester} - {$tahunAjaran}",
-                        'semester' => (int) $semester,
-                        'tahun_ajaran' => $tahunAjaran,
-                        'mata_kuliah_ids' => $items->pluck('id')->values(),
-                        'total' => $items->count(),
-                    ];
-                })
-                ->values(),
-            'tugas' => Tugas::orderBy('nama')->get(['id', 'nama']),
-        ];
+                        return [
+                            'key' => $key,
+                            'label' => "Semester {$semester} - {$tahunAjaran}",
+                            'semester' => (int) $semester,
+                            'tahun_ajaran' => $tahunAjaran,
+                            'mata_kuliah_ids' => $items->pluck('id')->values(),
+                            'total' => $items->count(),
+                        ];
+                    })
+                    ->values(),
+                'tugas' => Tugas::orderBy('nama')->get(['id', 'nama']),
+            ];
+        });
     }
 
     private function storeKrsBatch(Request $request, array $config): RedirectResponse
@@ -510,6 +516,8 @@ class AdminResourceController extends Controller
             $krs->wasRecentlyCreated ? $created++ : $skipped++;
         }
 
+        $this->invalidateAdminCache();
+
         return redirect()
             ->route('admin.dashboard', ['resource' => 'krs'])
             ->with('status', "{$config['label']} paket berhasil diproses: {$created} dibuat, {$skipped} sudah ada.");
@@ -517,13 +525,21 @@ class AdminResourceController extends Controller
 
     private function counts(array $resources): array
     {
-        $counts = [];
+        return Cache::remember('admin_resource_counts', 300, function () use ($resources) {
+            $counts = [];
 
-        foreach ($resources as $key => $resource) {
-            $counts[$key] = $resource['model']::count();
-        }
+            foreach ($resources as $key => $resource) {
+                $counts[$key] = $resource['model']::count();
+            }
 
-        return $counts;
+            return $counts;
+        });
+    }
+
+    private function invalidateAdminCache(): void
+    {
+        Cache::forget('admin_resource_counts');
+        Cache::forget('admin_form_options');
     }
 
     public function laporanIndex(Request $request): View
