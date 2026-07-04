@@ -11,6 +11,7 @@ use App\Models\UserDosen;
 use App\Models\UserSiswa;
 use App\Services\BebanCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -332,14 +333,14 @@ class DosenResourceTest extends TestCase
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 1',
             'bobot' => 20,
-            'deadline' => now()->addDays(2)->toDateString(),
+            'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
             'deskripsi' => 'Satu',
         ]);
         Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 2',
             'bobot' => 20,
-            'deadline' => now()->addDays(2)->toDateString(),
+            'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
             'deskripsi' => 'Dua',
         ]);
 
@@ -349,7 +350,7 @@ class DosenResourceTest extends TestCase
                 'nama' => 'Tugas 3',
                 'deskripsi' => 'Tiga',
                 'bobot' => 20,
-                'deadline' => now()->addDays(2)->toDateString(),
+                'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
             ])
             ->assertSessionHasErrors('beban_warning')
             ->assertSessionHas('deadline_suggestions');
@@ -461,14 +462,14 @@ class DosenResourceTest extends TestCase
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 1',
             'bobot' => 20,
-            'deadline' => now()->addDays(2)->toDateString(),
+            'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
             'deskripsi' => 'Satu',
         ]);
         Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 2',
             'bobot' => 20,
-            'deadline' => now()->addDays(2)->toDateString(),
+            'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
             'deskripsi' => 'Dua',
         ]);
 
@@ -478,7 +479,7 @@ class DosenResourceTest extends TestCase
                 'nama' => 'Tugas 3',
                 'deskripsi' => 'Tiga',
                 'bobot' => 20,
-                'deadline' => now()->addDays(2)->toDateString(),
+                'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
                 'override' => '1',
             ])
             ->assertRedirect(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]));
@@ -534,14 +535,14 @@ class DosenResourceTest extends TestCase
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 1',
             'bobot' => 20,
-            'deadline' => now()->addDays(2)->toDateString(),
+            'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
             'deskripsi' => 'Satu',
         ]);
         $tugas = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 2',
             'bobot' => 20,
-            'deadline' => now()->addDays(2)->toDateString(),
+            'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
             'deskripsi' => 'Dua',
             'status' => 'aktif',
         ]);
@@ -551,7 +552,7 @@ class DosenResourceTest extends TestCase
                 'nama' => 'Tugas 2 Revisi',
                 'deskripsi' => 'Dua revisi',
                 'bobot' => 25,
-                'deadline' => now()->addDays(2)->toDateString(),
+                'deadline' => now()->addDays(2)->setTime(10, 0)->format('Y-m-d H:i:s'),
                 'status' => 'aktif',
             ])
             ->assertRedirect(route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliah->id]));
@@ -835,5 +836,65 @@ class DosenResourceTest extends TestCase
         $this->actingAs($otherDosen, 'dosen')
             ->get(route('dosen.submission.download', $submission->id))
             ->assertForbidden();
+    }
+
+    public function test_dosen_preview_cache_is_invalidated_on_tugas_create_and_delete(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Cache',
+            'email' => 'dosen-cache@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-CACHE',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Cache',
+            'email' => 'siswa-cache@example.test',
+            'password' => 'password',
+            'nim' => 'NIM-CACHE',
+            'prodi' => 'Informatika',
+            'semester' => 3,
+        ]);
+        $mk = MataKuliah::create([
+            'nama' => 'Cache Test',
+            'kode' => 'CT-01',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 3,
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mk->id,
+            'semester' => 3,
+            'tahun_ajaran' => '2026/2027',
+            'status' => 'aktif',
+        ]);
+
+        // Seed cache
+        Cache::put("dosen_preview_{$dosen->id}", ['cached_data'], 3600);
+        $this->assertNotNull(Cache::get("dosen_preview_{$dosen->id}"));
+
+        // Create tugas -> cache should be invalidated
+        $deadline = now()->addDays(3)->format('Y-m-d H:i:s');
+        $this->actingAs($dosen, 'dosen')
+            ->post(route('dosen.tugas.store'), [
+                'mata_kuliah_id' => $mk->id,
+                'nama' => 'Tugas Cache Test',
+                'deadline' => $deadline,
+            ])
+            ->assertRedirect();
+
+        $this->assertNull(Cache::get("dosen_preview_{$dosen->id}"));
+
+        // Re-seed cache and delete tugas
+        Cache::put("dosen_preview_{$dosen->id}", ['cached_data'], 3600);
+        $tugas = Tugas::where('nama', 'Tugas Cache Test')->first();
+
+        $this->actingAs($dosen, 'dosen')
+            ->delete(route('dosen.tugas.destroy', $tugas->id))
+            ->assertRedirect();
+
+        $this->assertNull(Cache::get("dosen_preview_{$dosen->id}"));
     }
 }

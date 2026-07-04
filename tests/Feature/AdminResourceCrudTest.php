@@ -341,4 +341,136 @@ class AdminResourceCrudTest extends TestCase
             ->assertSee('64 SKS')
             ->assertSee('IPK 3.60');
     }
+
+    public function test_admin_can_auto_generate_ipk_from_krs(): void
+    {
+        $admin = UserAdmin::create([
+            'name' => 'Admin IPK',
+            'email' => 'admin-ipk@example.test',
+            'password' => 'password',
+        ]);
+        $dosen = UserDosen::create([
+            'name' => 'Dosen IPK',
+            'email' => 'dosen-ipk@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-IPK',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa IPK',
+            'email' => 'siswa-ipk@example.test',
+            'password' => 'password',
+            'nim' => 'NIM-IPK',
+            'prodi' => 'Informatika',
+            'semester' => 3,
+        ]);
+
+        $mk1 = MataKuliah::create([
+            'nama' => 'Algoritma',
+            'kode' => 'ALG-01',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 3,
+        ]);
+        $mk2 = MataKuliah::create([
+            'nama' => 'Struktur Data',
+            'kode' => 'SD-01',
+            'sks' => 4,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 3,
+        ]);
+
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mk1->id,
+            'semester' => 3,
+            'tahun_ajaran' => '2026/2027',
+            'nilai_akhir' => 85,
+            'nilai_huruf' => 'A',
+            'status' => 'aktif',
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mk2->id,
+            'semester' => 3,
+            'tahun_ajaran' => '2026/2027',
+            'nilai_akhir' => 78,
+            'nilai_huruf' => 'B+',
+            'status' => 'aktif',
+        ]);
+
+        // IPS = (4.0*3 + 3.3*4) / (3+4) = (12 + 13.2) / 7 = 25.2 / 7 = 3.6
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.ipk-history.generate-auto'), [
+                'siswa_id' => $siswa->id,
+                'semester' => 3,
+            ])
+            ->assertRedirect(route('admin.dashboard', ['resource' => 'ipk-history']))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('ipk_history', [
+            'siswa_id' => $siswa->id,
+            'semester' => 3,
+            'ipk' => 3.6,
+            'total_sks' => 7,
+            'tahun_ajaran' => '2026/2027',
+            'rekomendasi_sks' => 24,
+        ]);
+    }
+
+    public function test_auto_generate_ipk_fails_when_grades_missing(): void
+    {
+        $admin = UserAdmin::create([
+            'name' => 'Admin Fail',
+            'email' => 'admin-fail@example.test',
+            'password' => 'password',
+        ]);
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Fail',
+            'email' => 'dosen-fail@example.test',
+            'password' => 'password',
+            'nidn' => 'NIDN-FAIL',
+            'fakultas' => 'Teknik',
+        ]);
+        $siswa = UserSiswa::create([
+            'name' => 'Siswa Fail',
+            'email' => 'siswa-fail@example.test',
+            'password' => 'password',
+            'nim' => 'NIM-FAIL',
+            'prodi' => 'Informatika',
+            'semester' => 2,
+        ]);
+        $mk = MataKuliah::create([
+            'nama' => 'Kalkulus',
+            'kode' => 'KAL-01',
+            'sks' => 3,
+            'dosen_id' => $dosen->id,
+            'tahun_ajaran' => '2026/2027',
+            'semester' => 2,
+        ]);
+        Krs::create([
+            'siswa_id' => $siswa->id,
+            'mata_kuliah_id' => $mk->id,
+            'semester' => 2,
+            'tahun_ajaran' => '2026/2027',
+            'nilai_akhir' => null,
+            'nilai_huruf' => null,
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.ipk-history.generate-auto'), [
+                'siswa_id' => $siswa->id,
+                'semester' => 2,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('ipk_auto');
+
+        $this->assertDatabaseMissing('ipk_history', [
+            'siswa_id' => $siswa->id,
+            'semester' => 2,
+        ]);
+    }
 }

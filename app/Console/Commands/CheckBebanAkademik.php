@@ -25,7 +25,7 @@ class CheckBebanAkademik extends Command
         $collisionStart = now()->toDateString();
         $collisionEnd = now()->copy()->addDays($collisionWindowDays)->endOfDay()->toDateString();
 
-        UserSiswa::chunk($chunkSize, function ($students) use ($overloadSksThreshold, $deadlineCollisionThreshold, $collisionWindowDays, $collisionStart, $collisionEnd) {
+        UserSiswa::with('dosenPa.dosen')->chunk($chunkSize, function ($students) use ($overloadSksThreshold, $deadlineCollisionThreshold, $collisionWindowDays, $collisionStart, $collisionEnd) {
             $studentIds = $students->pluck('id');
 
             $sksByStudent = Krs::query()
@@ -53,8 +53,6 @@ class CheckBebanAkademik extends Command
                 ->whereNotNull('tugas.id')
                 ->groupBy('krs.siswa_id')
                 ->pluck('collision_count', 'krs.siswa_id');
-
-            $students->load('dosenPa.dosen');
 
             foreach ($students as $siswa) {
                 try {
@@ -108,7 +106,10 @@ class CheckBebanAkademik extends Command
                         }
                     }
                 } catch (\Throwable $e) {
-                    Log::error("CheckBebanAkademik failed for student {$siswa->id}: ".$e->getMessage());
+                    Log::error("CheckBebanAkademik failed for student {$siswa->id}: ".$e->getMessage(), [
+                        'exception' => $e,
+                        'student_id' => $siswa->id,
+                    ]);
 
                     continue;
                 }

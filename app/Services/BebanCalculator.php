@@ -271,12 +271,24 @@ class BebanCalculator
             ->map(fn ($krsList) => $krsList->pluck('mata_kuliah_id')->toArray())
             ->toArray();
 
+        $allCourseIds = collect($studentCourseMap)->flatten()->unique()->values();
+
+        $windowStart = $deadlineDate->copy()->addDay()->startOfWeek();
+        $windowEnd = $deadlineDate->copy()->addDays(14)->endOfWeek();
+
+        $allTugasInWindow = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
+            ->whereBetween('deadline', [$windowStart->toDateString(), $windowEnd->toDateString()])
+            ->when($excludeTaskId, fn ($q) => $q->where('id', '!=', $excludeTaskId))
+            ->get(['id', 'mata_kuliah_id', 'deadline'])
+            ->groupBy(fn ($t) => Carbon::parse($t->deadline)->startOfWeek()->toDateString());
+
         $suggestions = [];
 
         for ($i = 1; $i <= 14 && count($suggestions) < $limit; $i++) {
             $candidate = $deadlineDate->copy()->addDays($i);
-            $weekStart = $candidate->copy()->startOfWeek();
-            $weekEnd = $candidate->copy()->endOfWeek();
+            $weekKey = $candidate->copy()->startOfWeek()->toDateString();
+            $weekTugas = $allTugasInWindow->get($weekKey, collect());
+            $tugasByCourse = $weekTugas->groupBy('mata_kuliah_id');
             $worstCount = 0;
 
             foreach ($studentIds as $studentId) {
@@ -285,10 +297,7 @@ class BebanCalculator
                     continue;
                 }
 
-                $count = Tugas::whereIn('mata_kuliah_id', $courseIds)
-                    ->whereBetween('deadline', [$weekStart->toDateString(), $weekEnd->toDateString()])
-                    ->when($excludeTaskId, fn ($q) => $q->where('id', '!=', $excludeTaskId))
-                    ->count() + 1;
+                $count = collect($courseIds)->sum(fn ($cid) => $tugasByCourse->get($cid, collect())->count()) + 1;
                 $worstCount = max($worstCount, $count);
             }
 

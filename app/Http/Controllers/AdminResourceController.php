@@ -116,6 +116,81 @@ class AdminResourceController extends Controller
             ->with('status', "{$config['label']} berhasil dihapus.");
     }
 
+    public function generateIpkAuto(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'siswa_id' => 'required|exists:user_siswa,id',
+            'semester' => 'required|integer|min:1|max:14',
+        ]);
+
+        $siswaId = (int) $validated['siswa_id'];
+        $semester = (int) $validated['semester'];
+
+        $krsList = Krs::where('siswa_id', $siswaId)
+            ->where('semester', $semester)
+            ->with('mataKuliah')
+            ->get();
+
+        if ($krsList->isEmpty()) {
+            return redirect()
+                ->route('admin.dashboard', ['resource' => 'ipk-history'])
+                ->withErrors(['ipk_auto' => "Tidak ditemukan KRS untuk semester {$semester}."]);
+        }
+
+        $gradeMap = [
+            'A' => 4.0, 'A-' => 3.7,
+            'B+' => 3.3, 'B' => 3.0, 'B-' => 2.7,
+            'C+' => 2.3, 'C' => 2.0,
+            'D' => 1.0, 'E' => 0.0,
+        ];
+
+        $missingGrades = $krsList->filter(fn ($krs) => empty($krs->nilai_huruf));
+        if ($missingGrades->isNotEmpty()) {
+            $names = $missingGrades->map(fn ($krs) => $krs->mataKuliah?->nama ?? "MK #{$krs->mata_kuliah_id}")->join(', ');
+
+            return redirect()
+                ->route('admin.dashboard', ['resource' => 'ipk-history'])
+                ->withErrors(['ipk_auto' => "Nilai huruf belum lengkap untuk: {$names}."]);
+        }
+
+        $totalBobot = 0;
+        $totalSks = 0;
+
+        foreach ($krsList as $krs) {
+            $sks = (int) ($krs->mataKuliah?->sks ?? 0);
+            $bobot = $gradeMap[strtoupper(trim($krs->nilai_huruf))] ?? 0.0;
+            $totalBobot += $bobot * $sks;
+            $totalSks += $sks;
+        }
+
+        $ipk = $totalSks > 0 ? round($totalBobot / $totalSks, 2) : 0.0;
+
+        $rekomendasiSks = match (true) {
+            $ipk >= 3.5 => 24,
+            $ipk >= 3.0 => 22,
+            $ipk >= 2.75 => 20,
+            default => 18,
+        };
+
+        $tahunAjaran = $krsList->first()->tahun_ajaran ?? '-';
+
+        IpkHistory::updateOrCreate(
+            ['siswa_id' => $siswaId, 'semester' => $semester],
+            [
+                'ipk' => $ipk,
+                'total_sks' => $totalSks,
+                'tahun_ajaran' => $tahunAjaran,
+                'rekomendasi_sks' => $rekomendasiSks,
+            ]
+        );
+
+        $siswa = UserSiswa::find($siswaId);
+
+        return redirect()
+            ->route('admin.dashboard', ['resource' => 'ipk-history'])
+            ->with('status', "Berhasil mengkalkulasi IPK untuk {$siswa->name} Semester {$semester}: IPK {$ipk} dengan Total {$totalSks} SKS.");
+    }
+
     private function resource(string $resource): array
     {
         abort_unless(isset($this->resources()[$resource]), 404);
@@ -483,37 +558,55 @@ class AdminResourceController extends Controller
         $prodiFilter = $validated['prodi'] ?? null;
         $tipe = $validated['tipe'];
 
-        $query = UserSiswa::query();
+        // 1 query: count students
+        $studentQuery = UserSiswa::query();
         if ($prodiFilter) {
-            $query->where('prodi', $prodiFilter);
+            $studentQuery->where('prodi', $prodiFilter);
         }
-        $students = $query->get();
+        $totalStudents = $studentQuery->count();
 
-        $totalStudents = $students->count();
-        $avgIpk = $students->map(fn ($s) => $s->ipkHistory()->latest('semester')->first()?->ipk ?? 0)->avg() ?? 0;
-        $avgSks = $students->map(fn ($s) => $s->krs()->where('krs.semester', $s->semester)->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')->sum('mata_kuliah.sks'))->avg() ?? 0;
+        // 1 query: avg IPK from latest semester per student (batch subquery)
+        $ipkQuery = IpkHistory::query()
+            ->selectRaw('AVG(ipk) as avg_ipk')
+            ->whereIn('id', function ($sub) use ($prodiFilter) {
+                $sub->selectRaw('MAX(ipk_history.id)')
+                    ->from('ipk_history')
+                    ->join('user_siswa', 'user_siswa.id', '=', 'ipk_history.siswa_id')
+                    ->when($prodiFilter, fn ($q) => $q->where('user_siswa.prodi', $prodiFilter))
+                    ->groupBy('ipk_history.siswa_id');
+            });
+        $avgIpk = (float) ($ipkQuery->value('avg_ipk') ?? 0);
 
-        $overloadCount = 0;
-        $collisionCount = 0;
+        // 1 query: avg SKS per student (batch join)
+        $sksData = UserSiswa::query()
+            ->leftJoin('krs', function ($join) {
+                $join->on('krs.siswa_id', '=', 'user_siswa.id')
+                    ->on('krs.semester', '=', 'user_siswa.semester');
+            })
+            ->leftJoin('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+            ->when($prodiFilter, fn ($q) => $q->where('user_siswa.prodi', $prodiFilter))
+            ->selectRaw('user_siswa.id, COALESCE(SUM(mata_kuliah.sks), 0) as total_sks')
+            ->groupBy('user_siswa.id')
+            ->get();
 
-        foreach ($students as $student) {
-            $sks = $student->krs()->where('krs.semester', $student->semester)
-                ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
-                ->sum('mata_kuliah.sks');
-            if ($sks > 24) {
-                $overloadCount++;
-            }
+        $avgSks = $sksData->avg('total_sks') ?? 0;
+        $overloadCount = $sksData->where('total_sks', '>', 24)->count();
 
-            $tasks = $student->krs()
-                ->where('krs.semester', $student->semester)
-                ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
-                ->join('tugas', 'tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
-                ->whereBetween('tugas.deadline', [$startDate, $endDate])
-                ->count();
-            if ($tasks >= 3) {
-                $collisionCount++;
-            }
-        }
+        // 1 query: count students with >= 3 tasks in date range (batch join)
+        $collisionCount = (int) UserSiswa::query()
+            ->join('krs', function ($join) {
+                $join->on('krs.siswa_id', '=', 'user_siswa.id')
+                    ->on('krs.semester', '=', 'user_siswa.semester');
+            })
+            ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+            ->join('tugas', 'tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
+            ->whereBetween('tugas.deadline', [$startDate, $endDate])
+            ->when($prodiFilter, fn ($q) => $q->where('user_siswa.prodi', $prodiFilter))
+            ->groupBy('user_siswa.id')
+            ->havingRaw('COUNT(tugas.id) >= 3')
+            ->selectRaw('user_siswa.id')
+            ->get()
+            ->count();
 
         $htmlContent = "<h1>Laporan Akademik</h1><p>Tipe: {$tipe}</p><p>Periode: {$startDate} - {$endDate}</p><p>Total Mahasiswa: {$totalStudents}</p><p>Rata-rata IPK: ".number_format($avgIpk, 2).'</p><p>Rata-rata SKS: '.number_format($avgSks, 1)."</p><p>Overload (>24 SKS): {$overloadCount}</p><p>Deadline Padat (>3 tugas/minggu): {$collisionCount}</p>";
 
