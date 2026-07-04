@@ -18,6 +18,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/dashboard/{resource}', [AdminResourceController::class, 'store'])->name('resources.store');
     Route::put('/dashboard/{resource}/{id}', [AdminResourceController::class, 'update'])->name('resources.update');
     Route::delete('/dashboard/{resource}/{id}', [AdminResourceController::class, 'destroy'])->name('resources.destroy');
+    Route::post('/ipk-history/generate-auto', [AdminResourceController::class, 'generateIpkAuto'])->name('ipk-history.generate-auto');
     Route::get('/laporan', [AdminResourceController::class, 'laporanIndex'])->name('laporan.index');
     Route::post('/laporan/generate', [AdminResourceController::class, 'laporanGenerate'])->name('laporan.generate');
     Route::post('/logout', [DashboardController::class, 'logoutAdmin'])->name('logout');

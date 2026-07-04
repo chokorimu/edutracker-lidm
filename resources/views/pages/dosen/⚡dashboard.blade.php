@@ -334,7 +334,15 @@
                                     @if($data['siswaList']->isEmpty())
                                         <p class="text-xs text-gray-400">Tidak ada mahasiswa terdaftar di KRS.</p>
                                     @else
-                                        <div class="overflow-x-auto -mx-4 md:-mx-5 px-4 md:px-5">
+                                        <details class="group mt-3 rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+                                            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 hover:bg-gray-100 font-semibold text-xs text-gray-700 select-none">
+                                                <span>Lihat Status Pengumpulan & Nilai Mahasiswa ({{ $data['siswaList']->count() }})</span>
+                                                <svg class="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                </svg>
+                                            </summary>
+                                            <div class="border-t border-gray-200">
+                                        <div class="overflow-x-auto -mx-0 px-4 md:px-5 py-3">
                                             <table class="w-full text-xs min-w-[600px]">
                                                 <thead>
                                                     <tr class="text-left text-gray-500">
@@ -396,6 +404,8 @@
                                                 </tbody>
                                             </table>
                                         </div>
+                                            </div>
+                                        </details>
                                     @endif
                                 </div>
                             @endforeach

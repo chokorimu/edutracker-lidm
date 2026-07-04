@@ -341,6 +341,35 @@
                             {{ $krsGroups->links() }}
                         </div>
                     @elseif ($resourceKey === 'ipk-history' && $ipkHistoryGroups)
+                        {{-- Auto IPK Calculator Card --}}
+                        <div class="border-b border-gray-200 bg-indigo-50 px-5 py-4">
+                            <h3 class="text-sm font-semibold text-indigo-900 mb-3">Kalkulasi IPK Otomatis dari KRS</h3>
+                            @if($errors->has('ipk_auto'))
+                                <div class="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                    {{ $errors->first('ipk_auto') }}
+                                </div>
+                            @endif
+                            <form method="POST" action="{{ route('admin.ipk-history.generate-auto') }}" class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+                                @csrf
+                                <div class="w-full sm:w-auto">
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Siswa</label>
+                                    <select name="siswa_id" required class="w-full sm:w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                                        <option value="">Pilih Siswa...</option>
+                                        @foreach($options['siswas'] ?? [] as $s)
+                                            <option value="{{ $s->id }}" {{ old('siswa_id') == $s->id ? 'selected' : '' }}>{{ $s->name }} ({{ $s->nim }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="w-full sm:w-auto">
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Semester</label>
+                                    <input type="number" name="semester" min="1" max="14" value="{{ old('semester', 1) }}" required class="w-full sm:w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+                                </div>
+                                <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 whitespace-nowrap">
+                                    Hitung & Simpan IPK
+                                </button>
+                            </form>
+                        </div>
+
                         <div class="divide-y divide-gray-100">
                             @forelse ($ipkHistoryGroups as $siswa)
                                 @php

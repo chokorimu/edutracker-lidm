@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Krs;
+use App\Models\MataKuliah;
 use App\Models\Tugas;
 use App\Models\TugasSubmission;
 use App\Models\UserSiswa;
@@ -13,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -164,6 +166,7 @@ class DashboardController extends Controller
             now()->format('YmdHis')
         );
         $path = $file->storeAs('submissions', $filename, 'local');
+        $safeOriginalName = preg_replace('/[^\w\s\-.]/', '', $file->getClientOriginalName()) ?: 'submission.pdf';
         $existingSubmission = TugasSubmission::where('tugas_id', $tugasId)
             ->where('siswa_id', $user->id)
             ->first();
@@ -173,7 +176,7 @@ class DashboardController extends Controller
             ['tugas_id' => $tugasId, 'siswa_id' => $user->id],
             [
                 'file_path' => $path,
-                'file_name' => $file->getClientOriginalName(),
+                'file_name' => $safeOriginalName,
                 'submitted_at' => now(),
                 'status' => $isLate ? 'late' : 'submitted',
             ]
@@ -181,6 +184,11 @@ class DashboardController extends Controller
 
         if ($oldPath && $oldPath !== $path && Storage::disk('local')->exists($oldPath)) {
             Storage::disk('local')->delete($oldPath);
+        }
+
+        $dosenId = MataKuliah::where('id', $tugas->mata_kuliah_id)->value('dosen_id');
+        if ($dosenId) {
+            Cache::forget("dosen_preview_{$dosenId}");
         }
 
         return redirect()->route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $tugas->mata_kuliah_id])
@@ -273,7 +281,13 @@ class DashboardController extends Controller
             ->groupBy('mata_kuliah_id')
             ->pluck('aggregate', 'mata_kuliah_id');
 
-        $matakuliah = $krsList->map(function ($krs) use ($user, $taskCountsByCourse, $weeklyTaskCountsByCourse) {
+        $allTugasWithNilai = Tugas::whereIn('mata_kuliah_id', $currentCourseIds)
+            ->with(['nilaiTugas' => fn ($query) => $query->where('siswa_id', $user->id)])
+            ->orderBy('deadline')
+            ->get()
+            ->groupBy('mata_kuliah_id');
+
+        $matakuliah = $krsList->map(function ($krs) use ($taskCountsByCourse, $weeklyTaskCountsByCourse, $allTugasWithNilai) {
             $mk = $krs->mataKuliah;
             if (! $mk) {
                 return null;
@@ -282,10 +296,7 @@ class DashboardController extends Controller
             $tugasCount = (int) $taskCountsByCourse->get($mk->id, 0);
             $weeklyTugasCount = (int) $weeklyTaskCountsByCourse->get($mk->id, 0);
             $statusBeban = BebanCalculator::forCount($weeklyTugasCount);
-            $tugasWithNilai = Tugas::where('mata_kuliah_id', $krs->mata_kuliah_id)
-                ->with(['nilaiTugas' => fn ($query) => $query->where('siswa_id', $user->id)])
-                ->orderBy('deadline')
-                ->get()
+            $tugasWithNilai = ($allTugasWithNilai->get($mk->id, collect()))
                 ->map(fn ($tugas) => [
                     'nama' => $tugas->nama,
                     'bobot' => $tugas->bobot,
