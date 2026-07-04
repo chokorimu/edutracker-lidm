@@ -332,7 +332,7 @@ class DashboardController extends Controller
                 'beban_status' => $statusBeban,
                 'beban_color' => BebanCalculator::colorClass($statusBeban),
                 'status' => $krs->status === 'selesai' ? 'Selesai' : 'Aktif',
-                'tugas_nilai' => $tugasWithNilai,
+                'tugas_nilai' => $tugasWithNilai->toArray(),
             ];
         })->filter()->values()->toArray();
 
@@ -471,12 +471,12 @@ class DashboardController extends Controller
                 'mk_id' => $krs->mata_kuliah_id,
                 'kode' => $mataKuliah->kode,
                 'nama' => $mataKuliah->nama,
-                'tugas' => $tugasList,
+                'tugas' => $tugasList->toArray(),
             ];
         })->filter()->values();
 
         return [
-            'tugas_tab' => $tugasTabData,
+            'tugas_tab' => $tugasTabData->toArray(),
         ];
     }
 
