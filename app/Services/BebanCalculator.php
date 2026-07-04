@@ -12,6 +12,7 @@ use App\Models\UserDosen;
 use App\Models\UserSiswa;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class BebanCalculator
 {
@@ -376,12 +377,57 @@ class BebanCalculator
 
     public static function prodiWeeklyTrend(int $weeks = 8): array
     {
-        $trend = [];
+        // Compute the full 8-week window once
+        $windowStart = now()->subWeeks($weeks - 1)->startOfWeek();
+        $windowEnd = now()->endOfWeek();
 
+        // 1 query: get task count per student per week across the entire window
+        $rows = UserSiswa::select('user_siswa.id')
+            ->leftJoin('krs', function ($join) {
+                $join->on('krs.siswa_id', '=', 'user_siswa.id')
+                    ->on('krs.semester', '=', 'user_siswa.semester');
+            })
+            ->leftJoin('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+            ->leftJoin('tugas', function ($join) use ($windowStart, $windowEnd) {
+                $join->on('tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
+                    ->whereBetween('tugas.deadline', [
+                        $windowStart->toDateString(),
+                        $windowEnd->toDateString(),
+                    ]);
+            })
+            ->addSelect(DB::raw('tugas.deadline as task_deadline'))
+            ->get();
+
+        // Group by student+week in PHP
+        $studentWeekCounts = [];
+        foreach ($rows as $row) {
+            if (! $row->task_deadline) {
+                // Ensure students with 0 tasks still appear
+                $studentWeekCounts[$row->id] ??= [];
+
+                continue;
+            }
+            $weekKey = Carbon::parse($row->task_deadline)->startOfWeek()->toDateString();
+            $studentWeekCounts[$row->id][$weekKey] = ($studentWeekCounts[$row->id][$weekKey] ?? 0) + 1;
+        }
+
+        $trend = [];
         for ($i = $weeks - 1; $i >= 0; $i--) {
             $weekStart = now()->subWeeks($i)->startOfWeek();
-            $weekEnd = now()->subWeeks($i)->endOfWeek();
-            $distribution = self::weeklyLoadDistribution($weekStart, $weekEnd);
+            $weekKey = $weekStart->toDateString();
+
+            $distribution = [
+                self::LIGHT => 0,
+                self::NORMAL => 0,
+                self::HEAVY => 0,
+                self::OVERLOAD => 0,
+            ];
+
+            foreach ($studentWeekCounts as $weekCounts) {
+                $count = $weekCounts[$weekKey] ?? 0;
+                $status = self::forCount($count);
+                $distribution[$status]++;
+            }
 
             $trend[] = [
                 'label' => $weekStart->translatedFormat('d M'),
@@ -434,37 +480,36 @@ class BebanCalculator
     }
 
     /**
-     * Get average tasks per week per course (for Prodi dashboard table)
+     * Get average tasks per week per course (for Prodi dashboard table).
+     * Uses a single aggregate query instead of loading all KRS into memory.
      */
     public static function averageTasksPerWeekPerCourse(): array
     {
-        $weekStart = now()->startOfWeek();
-        $weekEnd = now()->endOfWeek();
+        $weekStart = now()->startOfWeek()->toDateString();
+        $weekEnd = now()->endOfWeek()->toDateString();
 
-        return Krs::with(['mataKuliah.tugas' => function ($q) use ($weekStart, $weekEnd) {
-            $q->whereBetween('deadline', [$weekStart->toDateString(), $weekEnd->toDateString()]);
-        }])
-            ->get()
-            ->groupBy('mata_kuliah_id')
-            ->map(function ($krsGroup) {
-                $mk = $krsGroup->first()->mataKuliah;
-                if (! $mk) {
-                    return null;
-                }
-
-                $totalStudents = $krsGroup->count();
-                $totalTasks = $krsGroup->sum(fn ($krs) => $krs->mataKuliah?->tugas->count() ?? 0);
-                $avg = $totalStudents > 0 ? round($totalTasks / $totalStudents, 1) : 0;
-                $status = self::forCount((int) $avg); // approximate
-
-                return [
-                    'nama' => $mk->nama,
-                    'avg_tasks_week' => $avg,
-                    'status' => $status,
-                ];
+        // 1 query: count tasks per course this week + count enrolled students
+        $results = MataKuliah::select('mata_kuliah.id', 'mata_kuliah.nama')
+            ->selectRaw('COUNT(DISTINCT krs.siswa_id) as student_count')
+            ->selectRaw('COUNT(DISTINCT tugas.id) as task_count')
+            ->leftJoin('krs', 'krs.mata_kuliah_id', '=', 'mata_kuliah.id')
+            ->leftJoin('tugas', function ($join) use ($weekStart, $weekEnd) {
+                $join->on('tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
+                    ->whereBetween('tugas.deadline', [$weekStart, $weekEnd]);
             })
-            ->filter()
-            ->values()
-            ->toArray();
+            ->groupBy('mata_kuliah.id', 'mata_kuliah.nama')
+            ->havingRaw('COUNT(DISTINCT krs.siswa_id) > 0')
+            ->get();
+
+        return $results->map(function ($row) {
+            $avg = round((float) $row->task_count, 1);
+            $status = self::forCount((int) $avg);
+
+            return [
+                'nama' => $row->nama,
+                'avg_tasks_week' => $avg,
+                'status' => $status,
+            ];
+        })->values()->toArray();
     }
 }
