@@ -105,26 +105,43 @@ class DashboardController extends Controller
             return $this->emptySiswaData();
         }
 
-        $now = now();
-        $allCourseIds = $user->krs()
-            ->pluck('mata_kuliah_id')
-            ->filter()
-            ->unique()
-            ->values();
-        [$startOfWeek, $endOfWeek] = $this->resolveWorkloadWeek($allCourseIds, $now);
+        // Cache the expensive core data (profile, matakuliah, tugas, workload,
+        // submissions, analytics, notifikasi) — ~25 queries saved per hit.
+        // TTL 10 minutes; invalidated on tugas create/delete, submission, nilai update.
+        $coreData = Cache::remember(
+            "siswa_dashboard_{$user->id}",
+            600,
+            function () use ($user) {
+                $now = now();
+                $allCourseIds = $user->krs()
+                    ->pluck('mata_kuliah_id')
+                    ->filter()
+                    ->unique()
+                    ->values();
+                [$startOfWeek, $endOfWeek] = $this->resolveWorkloadWeek($allCourseIds, $now);
 
-        $workloadData = $this->buildWorkloadData($allCourseIds, $startOfWeek, $endOfWeek, $user);
+                $workloadData = $this->buildWorkloadData($allCourseIds, $startOfWeek, $endOfWeek, $user);
 
-        return array_merge(
-            $this->buildProfileData($user, $workloadData['weekly_status_code']),
-            $this->buildMatakuliahData($user, $startOfWeek, $endOfWeek),
-            $this->buildTugasData($allCourseIds, $user),
-            $this->buildNotifikasiData($user),
-            $workloadData['payload'],
-            $this->buildCalendarData($request, $allCourseIds, $now),
-            $this->buildTugasSubmissionData($user),
-            $this->buildAnalyticsData($user, $allCourseIds, $startOfWeek, $endOfWeek),
+                return array_merge(
+                    $this->buildProfileData($user, $workloadData['weekly_status_code']),
+                    $this->buildMatakuliahData($user, $startOfWeek, $endOfWeek),
+                    $this->buildTugasData($allCourseIds, $user),
+                    $this->buildNotifikasiData($user),
+                    $workloadData['payload'],
+                    $this->buildTugasSubmissionData($user),
+                    $this->buildAnalyticsData($user, $allCourseIds, $startOfWeek, $endOfWeek),
+                    ['_cached_course_ids' => $allCourseIds->toArray()],
+                );
+            }
         );
+
+        // Calendar depends on query params (month/year/day) — always fresh, but lightweight (~2 queries).
+        $allCourseIds = collect($coreData['_cached_course_ids'] ?? []);
+        unset($coreData['_cached_course_ids']);
+
+        $calendarData = $this->buildCalendarData($request, $allCourseIds, now());
+
+        return array_merge($coreData, $calendarData);
     }
 
     public function submitTugas(Request $request, int $tugasId): RedirectResponse
@@ -190,6 +207,7 @@ class DashboardController extends Controller
         if ($dosenId) {
             Cache::forget("dosen_preview_{$dosenId}");
         }
+        Cache::forget("siswa_dashboard_{$user->id}");
 
         return redirect()->route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $tugas->mata_kuliah_id])
             ->with('status', $isLate ? 'Tugas disubmit (terlambat).' : 'Tugas berhasil disubmit.');

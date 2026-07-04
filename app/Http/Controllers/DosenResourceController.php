@@ -171,6 +171,7 @@ class DosenResourceController extends Controller
             $tugas->deadline,
         );
         Cache::forget("dosen_preview_{$user->id}");
+        $this->invalidateSiswaCacheForCourse($mk->id);
 
         if (in_array($tugas->status_beban, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true)) {
             NotifikasiDosen::create([
@@ -304,6 +305,7 @@ class DosenResourceController extends Controller
         $tugas->delete();
         $this->rebalanceBobot($mataKuliahId);
         Cache::forget("dosen_preview_{$user->id}");
+        $this->invalidateSiswaCacheForCourse($mataKuliahId);
 
         return redirect()->route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mataKuliahId])
             ->with('status', 'Tugas dihapus.');
@@ -337,6 +339,7 @@ class DosenResourceController extends Controller
         );
 
         $this->recalcNilaiAkhir($tugas->mata_kuliah_id, $siswaId);
+        Cache::forget("siswa_dashboard_{$siswaId}");
 
         return redirect()->route('dosen.dashboard', [
             'tab' => 'kelas',
@@ -498,6 +501,15 @@ class DosenResourceController extends Controller
         }
 
         return $worst;
+    }
+
+    private function invalidateSiswaCacheForCourse(int $mataKuliahId): void
+    {
+        $siswaIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
+
+        foreach ($siswaIds as $siswaId) {
+            Cache::forget("siswa_dashboard_{$siswaId}");
+        }
     }
 
     private function normalizeDeadlineInput(Request $request): void
