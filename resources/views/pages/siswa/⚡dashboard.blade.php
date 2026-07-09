@@ -54,10 +54,7 @@
         {{-- SIDEBAR --}}
         <aside class="border-b border-bone-dark bg-white/85 backdrop-blur lg:border-b-0 lg:border-r">
             <div class="flex items-center justify-between gap-4 px-5 py-4 lg:block lg:px-6 lg:py-6">
-                <div>
-                    <p class="text-xl font-bold tracking-tight">edutrack daily</p>
-                    <p class="text-[10px] font-bold uppercase tracking-widest {{ $mutedClass }}">Siswa</p>
-                </div>
+                <x-title role="siswa"/>
                 <form method="POST" action="{{ route('siswa.logout') }}" class="lg:hidden">
                     @csrf
                     <button type="submit" class="rounded-full border border-red-200 px-3 py-1.5 text-xs font-bold text-appleRed hover:bg-red-50 transition">Keluar</button>

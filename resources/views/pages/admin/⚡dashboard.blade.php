@@ -49,10 +49,7 @@
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-bone-dark bg-white/85 backdrop-blur-xl -translate-x-full lg:relative lg:w-auto lg:translate-x-0 transition-transform duration-200">
         {{-- Logo --}}
         <div class="flex h-14 items-center gap-2 border-b border-bone-dark px-5">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-appleDark">
-                <span class="text-xs font-bold text-white">E</span>
-            </div>
-            <span class="text-sm font-bold text-appleDark">edutrack daily</span>
+            <x-title role="admin"/>
         </div>
 
         {{-- Nav --}}

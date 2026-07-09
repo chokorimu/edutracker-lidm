@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ asset("images/logo.png") }}">
     <title>edutrack daily — Kuliah seimbang, tanpa burnout.</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -53,7 +54,7 @@
 <body class="text-appleDark h-screen overflow-hidden flex flex-col justify-between antialiased selection:bg-appleDark selection:text-white">
 
     <header class="w-full bg-bone-light/80 backdrop-blur-xl border-b border-bone-dark/40 px-6 md:px-16 py-5 flex justify-between items-center z-50 fixed top-0 left-0 right-0">
-        <span class="text-xl font-bold tracking-tighter lowercase select-none">edutrack daily</span>
+        <x-title/>
         <a href="/login" class="bg-appleDark text-white px-5 py-2 rounded-full text-xs font-medium tracking-tight hover:bg-appleDark/90 transition-all duration-300 active:scale-95 shadow-sm">
             Masuk
         </a>
@@ -77,7 +78,7 @@
                 <div class="w-full grid grid-cols-1 md:grid-cols-12 gap-8 items-center max-h-[70vh] overflow-y-auto no-scrollbar py-2">
                     <div class="md:col-span-6 space-y-4">
                         <span class="text-xs font-bold tracking-widest uppercase text-appleMuted">01 / Ringkasan</span>
-                        <h1 class="text-4xl md:text-6xl font-bold tracking-tight text-appleDark leading-[1.1]">Kuliah seimbang.<br>Tanpa burnout.</h1>
+                        <h1 class="text-4xl md:text-6xl font-bold tracking-tight text-appleDark leading-[1.1]">Kuliah <span class="text-green-500">seimbang.</span><br>Tanpa <span class="text-red-500">burnout.</span></h1>
                         <p class="text-base text-appleMuted max-w-md font-normal leading-relaxed">edutrack daily memantau beban studi secara real-time. Menghubungkan mahasiswa, dosen, dan prodi dalam satu ekosistem berbasis data.</p>
                     </div>
                     <div class="md:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
