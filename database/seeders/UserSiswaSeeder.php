@@ -29,6 +29,72 @@ class UserSiswaSeeder extends Seeder
             ]
         );
 
+        UserSiswa::updateOrCreate(
+            ['email' => 'ahmad.fauzan@student.ac.id'],
+            [
+                'name' => 'Ahmad Fauzan',
+                'password' => Hash::make('password123'),
+                'nim' => '202600001',
+                'prodi' => 'Informatika',
+                'semester' => 1,
+            ]
+        );
+
+        UserSiswa::updateOrCreate(
+            ['email' => 'bintang.r@student.ac.id'],
+            [
+                'name' => 'Bintang Ramadhan',
+                'password' => Hash::make('password123'),
+                'nim' => '202600002',
+                'prodi' => 'Informatika',
+                'semester' => 1,
+            ]
+        );
+
+        UserSiswa::updateOrCreate(
+            ['email' => 'cahyani.putri@student.ac.id'],
+            [
+                'name' => 'Cahyani Putri',
+                'password' => Hash::make('password123'),
+                'nim' => '202600003',
+                'prodi' => 'Informatika',
+                'semester' => 1,
+            ]
+        );
+
+        UserSiswa::updateOrCreate(
+            ['email' => 'dimas.saputra@student.ac.id'],
+            [
+                'name' => 'Dimas Saputra',
+                'password' => Hash::make('password123'),
+                'nim' => '202600004',
+                'prodi' => 'Informatika',
+                'semester' => 1,
+            ]
+        );
+
+        UserSiswa::updateOrCreate(
+            ['email' => 'eko.prasetyo@student.ac.id'],
+            [
+                'name' => 'Eko Prasetyo',
+                'password' => Hash::make('password123'),
+                'nim' => '202600005',
+                'prodi' => 'Informatika',
+                'semester' => 1,
+            ]
+        );
+
+        UserSiswa::updateOrCreate(
+            ['email' => 'fajar.n@student.ac.id'],
+            [
+                'name' => 'Fajar Nugroho',
+                'password' => Hash::make('password123'),
+                'nim' => '202600006',
+                'prodi' => 'Informatika',
+                'semester' => 1,
+            ]
+        );
+
         $dosen = UserDosen::updateOrCreate(
             ['email' => 'dosen@edutrack.test'],
             [
