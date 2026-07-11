@@ -2,11 +2,26 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    /* Scoped decorative touches — pastel accent line + smooth scrollbar */
+    .dash-header { position: relative; }
+    .dash-header::after {
+        content: '';
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #FFF2CA, #56EFC5, #82EDEC, #92C9FF, #A29BFE);
+        opacity: .6;
+    }
+    #sidebar ::-webkit-scrollbar, main ::-webkit-scrollbar { width: 7px; height: 7px; }
+    #sidebar ::-webkit-scrollbar-track, main ::-webkit-scrollbar-track { background: transparent; }
+    #sidebar ::-webkit-scrollbar-thumb, main ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #92C9FF, #A29BFE); border-radius: 999px; }
+</style>
 @php
-    $cardClass = 'bg-white border border-bone-dark rounded-2xl shadow-sm transition-all duration-300';
-    $mutedClass = 'text-appleMuted';
-    $inputClass = 'w-full rounded-xl border border-bone-dark bg-white px-3 py-2 text-sm focus:border-appleDark focus:outline-none';
-    $btnPrimary = 'rounded-xl bg-appleDark px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-appleDark/20 hover:opacity-90 transition';
+    $cardClass = 'bg-white border border-soft-border rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 animate-fade-in-up';
+    $mutedClass = 'text-soft-muted';
+    $inputClass = 'w-full rounded-xl border border-soft-border bg-white px-3 py-2 text-sm transition-all duration-200 focus:border-pastel-biru focus:outline-none focus:ring-4 focus:ring-pastel-biru/15';
+    $btnPrimary = 'rounded-xl bg-gradient-to-r from-pastel-hijau-atas to-pastel-hijau-bawah px-4 py-2 text-sm font-semibold text-soft-dark shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200';
     $btnDanger = 'text-xs text-appleRed hover:underline whitespace-nowrap';
 
     $navItems = [
@@ -27,22 +42,23 @@
     }
 </script>
 
-<div class="min-h-screen bg-bone-light lg:grid lg:grid-cols-[16rem_1fr]">
+<div class="min-h-screen bg-soft-bg lg:grid lg:grid-cols-[16rem_1fr]">
     {{-- ═══ SIDEBAR ═══ --}}
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-bone-dark bg-white/85 backdrop-blur-xl -translate-x-full lg:relative lg:w-auto lg:translate-x-0 transition-transform duration-200">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-soft-border bg-white/85 backdrop-blur-xl -translate-x-full lg:relative lg:w-auto lg:translate-x-0 transition-transform duration-200">
         {{-- Logo --}}
-        <div class="flex h-14 items-center gap-2 border-b border-bone-dark px-5">
+        <div class="flex h-14 items-center gap-2 border-b border-soft-border px-5 bg-gradient-to-r from-pastel-kuning/25 via-transparent to-transparent">
             <x-title role="dosen"/>
         </div>
 
         {{-- Nav --}}
         <nav class="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
             @foreach ($navItems as $key => $item)
-                <a href="{{ route('dosen.dashboard', ['tab' => $key]) }}"
-                   class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors
+                <a wire:navigate href="{{ route('dosen.dashboard', ['tab' => $key]) }}"
+                   style="animation-delay: {{ $loop->index * 50 }}ms"
+                   class="animate-fade-in-up flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200
                           {{ $currentTab === $key
-                              ? 'bg-appleDark text-white font-semibold shadow-sm shadow-appleDark/20'
-                              : $mutedClass . ' hover:bg-bone hover:text-appleDark' }}">
+                              ? 'bg-gradient-to-r from-pastel-biru to-pastel-ungu text-soft-dark font-semibold shadow-sm shadow-pastel-ungu/30'
+                              : $mutedClass . ' hover:bg-soft-bg hover:text-soft-dark hover:translate-x-0.5' }}">
                     <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="{{ $item['icon'] }}" />
                     </svg>
@@ -55,13 +71,13 @@
         </nav>
 
         {{-- User + Logout --}}
-        <div class="border-t border-bone-dark px-3 py-3">
-            <div class="flex items-center gap-3 rounded-xl bg-bone px-3 py-2.5">
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-appleDark text-xs font-bold text-white ring-4 ring-white">
+        <div class="border-t border-soft-border px-3 py-3">
+            <div class="flex items-center gap-3 rounded-xl bg-soft-bg px-3 py-2.5">
+                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-xs font-bold text-soft-dark ring-4 ring-white">
                     {{ strtoupper(substr($user->name, 0, 2)) }}
                 </div>
                 <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-semibold text-appleDark">{{ $user->name }}</p>
+                    <p class="truncate text-sm font-semibold text-soft-dark">{{ $user->name }}</p>
                     <p class="truncate text-[11px] {{ $mutedClass }}">Dosen</p>
                 </div>
             </div>
@@ -81,16 +97,16 @@
     {{-- ═══ MAIN ═══ --}}
     <main class="flex flex-1 flex-col overflow-y-auto">
         {{-- Sticky Header --}}
-        <header class="sticky top-0 z-20 flex items-center gap-4 border-b border-bone-dark bg-bone-light/90 px-5 py-4 backdrop-blur-lg lg:px-8">
-            <button onclick="toggleSidebar()" class="lg:hidden text-appleDark">
+        <header class="dash-header sticky top-0 z-20 flex items-center gap-4 bg-soft-bg/90 px-5 py-4 backdrop-blur-lg lg:px-8">
+            <button onclick="toggleSidebar()" class="lg:hidden text-soft-dark">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <div class="min-w-0 flex-1">
-                <h1 class="text-lg font-bold tracking-tight text-appleDark">{{ $pageTitle[$currentTab] ?? 'Dashboard' }}</h1>
+                <h1 class="text-lg font-bold tracking-tight text-soft-dark">{{ $pageTitle[$currentTab] ?? 'Dashboard' }}</h1>
                 <p class="text-xs {{ $mutedClass }}">{{ $pageDesc[$currentTab] ?? '' }}</p>
             </div>
             <div class="hidden sm:flex items-center gap-2">
-                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-appleDark text-xs font-bold text-white">
+                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-xs font-bold text-soft-dark">
                     {{ strtoupper(substr($user->name, 0, 2)) }}
                 </div>
             </div>
@@ -112,14 +128,15 @@
                     <div>
                         <p class="mb-4 text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Mata Kuliah Anda</p>
                         @if($data['mataKuliahList']->isEmpty())
-                            <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Belum ada mata kuliah.</p>
+                            <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Belum ada mata kuliah.</p>
                         @else
                             <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                 @foreach($data['mataKuliahList'] as $mk)
-                                    <a href="{{ route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mk->id]) }}"
-                                       class="{{ $cardClass }} p-5 hover:shadow-lg hover:-translate-y-1">
+                                    <a wire:navigate href="{{ route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $mk->id]) }}"
+                                       style="animation-delay: {{ $loop->index * 60 }}ms"
+                                       class="{{ $cardClass }} p-5 hover:shadow-lg hover:-translate-y-1 hover:border-pastel-hijau-atas">
                                         <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $mk->kode }}</p>
-                                        <p class="mt-2 text-sm font-bold text-appleDark truncate">{{ $mk->nama }}</p>
+                                        <p class="mt-2 text-sm font-bold text-soft-dark truncate">{{ $mk->nama }}</p>
                                         <p class="mt-1 text-xs {{ $mutedClass }}">{{ $mk->sks }} SKS · {{ $mk->tugas_count }} tugas</p>
                                     </a>
                                 @endforeach
@@ -130,9 +147,9 @@
                     @php $mk = $data['selectedMk']; @endphp
                     {{-- Breadcrumb --}}
                     <div class="flex items-center gap-3 text-sm">
-                        <a href="{{ route('dosen.dashboard', ['tab' => 'kelas']) }}" class="text-appleDark/70 hover:text-appleDark transition">← Semua Kelas</a>
+                        <a wire:navigate href="{{ route('dosen.dashboard', ['tab' => 'kelas']) }}" class="text-soft-dark/70 hover:text-soft-dark transition">← Semua Kelas</a>
                         <span class="{{ $mutedClass }}">|</span>
-                        <span class="font-bold text-appleDark truncate">{{ $mk->kode }} — {{ $mk->nama }}</span>
+                        <span class="font-bold text-soft-dark truncate">{{ $mk->kode }} — {{ $mk->nama }}</span>
                     </div>
 
                     {{-- Tambah Tugas --}}
@@ -143,7 +160,7 @@
                             <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
                                 <p class="mb-2 font-semibold">Saran deadline alternatif:</p>
                                 @foreach(session('deadline_suggestions') as $suggestion)
-                                    <button type="button" class="mb-1 mr-2 rounded-full border border-amber-300 px-3 py-1 hover:bg-amber-100 transition" data-deadline-suggestion="{{ $suggestion['value'] }}">
+                                    <button type="button" class="mb-1 mr-2 rounded-full border border-amber-300 px-3 py-1 hover:bg-amber-100 hover:scale-105 transition-all duration-200" data-deadline-suggestion="{{ $suggestion['value'] }}">
                                         {{ $suggestion['label'] }} · {{ $suggestion['count'] }} tugas
                                     </button>
                                 @endforeach
@@ -232,26 +249,26 @@
                             </div>
 
                             {{-- Live preview panel --}}
-                            <div class="hidden rounded-2xl border border-bone-dark bg-bone p-4 sm:col-span-2" data-preview-panel>
+                            <div class="hidden rounded-2xl border border-soft-border bg-gradient-to-br from-pastel-kuning/10 via-soft-bg to-pastel-biru/10 p-4 sm:col-span-2" data-preview-panel>
                                 <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                                     <div class="min-w-0">
-                                        <h3 class="text-sm font-bold text-appleDark">Preview Beban Mahasiswa</h3>
+                                        <h3 class="text-sm font-bold text-soft-dark">Preview Beban Mahasiswa</h3>
                                         <p class="mt-1 text-xs {{ $mutedClass }} truncate" data-preview-week>Isi mata kuliah dan deadline untuk melihat estimasi.</p>
                                     </div>
                                     <span class="inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap" data-preview-status></span>
                                 </div>
                                 <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                                    <div class="rounded-xl border border-bone-dark bg-white p-3">
+                                    <div class="rounded-xl border border-soft-border bg-white p-3">
                                         <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Mahasiswa terdampak</p>
-                                        <p class="mt-1 text-xl font-bold text-appleDark" data-preview-students>0</p>
+                                        <p class="mt-1 text-xl font-bold text-soft-dark" data-preview-students>0</p>
                                     </div>
-                                    <div class="rounded-xl border border-bone-dark bg-white p-3">
+                                    <div class="rounded-xl border border-soft-border bg-white p-3">
                                         <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Rata-rata tugas</p>
-                                        <p class="mt-1 text-xl font-bold text-appleDark" data-preview-average>0</p>
+                                        <p class="mt-1 text-xl font-bold text-soft-dark" data-preview-average>0</p>
                                     </div>
-                                    <div class="rounded-xl border border-bone-dark bg-white p-3">
+                                    <div class="rounded-xl border border-soft-border bg-white p-3">
                                         <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Status terberat</p>
-                                        <p class="mt-1 text-xl font-bold text-appleDark" data-preview-label>-</p>
+                                        <p class="mt-1 text-xl font-bold text-soft-dark" data-preview-label>-</p>
                                     </div>
                                 </div>
                                 <div class="mt-4 hidden rounded-xl border border-appleRed/40 bg-red-50 p-3 text-sm text-red-800" data-preview-warning>
@@ -259,13 +276,13 @@
                                     <p class="mt-1 text-xs">Pilih salah satu saran deadline di bawah atau centang override untuk tetap menyimpan.</p>
                                 </div>
                                 <div class="mt-4 hidden" data-preview-suggestions-wrap>
-                                    <p class="mb-2 text-xs font-semibold text-appleDark">Saran reschedule</p>
+                                    <p class="mb-2 text-xs font-semibold text-soft-dark">Saran reschedule</p>
                                     <div class="flex flex-wrap gap-2" data-preview-suggestions></div>
                                 </div>
                                 <div class="mt-4 overflow-x-auto">
                                     <table class="w-full text-xs">
                                         <thead>
-                                            <tr class="border-b border-bone-dark text-left {{ $mutedClass }}">
+                                            <tr class="border-b border-soft-border text-left {{ $mutedClass }}">
                                                 <th class="py-2 pr-2">Mahasiswa</th>
                                                 <th class="px-2 py-2">Saat ini</th>
                                                 <th class="px-2 py-2">Jika disimpan</th>
@@ -295,7 +312,7 @@
 
                     {{-- Daftar Tugas & Nilai --}}
                     <div class="{{ $cardClass }} overflow-hidden">
-                        <div class="border-b border-bone-dark px-5 py-4">
+                        <div class="border-b border-soft-border px-5 py-4">
                             <h3 class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Daftar Tugas & Nilai</h3>
                         </div>
 
@@ -303,14 +320,14 @@
                             <p class="px-5 py-4 text-sm {{ $mutedClass }}">Belum ada tugas di kelas ini.</p>
                         @else
                             @foreach($data['tugasList'] as $tugas)
-                                <div class="border-b border-bone-dark/70 px-5 py-4 last:border-0">
+                                <div class="border-b border-soft-border/70 px-5 py-4 last:border-0">
                                     <div class="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <div class="min-w-0">
-                                            <p class="text-sm font-bold text-appleDark truncate">{{ $tugas->nama }}</p>
+                                            <p class="text-sm font-bold text-soft-dark truncate">{{ $tugas->nama }}</p>
                                             <p class="text-xs {{ $mutedClass }} flex flex-wrap items-center gap-1">
                                                 <span>Deadline: {{ \Carbon\Carbon::parse($tugas->deadline)->format('d/m/Y H:i') }}</span>
                                                 <span>· Bobot: {{ $tugas->bobot }}%</span>
-                                                <span class="rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-bone-dark/50
+                                                <span class="rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-soft-border
                                                     {{ $tugas->status_beban === BebanCalculator::LIGHT ? 'bg-green-50 text-appleGreen' : '' }}
                                                     {{ $tugas->status_beban === BebanCalculator::NORMAL ? 'bg-amber-50 text-appleOrange' : '' }}
                                                     {{ $tugas->status_beban === BebanCalculator::HEAVY ? 'bg-red-50 text-appleRed' : '' }}
@@ -328,14 +345,14 @@
                                     @if($data['siswaList']->isEmpty())
                                         <p class="text-xs {{ $mutedClass }}">Tidak ada mahasiswa terdaftar di KRS.</p>
                                     @else
-                                        <details class="group mt-3 rounded-xl border border-bone-dark bg-bone overflow-hidden">
-                                            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 hover:bg-bone-light font-semibold text-xs text-appleDark select-none">
+                                        <details class="group mt-3 rounded-xl border border-soft-border bg-soft-bg overflow-hidden">
+                                            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 hover:bg-soft-bg font-semibold text-xs text-soft-dark select-none">
                                                 <span>Lihat Status Pengumpulan & Nilai Mahasiswa ({{ $data['siswaList']->count() }})</span>
                                                 <svg class="h-4 w-4 flex-shrink-0 {{ $mutedClass }} transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                                 </svg>
                                             </summary>
-                                            <div class="border-t border-bone-dark">
+                                            <div class="border-t border-soft-border">
                                                 <div class="overflow-x-auto px-4 py-3">
                                                     <table class="w-full text-xs min-w-[600px]">
                                                         <thead>
@@ -354,15 +371,15 @@
                                                                     $existing = $data['nilaiMap'][$tugas->id][$krs->siswa_id] ?? null;
                                                                     $submission = $data['submissionMap'][$tugas->id][$krs->siswa_id] ?? null;
                                                                 @endphp
-                                                                <tr class="border-t border-bone-dark/50">
-                                                                    <td class="py-1.5 pr-2 font-medium text-appleDark whitespace-nowrap">{{ $krs->siswa->name }}</td>
+                                                                <tr class="border-t border-soft-border/50 hover:bg-soft-bg/60 transition-colors">
+                                                                    <td class="py-1.5 pr-2 font-medium text-soft-dark whitespace-nowrap">{{ $krs->siswa->name }}</td>
                                                                     <td class="py-1.5 pr-2 {{ $mutedClass }} whitespace-nowrap">{{ $krs->siswa->nim }}</td>
                                                                     <td class="py-1.5 pr-2" colspan="3">
                                                                         <form method="POST" action="{{ route('dosen.nilai.store', [$tugas->id, $krs->siswa_id]) }}" class="flex items-center gap-2">
                                                                             @csrf
-                                                                            <input type="number" name="nilai" min="0" max="100" step="0.01" value="{{ $existing?->nilai }}" placeholder="-" class="w-20 min-w-[5rem] rounded-lg border border-bone-dark px-2 py-1 text-xs focus:border-appleDark focus:outline-none">
-                                                                            <input type="text" name="komentar" value="{{ $existing?->komentar }}" placeholder="Komentar (opsional)" class="flex-1 min-w-[8rem] rounded-lg border border-bone-dark px-2 py-1 text-xs focus:border-appleDark focus:outline-none">
-                                                                            <button type="submit" class="rounded-lg bg-appleDark px-2 py-1 text-[10px] font-medium text-white hover:opacity-90 whitespace-nowrap">
+                                                                            <input type="number" name="nilai" min="0" max="100" step="0.01" value="{{ $existing?->nilai }}" placeholder="-" class="w-20 min-w-[5rem] rounded-lg border border-soft-border px-2 py-1 text-xs focus:border-pastel-biru focus:outline-none">
+                                                                            <input type="text" name="komentar" value="{{ $existing?->komentar }}" placeholder="Komentar (opsional)" class="flex-1 min-w-[8rem] rounded-lg border border-soft-border px-2 py-1 text-xs focus:border-pastel-biru focus:outline-none">
+                                                                            <button type="submit" class="rounded-lg bg-gradient-to-r from-pastel-biru to-pastel-ungu px-2 py-1 text-[10px] font-medium text-soft-dark shadow-sm hover:shadow-md hover:opacity-95 transition-all duration-200 whitespace-nowrap">
                                                                                 {{ $existing ? 'Update' : 'Simpan' }}
                                                                             </button>
                                                                         </form>
@@ -370,7 +387,7 @@
                                                                     <td class="py-1.5 pr-2">
                                                                         @if($submission)
                                                                             <div class="flex max-w-[12rem] flex-col gap-0.5">
-                                                                                <a href="{{ route('dosen.submission.download', $submission->id) }}" class="truncate text-[10px] font-medium text-appleDark hover:underline" title="{{ $submission->file_name }}">
+                                                                                <a wire:navigate href="{{ route('dosen.submission.download', $submission->id) }}" class="truncate text-[10px] font-medium text-soft-dark hover:underline" title="{{ $submission->file_name }}">
                                                                                     Download {{ $submission->file_name }}
                                                                                 </a>
                                                                                 <span class="text-[10px] {{ $submission->status === 'late' ? 'font-bold text-appleOrange' : $mutedClass }} whitespace-nowrap">
@@ -475,7 +492,7 @@
                                     const row = document.createElement("tr");
                                     const cell = document.createElement("td");
                                     cell.colSpan = 4;
-                                    cell.className = "py-3 text-center text-appleMuted";
+                                    cell.className = "py-3 text-center text-soft-muted";
                                     cell.textContent = "Belum ada mahasiswa KRS pada mata kuliah ini.";
                                     row.appendChild(cell);
                                     studentRows.appendChild(row);
@@ -483,21 +500,21 @@
                                 }
                                 items.forEach((student) => {
                                     const row = document.createElement("tr");
-                                    row.className = "border-b border-bone-dark/50 last:border-0";
+                                    row.className = "border-b border-soft-border/50 last:border-0";
                                     const identity = document.createElement("td");
                                     identity.className = "py-2 pr-2";
                                     const name = document.createElement("span");
-                                    name.className = "font-medium text-appleDark";
+                                    name.className = "font-medium text-soft-dark";
                                     name.textContent = student.nama;
                                     const nim = document.createElement("span");
-                                    nim.className = "block text-[11px] text-appleMuted";
+                                    nim.className = "block text-[11px] text-soft-muted";
                                     nim.textContent = student.nim;
                                     identity.append(name, nim);
                                     const current = document.createElement("td");
-                                    current.className = "py-2 px-2 text-appleMuted";
+                                    current.className = "py-2 px-2 text-soft-muted";
                                     current.textContent = `${student.current_count} tugas`;
                                     const projected = document.createElement("td");
-                                    projected.className = "py-2 px-2 font-semibold text-appleDark";
+                                    projected.className = "py-2 px-2 font-semibold text-soft-dark";
                                     projected.textContent = `${student.projected_count} tugas`;
                                     const status = document.createElement("td");
                                     status.className = "py-2 pl-2";
@@ -590,8 +607,8 @@
                     @endif
 
                     @forelse($data['workloadData'] as $mkData)
-                        <div class="mt-5 rounded-xl border border-bone-dark bg-bone p-4">
-                            <h3 class="font-bold text-sm text-appleDark mb-3 truncate">{{ $mkData['nama'] }} ({{ $mkData['kode'] }})</h3>
+                        <div class="mt-5 rounded-xl border border-soft-border bg-soft-bg p-4">
+                            <h3 class="font-bold text-sm text-soft-dark mb-3 truncate">{{ $mkData['nama'] }} ({{ $mkData['kode'] }})</h3>
 
                             @php
                                 $combined = collect($mkData['thisWeek'])->map(function ($s) use ($mkData, $data) {
@@ -614,7 +631,7 @@
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-xs min-w-[500px]">
                                         <thead>
-                                            <tr class="border-b border-bone-dark text-left {{ $mutedClass }}">
+                                            <tr class="border-b border-soft-border text-left {{ $mutedClass }}">
                                                 <th class="py-2 px-1">Nama</th>
                                                 <th class="py-2 px-1">NIM</th>
                                                 <th class="py-2 px-1">Minggu Ini</th>
@@ -624,165 +641,6 @@
                                         </thead>
                                         <tbody>
                                             @foreach($students as $s)
-                                                <tr class="border-b border-bone-dark/50">
-                                                    <td class="py-1.5 px-1 whitespace-nowrap text-appleDark">{{ $s['nama'] }}</td>
-                                                    <td class="py-1.5 px-1 whitespace-nowrap {{ $mutedClass }}">{{ $s['nim'] ?? $s['siswa_id'] }}</td>
-                                                    <td class="py-1.5 px-1">
-                                                        <span class="inline-block rounded-full px-2 py-0.5 text-xs font-bold ring-1 ring-bone-dark/50
-                                                            {{ $s['weekLoad'] === BebanCalculator::LIGHT ? 'bg-green-50 text-appleGreen' : '' }}
-                                                            {{ $s['weekLoad'] === BebanCalculator::NORMAL ? 'bg-amber-50 text-appleOrange' : '' }}
-                                                            {{ $s['weekLoad'] === BebanCalculator::HEAVY ? 'bg-red-50 text-appleRed' : '' }}
-                                                            {{ $s['weekLoad'] === BebanCalculator::OVERLOAD ? 'bg-red-100 text-appleRed' : '' }}">
-                                                            {{ $s['weekCount'] }} ({{ $s['weekLoad'] }})
-                                                        </span>
-                                                    </td>
-                                                    <td class="py-1.5 px-1">
-                                                        <span class="inline-block rounded-full px-2 py-0.5 text-xs font-bold ring-1 ring-bone-dark/50
-                                                            {{ $s['nextWeekLoad'] === BebanCalculator::LIGHT ? 'bg-green-50 text-appleGreen' : '' }}
-                                                            {{ $s['nextWeekLoad'] === BebanCalculator::NORMAL ? 'bg-amber-50 text-appleOrange' : '' }}
-                                                            {{ $s['nextWeekLoad'] === BebanCalculator::HEAVY ? 'bg-red-50 text-appleRed' : '' }}
-                                                            {{ $s['nextWeekLoad'] === BebanCalculator::OVERLOAD ? 'bg-red-100 text-appleRed' : '' }}">
-                                                            {{ $s['nextWeekCount'] }} ({{ $s['nextWeekLoad'] }})
-                                                        </span>
-                                                    </td>
-                                                    <td class="py-1.5 px-1 text-center">
-                                                        @if($s['isBimbingan'])
-                                                            <span class="text-appleGreen font-bold">✓</span>
-                                                        @else
-                                                            <span class="{{ $mutedClass }}">–</span>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @else
-                                <p class="rounded-xl bg-bone-light p-4 text-sm {{ $mutedClass }} text-center">Tidak ada mahasiswa terdaftar.</p>
-                            @endif
-                        </div>
-                    @empty
-                        <p class="mt-4 rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Anda belum mengajar mata kuliah apapun.</p>
-                    @endforelse
-                </div>
-            </div>
-
-        {{-- ═══ NOTIFIKASI TAB ═══ --}}
-        @elseif ($currentTab === 'notifikasi')
-            <div class="space-y-4">
-                <div class="{{ $cardClass }} divide-y divide-bone-dark overflow-hidden">
-                    @if($data['notifikasiList']->count())
-                        @foreach($data['notifikasiList'] as $notif)
-                            <div class="px-5 py-4 hover:bg-bone-light/70 transition-colors {{ !$notif->is_read ? 'border-l-4 border-appleDark' : '' }}">
-                                <div class="flex justify-between items-start gap-3">
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2">
-                                            <h4 class="font-bold text-sm text-appleDark truncate">{{ $notif->judul }}</h4>
-                                            @if(!$notif->is_read)
-                                                <span class="h-2 w-2 rounded-full bg-appleRed animate-pulse flex-shrink-0"></span>
-                                            @endif
-                                        </div>
-                                        <p class="text-xs {{ $mutedClass }} mt-1">{{ $notif->pesan }}</p>
-                                        <div class="flex items-center gap-2 mt-1">
-                                            <span class="text-[11px] font-mono {{ $mutedClass }}">{{ $notif->created_at->diffForHumans() }}</span>
-                                            @if($notif->tipe === 'beban_tinggi')
-                                                <span class="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-appleRed ring-1 ring-red-100">Beban Tinggi</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                    @if(!$notif->is_read)
-                                        <form method="POST" action="{{ route('dosen.notifikasi.read', $notif->id) }}" class="flex-shrink-0">
-                                            @csrf @method('PATCH')
-                                            <button type="submit" class="text-xs font-semibold text-appleDark hover:underline whitespace-nowrap">Tandai Dibaca</button>
-                                        </form>
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-                    @else
-                        <div class="px-5 py-8">
-                            <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Belum ada notifikasi.</p>
-                        </div>
-                    @endif
-                </div>
-                @if($data['notifikasiList']->count())
-                    <div>{{ $data['notifikasiList']->links() }}</div>
-                @endif
-            </div>
-
-        {{-- ═══ PROFIL TAB ═══ --}}
-        @elseif ($currentTab === 'profil')
-            <div class="space-y-6">
-                <div class="grid gap-6 lg:grid-cols-[.85fr_1.35fr]">
-                    {{-- Identity card --}}
-                    <div class="{{ $cardClass }} p-6 text-center">
-                        <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-appleDark text-2xl font-bold text-white ring-4 ring-bone-light">
-                            {{ strtoupper(substr($user->name, 0, 2)) }}
-                        </div>
-                        <h2 class="mt-4 text-lg font-bold text-appleDark">{{ $user->name }}</h2>
-                        <p class="text-sm {{ $mutedClass }}">{{ $user->nidn ?? '-' }}</p>
-                        <div class="mt-4 space-y-2 text-left">
-                            <div class="flex items-center justify-between border-t border-bone-dark pt-2">
-                                <span class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Email</span>
-                                <span class="text-sm text-appleDark truncate ml-2">{{ $user->email }}</span>
-                            </div>
-                            <div class="flex items-center justify-between border-t border-bone-dark pt-2">
-                                <span class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Fakultas</span>
-                                <span class="text-sm text-appleDark">{{ $user->fakultas ?? '-' }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Stats --}}
-                    <div class="space-y-6">
-                        <div class="{{ $cardClass }} p-5">
-                            <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-4">Ringkasan</p>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="rounded-xl bg-bone p-4">
-                                    <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Mata Kuliah</p>
-                                    <p class="mt-2 text-3xl font-bold tracking-tight text-appleDark">{{ $data['mataKuliahList']->count() }}</p>
-                                </div>
-                                <div class="rounded-xl bg-bone p-4">
-                                    <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Mahasiswa Bimbingan</p>
-                                    <p class="mt-2 text-3xl font-bold tracking-tight text-appleDark">{{ $data['bimbinganCount'] }}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        @if($data['mataKuliahList']->count())
-                            <div class="{{ $cardClass }} p-5">
-                                <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-4">Mata Kuliah Diajar</p>
-                                <div class="space-y-2">
-                                    @foreach($data['mataKuliahList'] as $mkItem)
-                                        <div class="flex items-center justify-between rounded-xl border border-bone-dark px-4 py-3">
-                                            <span class="text-sm font-semibold text-appleDark truncate min-w-0">{{ $mkItem->nama }} ({{ $mkItem->kode }})</span>
-                                            <span class="text-xs {{ $mutedClass }} whitespace-nowrap ml-2">{{ $mkItem->sks }} SKS</span>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                {{-- Status Akun --}}
-                <div class="{{ $cardClass }} p-5">
-                    <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-3">Status Akun</p>
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div class="flex justify-between border-b border-bone-dark pb-2">
-                            <span class="{{ $mutedClass }}">Role</span>
-                            <span class="font-semibold text-appleDark">Dosen</span>
-                        </div>
-                        <div class="flex justify-between border-b border-bone-dark pb-2">
-                            <span class="{{ $mutedClass }}">Status</span>
-                            <span class="font-semibold text-appleGreen">Aktif</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
-
-        </div>
-    </main>
-</div>
-@endsection
+                                                <tr class="border-b border-soft-border/50 hover:bg-soft-bg/60 transition-colors">
+                                                    <td class="py-1.5 px-1 whitespace-nowrap text-soft-dark">{{ $s['nama'] }}</td>
+                                                    <td class="py-1.5 px-1 whitespace-nowrap {{ $mutedClass }}">{{ $s['nim'] ?? $s['sisw... (12 KB left)

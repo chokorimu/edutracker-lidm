@@ -1,109 +1,35 @@
-<?php
+@extends('layouts.app')
 
-use App\Models\UserAdmin;
-use App\Models\UserDosen;
-use App\Models\UserProdi;
-use App\Models\UserSiswa;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Livewire\Component;
+@section('content')
+<div class="min-h-screen flex flex-col justify-between bg-[#FFFBF2] text-[#2E2A47] antialiased selection:bg-[#A29BFE] selection:text-white font-body relative overflow-hidden">
+    
+    <div class="fixed border-radius-full blur-[80px] pointer-events-none z-0 opacity-55" style="width: 520px; height: 520px; background: #FFF2CA; top: -160px; left: -140px;"></div>
+    <div class="fixed border-radius-full blur-[80px] pointer-events-none z-0 opacity-55" style="width: 480px; height: 480px; background: #92C9FF; bottom: -180px; right: -120px;"></div>
+    <div class="fixed inset-0 z-[1] pointer-events-none opacity-[0.02]" style="background-image: url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'120\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E');"></div>
 
-new class extends Component
-{
-    public string $email = '';
-
-    public string $password = '';
-
-    public function login()
-    {
-        $this->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
-        $credentials = [
-            'email' => $this->email,
-            'password' => $this->password,
-        ];
-
-        if ($redirect = $this->attemptGuard('admin', UserAdmin::class, 'admin.dashboard', $credentials)) {
-            return $redirect;
-        }
-
-        if ($redirect = $this->attemptGuard('dosen', UserDosen::class, 'dosen.dashboard', $credentials)) {
-            return $redirect;
-        }
-
-        if ($redirect = $this->attemptGuard('siswa', UserSiswa::class, 'siswa.dashboard', $credentials)) {
-            return $redirect;
-        }
-
-        if ($redirect = $this->attemptGuard('prodi', UserProdi::class, 'prodi.dashboard', $credentials)) {
-            return $redirect;
-        }
-
-        $this->addError('email', 'Email atau password salah.');
-    }
-
-    private function attemptGuard(string $guard, string $modelClass, string $route, array $credentials)
-    {
-        if ($this->repairLegacyPlaintextPassword($modelClass, $credentials) === false) {
-            return null;
-        }
-
-        if (! Auth::guard($guard)->attempt($credentials)) {
-            return null;
-        }
-
-        return redirect()->route($route);
-    }
-
-    private function repairLegacyPlaintextPassword(string $modelClass, array $credentials): ?bool
-    {
-        $user = $modelClass::where('email', $credentials['email'])->first();
-
-        if (! $user || blank($user->password)) {
-            return null;
-        }
-
-        if ((Hash::info($user->password)['algoName'] ?? 'unknown') !== 'unknown') {
-            return null;
-        }
-
-        if (! hash_equals((string) $user->password, (string) $credentials['password'])) {
-            return false;
-        }
-
-        $user->forceFill([
-            'password' => Hash::make($credentials['password']),
-        ])->save();
-
-        return true;
-    }
-}; ?>
-
-<div class="min-h-screen flex flex-col justify-between bg-[#FBFBF9] text-[#1D1D1F] antialiased selection:bg-[#1D1D1F] selection:text-white font-sans">
-
-    <header class="w-full bg-[#FBFBF9]/80 backdrop-blur-xl border-b border-[#E8E8ED] px-6 md:px-16 py-5 flex justify-between items-center z-50">
+    <header class="w-full bg-[#FFFBF2]/70 backdrop-blur-xl border-b border-[#2E2A47]/[0.06] px-4 md:px-16 py-4 md:py-5 flex flex-col sm:flex-row justify-center sm:justify-between items-center gap-2 sm:gap-0 z-50 fixed top-0 left-0 right-0">
         <a href="/" class="text-xl font-bold tracking-tighter lowercase select-none hover:opacity-80 transition-opacity"><x-title/></a>
-        <span class="text-xs font-bold uppercase tracking-widest text-[#86868B]">Portal Autentikasi</span>
+        <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-[#726D8C] font-mono">Portal Autentikasi</span>
     </header>
+    <div class="fixed top-[72px] sm:top-[68px] left-0 right-0 h-[3px] z-40 opacity-90" style="background: linear-gradient(90deg, #FFF2CA, #56EFC5, #82EDEC, #92C9FF, #A29BFE);"></div>
 
-    <main class="flex-1 flex items-center justify-center px-6 py-12">
-        <div class="w-full max-w-[420px] bg-white border border-[#E8E8ED] p-8 sm:p-10 rounded-[28px] shadow-[0_10px_30px_rgba(0,0,0,0.02)]">
+    <main class="flex-1 flex items-center justify-center px-4 sm:px-6 py-24 relative z-10 w-full mt-8 sm:mt-0">
+        <div class="w-full max-w-[420px] bg-white/80 border border-[#2E2A47]/[0.08] backdrop-blur-[14px] p-6 sm:p-10 rounded-[28px] shadow-[0_20px_50px_-30px_rgba(122,109,224,0.35)] mx-auto">
             
-            <div class="text-center mb-8">
-                <span class="text-[11px] font-bold tracking-widest uppercase text-[#86868B] block mb-1">Sistem SKS Terpadu</span>
-                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">Masuk ke akun.</h1>
+            <div class="text-center mb-6 sm:mb-8">
+                <span class="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-[#726D8C] block mb-1 font-mono">Sistem SKS Terpadu</span>
+                <h1 class="text-2xl sm:text-3xl font-display font-semibold tracking-tight text-[#2E2A47]">Masuk ke akun</h1>
             </div>
 
-            <form wire:submit="login" class="space-y-4">
+            <form action="{{ route('login') }}" method="POST" class="space-y-4">
+                @csrf
                 <div>
-                    <label class="block text-xs font-bold tracking-wider uppercase text-[#86868B] mb-1.5">Email</label>
+                    <label class="block text-xs font-bold tracking-wider uppercase text-[#726D8C] mb-1.5 font-mono">Email</label>
                     <input
                         type="email"
-                        wire:model="email"
-                        class="w-full bg-[#F5F5F7] border border-transparent focus:border-[#1D1D1F] focus:bg-white rounded-xl px-4 py-3.5 text-sm text-[#1D1D1F] placeholder-[#86868B] outline-none transition-all duration-200"
+                        name="email"
+                        value="{{ old('email') }}"
+                        class="w-full bg-white/60 border border-[#2E2A47]/10 focus:border-[#4C86E0] focus:bg-white rounded-xl px-4 py-3.5 text-sm text-[#2E2A47] placeholder-[#726D8C]/50 outline-none transition-all duration-200"
                         placeholder="nama@kampus.ac.id"
                         autofocus
                     >
@@ -116,11 +42,11 @@ new class extends Component
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold tracking-wider uppercase text-[#86868B] mb-1.5">Kata Sandi</label>
+                    <label class="block text-xs font-bold tracking-wider uppercase text-[#726D8C] mb-1.5 font-mono">Kata Sandi</label>
                     <input
                         type="password"
-                        wire:model="password"
-                        class="w-full bg-[#F5F5F7] border border-transparent focus:border-[#1D1D1F] focus:bg-white rounded-xl px-4 py-3.5 text-sm text-[#1D1D1F] placeholder-[#86868B] outline-none transition-all duration-200"
+                        name="password"
+                        class="w-full bg-white/60 border border-[#2E2A47]/10 focus:border-[#4C86E0] focus:bg-white rounded-xl px-4 py-3.5 text-sm text-[#2E2A47] placeholder-[#726D8C]/50 outline-none transition-all duration-200"
                         placeholder="••••••••••••"
                     >
                     @error('password') 
@@ -134,12 +60,10 @@ new class extends Component
                 <div class="pt-2">
                     <button
                         type="submit"
-                        wire:loading.attr="disabled"
-                        class="w-full bg-[#1D1D1F] text-white py-3.5 rounded-xl font-medium text-sm tracking-tight hover:bg-black active:scale-[0.98] disabled:opacity-50 transition-all duration-200 shadow-sm flex items-center justify-center gap-2 group"
+                        class="w-full bg-gradient-to-r from-[#92C9FF] to-[#A29BFE] text-[#2E2A47] py-3.5 rounded-xl font-display font-semibold text-sm tracking-tight hover:brightness-105 active:scale-[0.98] transition-all duration-200 shadow-[0_10px_30px_-12px_rgba(122,109,224,0.6)] flex items-center justify-center gap-2 group"
                     >
-                        <span wire:loading.remove>Masuk Sekarang</span>
-                        <span wire:loading>Memverifikasi...</span>
-                        <svg wire:loading.remove class="w-4 h-4 text-white/70 group-hover:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        <span>Masuk Sekarang</span>
+                        <svg class="w-4 h-4 text-[#2E2A47]/70 group-hover:text-[#2E2A47] transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                     </button>
                 </div>
             </form>
@@ -147,8 +71,9 @@ new class extends Component
         </div>
     </main>
 
-    <footer class="py-6 text-center text-xs text-[#86868B] select-none">
+    <footer class="py-6 px-4 text-center text-[10px] sm:text-xs text-[#726D8C] select-none relative z-10 font-mono">
         Universitas Negeri Malang &bull; Dilindungi Hak Cipta.
     </footer>
 
 </div>
+@endsection
