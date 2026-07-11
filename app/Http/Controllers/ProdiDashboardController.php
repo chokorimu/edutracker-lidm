@@ -20,8 +20,8 @@ class ProdiDashboardController extends Controller
         // Invalidated implicitly by TTL — prodi data only changes when
         // tugas are created/deleted, which happens infrequently.
         $data = Cache::remember('prodi_dashboard', 900, function () {
-            $weekStart = Carbon::now()->startOfWeek();
-            $weekEnd = Carbon::now()->endOfWeek();
+            $weekStart = Carbon::now()->startOfDay();
+            $weekEnd = Carbon::now()->addDays(6)->endOfDay();
 
             $totalSiswa = UserSiswa::count();
             $loadDistribution = BebanCalculator::weeklyLoadDistribution($weekStart, $weekEnd);

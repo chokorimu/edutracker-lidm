@@ -10,7 +10,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 class LoginTest extends TestCase
@@ -27,11 +26,10 @@ class LoginTest extends TestCase
 
         $this->withSession([]);
 
-        Livewire::test('pages::auth.login')
-            ->set('email', $admin->email)
-            ->set('password', 'secret123')
-            ->call('login')
-            ->assertRedirect(route('admin.dashboard'));
+        $this->post(route('login'), [
+            'email' => $admin->email,
+            'password' => 'secret123',
+        ])->assertRedirect(route('admin.dashboard'));
 
         $this->assertTrue(Auth::guard('admin')->check());
     }
@@ -48,11 +46,10 @@ class LoginTest extends TestCase
 
         $this->withSession([]);
 
-        Livewire::test('pages::auth.login')
-            ->set('email', $dosen->email)
-            ->set('password', 'secret123')
-            ->call('login')
-            ->assertRedirect(route('dosen.dashboard'));
+        $this->post(route('login'), [
+            'email' => $dosen->email,
+            'password' => 'secret123',
+        ])->assertRedirect(route('dosen.dashboard'));
 
         $this->assertTrue(Auth::guard('dosen')->check());
     }
@@ -71,11 +68,10 @@ class LoginTest extends TestCase
 
         $this->withSession([]);
 
-        Livewire::test('pages::auth.login')
-            ->set('email', 'legacy-dosen@example.test')
-            ->set('password', 'password123')
-            ->call('login')
-            ->assertRedirect(route('dosen.dashboard'));
+        $this->post(route('login'), [
+            'email' => 'legacy-dosen@example.test',
+            'password' => 'password123',
+        ])->assertRedirect(route('dosen.dashboard'));
 
         $password = UserDosen::where('email', 'legacy-dosen@example.test')->value('password');
 
@@ -98,11 +94,10 @@ class LoginTest extends TestCase
 
         $this->withSession([]);
 
-        Livewire::test('pages::auth.login')
-            ->set('email', $siswa->email)
-            ->set('password', 'secret123')
-            ->call('login')
-            ->assertRedirect(route('siswa.dashboard'));
+        $this->post(route('login'), [
+            'email' => $siswa->email,
+            'password' => 'secret123',
+        ])->assertRedirect(route('siswa.dashboard'));
 
         $this->assertTrue(Auth::guard('siswa')->check());
     }
@@ -117,11 +112,10 @@ class LoginTest extends TestCase
 
         $this->withSession([]);
 
-        Livewire::test('pages::auth.login')
-            ->set('email', $prodi->email)
-            ->set('password', 'secret123')
-            ->call('login')
-            ->assertRedirect(route('prodi.dashboard'));
+        $this->post(route('login'), [
+            'email' => $prodi->email,
+            'password' => 'secret123',
+        ])->assertRedirect(route('prodi.dashboard'));
 
         $this->assertTrue(Auth::guard('prodi')->check());
     }
@@ -130,11 +124,10 @@ class LoginTest extends TestCase
     {
         $this->withSession([]);
 
-        Livewire::test('pages::auth.login')
-            ->set('email', 'missing@example.test')
-            ->set('password', 'wrong-password')
-            ->call('login')
-            ->assertHasErrors(['email']);
+        $this->post(route('login'), [
+            'email' => 'missing@example.test',
+            'password' => 'wrong-password',
+        ])->assertSessionHasErrors(['email']);
 
         $this->assertFalse(Auth::guard('admin')->check());
         $this->assertFalse(Auth::guard('dosen')->check());

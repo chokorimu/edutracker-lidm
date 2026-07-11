@@ -123,7 +123,7 @@ class DosenResourceTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $deadline = now()->addWeek()->startOfWeek()->addDay()->setTime(10, 0);
+        $deadline = now()->addDays(8)->setTime(10, 0);
 
         $tasks = collect();
         foreach (['Normalisasi', 'ERD'] as $taskName) {
@@ -150,7 +150,7 @@ class DosenResourceTest extends TestCase
             ->assertSee('Dasar Basis Data (IF104)')
             ->assertSee('2 mahasiswa · rata-rata 0 tugas')
             ->assertSee('Status terberat: Ringan')
-            ->assertSee(now()->startOfWeek()->translatedFormat('d M'), false);
+            ->assertSee(now()->startOfDay()->translatedFormat('d M'), false);
     }
 
     public function test_beban_tab_filters_workload_table_by_selected_course(): void
@@ -289,7 +289,7 @@ class DosenResourceTest extends TestCase
         $this->assertSame(3, $rows->get($pendingSiswa->id)['count']);
         $this->assertSame(BebanCalculator::HEAVY, $rows->get($pendingSiswa->id)['status']);
 
-        $summary = BebanCalculator::studentWeeklySummary($submittedSiswa, now()->startOfWeek(), now()->endOfWeek());
+        $summary = BebanCalculator::studentWeeklySummary($submittedSiswa, now()->startOfDay(), now()->addDays(6)->endOfDay());
 
         $this->assertSame(0, $summary['task_count']);
         $this->assertSame(BebanCalculator::LIGHT, $summary['status']);
@@ -612,19 +612,19 @@ class DosenResourceTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $deadline = now()->addWeek()->startOfWeek()->addDay()->setTime(10, 0);
+        $deadline = now()->addDays(8)->setTime(10, 0);
         $firstTask = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 1',
             'bobot' => 20,
-            'deadline' => $deadline->copy()->subDay()->format('Y-m-d H:i:s'),
+            'deadline' => $deadline->copy()->addDay()->format('Y-m-d H:i:s'),
             'deskripsi' => 'Satu',
         ]);
         $secondTask = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 2',
             'bobot' => 20,
-            'deadline' => $deadline->copy()->subDay()->format('Y-m-d H:i:s'),
+            'deadline' => $deadline->copy()->addDay()->format('Y-m-d H:i:s'),
             'deskripsi' => 'Dua',
         ]);
         foreach ([$firstTask, $secondTask] as $task) {

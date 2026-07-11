@@ -38,8 +38,8 @@ class SendBebanNaikNotifications implements ShouldQueue
         }
 
         $deadline = Carbon::parse($this->deadline);
-        $weekStart = $deadline->copy()->startOfWeek();
-        $weekEnd = $deadline->copy()->endOfWeek();
+        $weekStart = $deadline->copy()->startOfDay();
+        $weekEnd = $deadline->copy()->addDays(6)->endOfDay();
 
         $siswaIds = Krs::where('mata_kuliah_id', $this->mataKuliahId)->pluck('siswa_id');
 
@@ -94,7 +94,7 @@ class SendBebanNaikNotifications implements ShouldQueue
                 $notificationsToInsert[] = [
                     'siswa_id' => $siswaId,
                     'judul' => "Beban Minggu Ini Naik: {$label}",
-                    'pesan' => "Tugas baru '{$this->tugasNama}' membuat beban tugasmu minggu ini naik ke level {$label}.",
+                    'pesan' => 'Beban tugas bertambah pada minggu ini. Tetap semangat, atur napas, dan mulai kerjakan satu per satu secara perlahan.',
                     'tipe' => 'peringatan',
                     'sumber' => 'system',
                     'is_read' => false,

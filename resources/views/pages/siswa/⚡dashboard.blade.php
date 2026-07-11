@@ -590,7 +590,7 @@
                             <section class="space-y-4">
                                 @forelse($currentMk['tugas'] as $tugas)
                                     @php
-                                        $deadline = Carbon::parse($tugas['deadline']);
+                                        $deadline = Carbon::parse($tugas['deadline'] ?? now());
                                         $isLate = now()->gt($deadline) && !$tugas['submitted'];
                                     @endphp
                                     <div class="rounded-xl border {{ $tugas['submitted'] ? 'border-green-200 bg-green-50' : ($isLate ? 'border-red-200 bg-red-50' : 'border-soft-border bg-white') }} p-5">
@@ -603,7 +603,7 @@
                                                 </p>
                                                 @if($tugas['submitted'])
                                                     <p class="mt-1 text-xs font-medium {{ $tugas['status'] === 'late' ? 'text-orange-600' : 'text-green-700' }}">
-                                                        ✓ Dikumpulkan {{ Carbon::parse($tugas['submitted_at'])->translatedFormat('d M Y, H:i') }}
+                                                        ✓ Dikumpulkan {{ Carbon::parse($tugas['submitted_at'] ?? now())->translatedFormat('d M Y, H:i') }}
                                                         {{ $tugas['status'] === 'late' ? '(Terlambat)' : '' }}
                                                     </p>
                                                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -628,4 +628,98 @@
                                               action="{{ route('siswa.tugas.submit', $tugas['id']) }}"
                                               enctype="multipart/form-data"
                                               class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-     ... (7 KB left)
+                                            @csrf
+                                            <input type="hidden" name="task_id" value="{{ $tugas['id'] }}">
+                                            <input type="file" name="file" accept=".pdf,application/pdf" required
+                                                   class="block min-w-0 w-full rounded-xl border border-soft-border bg-white px-3 py-2 text-xs text-gray-600
+                                                          file:mr-3 file:rounded-lg file:border-0
+                                                          file:bg-indigo-50 file:px-3 file:py-1.5
+                                                          file:text-xs file:font-medium file:text-indigo-700
+                                                          hover:file:bg-indigo-100">
+                                            <button type="submit"
+                                                    class="inline-flex min-h-10 w-full items-center justify-center rounded-xl {{ $tugas['submitted'] ? 'bg-gray-600 hover:bg-gray-700' : 'bg-indigo-600 hover:bg-indigo-700' }} px-4 py-2 text-xs font-bold text-white transition sm:w-auto sm:min-w-28">
+                                                {{ $tugas['submitted'] ? 'Ganti PDF' : 'Submit PDF' }}
+                                            </button>
+                                            @if((string) old('task_id') === (string) $tugas['id'])
+                                                @error('file')
+                                                    <p class="text-xs font-semibold text-red-700 sm:col-span-2">{{ $message }}</p>
+                                                @enderror
+                                            @endif
+                                        </form>
+                                    </div>
+                                @empty
+                                    <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Belum ada tugas di mata kuliah ini.</p>
+                                @endforelse
+                            </section>
+                        @endif
+                    @endif
+                @endif
+
+                {{-- PROFILE TAB --}}
+                @if($currentTab === 'profile')
+                    <section class="grid gap-6 lg:grid-cols-[.85fr_1.35fr]">
+                        <div class="{{ $cardClass }} p-6 text-center hover:shadow-lg">
+                            <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-2xl font-bold text-soft-dark ring-4 ring-soft-bg">{{ $initials }}</div>
+                            <h2 class="mt-4 text-lg font-bold tracking-tight">{{ $profile['nama'] ?? 'Mahasiswa' }}</h2>
+                            <p class="mt-1 text-sm {{ $mutedClass }}">NIM: {{ $profile['nim'] ?? '-' }}</p>
+                            <div class="mt-6 space-y-3 border-t border-soft-border pt-5 text-left text-sm">
+                                @foreach([
+                                    ['Program Studi', $profile['prodi'] ?? '-', ''],
+                                    ['Email', $profile['email'] ?? '-', 'break-words'],
+                                    ['Angkatan', "Semester " . ($profile['semester'] ?? '-') . " · Tahun " . ($profile['angkatan'] ?? '-'), ''],
+                                ] as [$label, $value, $class])
+                                    <div>
+                                        <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $label }}</p>
+                                        <p class="mt-1 font-semibold {{ $class }}">{{ $value }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="{{ $cardClass }} p-6 hover:shadow-lg">
+                                <h2 class="text-sm font-bold">Ringkasan Akademik</h2>
+                                <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    @foreach([
+                                        ['IPK Kumulatif', $ipkKumulatif],
+                                        ['SKS Lulus', $profile['sks_lulus'] ?? 0],
+                                        ['SKS Kontrak', $profile['sks_semester'] ?? 0],
+                                        ['Semester', $profile['semester'] ?? '-'],
+                                    ] as [$label, $value])
+                                        <div class="rounded-xl bg-soft-bg p-4 text-center ring-1 ring-soft-border">
+                                            <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $label }}</p>
+                                            <p class="mt-1 text-lg font-bold tracking-tight">{{ $value }}</p>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div class="mt-5 flex items-center gap-3 border-t border-soft-border pt-5">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-soft-bg text-xs font-bold {{ $mutedClass }} ring-1 ring-soft-border">PA</div>
+                                    <div>
+                                        <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Dosen Pembimbing Akademik</p>
+                                        <p class="mt-1 text-sm font-bold">{{ $profile['dosen_pa'] ?? '-' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="{{ $cardClass }} p-6 hover:shadow-lg">
+                                <h2 class="text-sm font-bold">Status Akun</h2>
+                                <div class="mt-4 divide-y divide-soft-border text-sm">
+                                    @foreach([
+                                        ['Role', 'Siswa'],
+                                        ['Status Akademik', 'Aktif'],
+                                    ] as [$label, $value])
+                                        <div class="flex justify-between py-3">
+                                            <span class="{{ $mutedClass }}">{{ $label }}</span>
+                                            <span class="font-bold">{{ $value }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                @endif
+            </div>
+        </main>
+    </div>
+</div>
+@endsection

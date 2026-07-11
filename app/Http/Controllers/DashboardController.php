@@ -457,12 +457,12 @@ class DashboardController extends Controller
                 return [
                     'id' => $tugas->id,
                     'nama' => $tugas->nama,
-                    'deadline' => $tugas->deadline,
+                    'deadline' => $tugas->deadline instanceof \DateTimeInterface ? $tugas->deadline->format('Y-m-d H:i:s') : (is_string($tugas->deadline) ? $tugas->deadline : null),
                     'bobot' => $tugas->bobot,
                     'submitted' => $submission !== null,
                     'submission_id' => $submission?->id,
                     'file_name' => $submission?->file_name,
-                    'submitted_at' => $submission?->submitted_at,
+                    'submitted_at' => $submission?->submitted_at instanceof \DateTimeInterface ? $submission->submitted_at->format('Y-m-d H:i:s') : (is_string($submission?->submitted_at) ? $submission->submitted_at : null),
                     'status' => $submission?->status ?? 'belum',
                 ];
             });
@@ -581,7 +581,7 @@ class DashboardController extends Controller
 
     private function resolveWorkloadWeek($allCourseIds, Carbon $now): array
     {
-        return [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()];
+        return [$now->copy()->startOfDay(), $now->copy()->addDays(6)->endOfDay()];
     }
 
     private function buildCalendarData(?Request $request, $allCourseIds, Carbon $now): array

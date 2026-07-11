@@ -76,10 +76,10 @@ class DosenResourceController extends Controller
                 break;
 
             case 'beban':
-                $weekStart = Carbon::now()->startOfWeek();
-                $weekEnd = Carbon::now()->endOfWeek();
-                $nextWeekStart = Carbon::now()->addWeek()->startOfWeek();
-                $nextWeekEnd = Carbon::now()->addWeek()->endOfWeek();
+                $weekStart = Carbon::now()->startOfDay();
+                $weekEnd = Carbon::now()->addDays(6)->endOfDay();
+                $nextWeekStart = Carbon::now()->addDays(7)->startOfDay();
+                $nextWeekEnd = Carbon::now()->addDays(13)->endOfDay();
 
                 $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)->with('krs.siswa')->get();
                 $data['bimbinganIds'] = DosenPa::where('dosen_id', $user->id)->pluck('siswa_id')->toArray();
@@ -205,8 +205,8 @@ class DosenResourceController extends Controller
         }
 
         $deadline = Carbon::parse($validated['deadline']);
-        $weekStart = $deadline->copy()->startOfWeek();
-        $weekEnd = $deadline->copy()->endOfWeek();
+        $weekStart = $deadline->copy()->startOfDay();
+        $weekEnd = $deadline->copy()->addDays(6)->endOfDay();
         $pendingStudentIds = $this->pendingStudentIdsForCourseWeek($mk->id, $weekStart, $weekEnd);
         $rows = BebanCalculator::weeklyLoadForCourse($mk->id, $weekStart, $weekEnd);
         $students = $rows->filter(fn (array $row) => $pendingStudentIds->contains($row['siswa_id']))
@@ -392,7 +392,7 @@ class DosenResourceController extends Controller
     {
         $now = now();
 
-        return [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()];
+        return [$now->copy()->startOfDay(), $now->copy()->addDays(6)->endOfDay()];
     }
 
     private function pendingStudentIdsForCourseWeek(int $mataKuliahId, Carbon $weekStart, Carbon $weekEnd)
@@ -446,8 +446,8 @@ class DosenResourceController extends Controller
     private function computeStatusBeban(int $mataKuliahId, string $deadline, ?int $excludeTugasId = null): string
     {
         $deadlineDate = Carbon::parse($deadline);
-        $weekStart = (clone $deadlineDate)->startOfWeek();
-        $weekEnd = (clone $deadlineDate)->endOfWeek();
+        $weekStart = (clone $deadlineDate)->startOfDay();
+        $weekEnd = (clone $deadlineDate)->addDays(6)->endOfDay();
 
         $siswaIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
 

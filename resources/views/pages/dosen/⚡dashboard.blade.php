@@ -643,4 +643,163 @@
                                             @foreach($students as $s)
                                                 <tr class="border-b border-soft-border/50 hover:bg-soft-bg/60 transition-colors">
                                                     <td class="py-1.5 px-1 whitespace-nowrap text-soft-dark">{{ $s['nama'] }}</td>
-                                                    <td class="py-1.5 px-1 whitespace-nowrap {{ $mutedClass }}">{{ $s['nim'] ?? $s['sisw... (12 KB left)
+                                                    <td class="py-1.5 px-1 whitespace-nowrap {{ $mutedClass }}">{{ $s['nim'] ?? $s['siswa_id'] }}</td>
+                                                    <td class="py-1.5 px-1">
+                                                        <span class="inline-block rounded-full px-2 py-0.5 text-xs font-bold ring-1 ring-soft-border
+                                                            {{ $s['weekLoad'] === BebanCalculator::LIGHT ? 'bg-green-50 text-appleGreen' : '' }}
+                                                            {{ $s['weekLoad'] === BebanCalculator::NORMAL ? 'bg-amber-50 text-appleOrange' : '' }}
+                                                            {{ $s['weekLoad'] === BebanCalculator::HEAVY ? 'bg-red-50 text-appleRed' : '' }}
+                                                            {{ $s['weekLoad'] === BebanCalculator::OVERLOAD ? 'bg-red-100 text-appleRed' : '' }}">
+                                                            {{ $s['weekCount'] }} ({{ $s['weekLoad'] }})
+                                                        </span>
+                                                    </td>
+                                                    <td class="py-1.5 px-1">
+                                                        <span class="inline-block rounded-full px-2 py-0.5 text-xs font-bold ring-1 ring-soft-border
+                                                            {{ $s['nextWeekLoad'] === BebanCalculator::LIGHT ? 'bg-green-50 text-appleGreen' : '' }}
+                                                            {{ $s['nextWeekLoad'] === BebanCalculator::NORMAL ? 'bg-amber-50 text-appleOrange' : '' }}
+                                                            {{ $s['nextWeekLoad'] === BebanCalculator::HEAVY ? 'bg-red-50 text-appleRed' : '' }}
+                                                            {{ $s['nextWeekLoad'] === BebanCalculator::OVERLOAD ? 'bg-red-100 text-appleRed' : '' }}">
+                                                            {{ $s['nextWeekCount'] }} ({{ $s['nextWeekLoad'] }})
+                                                        </span>
+                                                    </td>
+                                                    <td class="py-1.5 px-1 text-center">
+                                                        @if($s['isBimbingan'])
+                                                            <span class="text-appleGreen font-bold">✓</span>
+                                                        @else
+                                                            <span class="{{ $mutedClass }}">–</span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Tidak ada mahasiswa terdaftar.</p>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="mt-4 rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Anda belum mengajar mata kuliah apapun.</p>
+                    @endforelse
+                </div>
+            </div>
+
+        {{-- ═══ NOTIFIKASI TAB ═══ --}}
+        @elseif ($currentTab === 'notifikasi')
+            <div class="space-y-4">
+                <div class="{{ $cardClass }} divide-y divide-soft-border overflow-hidden">
+                    @if($data['notifikasiList']->count())
+                        @foreach($data['notifikasiList'] as $notif)
+                            <div class="px-5 py-4 hover:bg-soft-bg/70 transition-colors duration-200 {{ !$notif->is_read ? 'border-l-4 border-pastel-ungu bg-pastel-ungu/5' : '' }}">
+                                <div class="flex justify-between items-start gap-3">
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-bold text-sm text-soft-dark truncate">{{ $notif->judul }}</h4>
+                                            @if(!$notif->is_read)
+                                                <span class="h-2 w-2 rounded-full bg-appleRed animate-pulse flex-shrink-0"></span>
+                                            @endif
+                                        </div>
+                                        <p class="text-xs {{ $mutedClass }} mt-1">{{ $notif->pesan }}</p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="text-[11px] font-mono {{ $mutedClass }}">{{ $notif->created_at->diffForHumans() }}</span>
+                                            @if($notif->tipe === 'beban_tinggi')
+                                                <span class="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-appleRed ring-1 ring-red-100">Beban Tinggi</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    @if(!$notif->is_read)
+                                        <form method="POST" action="{{ route('dosen.notifikasi.read', $notif->id) }}" class="flex-shrink-0">
+                                            @csrf @method('PATCH')
+                                            <button type="submit" class="text-xs font-semibold text-soft-dark hover:underline whitespace-nowrap">Tandai Dibaca</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="px-5 py-8">
+                            <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Belum ada notifikasi.</p>
+                        </div>
+                    @endif
+                </div>
+                @if($data['notifikasiList']->count())
+                    <div>{{ $data['notifikasiList']->links() }}</div>
+                @endif
+            </div>
+
+        {{-- ═══ PROFIL TAB ═══ --}}
+        @elseif ($currentTab === 'profil')
+            <div class="space-y-6">
+                <div class="grid gap-6 lg:grid-cols-[.85fr_1.35fr]">
+                    {{-- Identity card --}}
+                    <div class="{{ $cardClass }} p-6 text-center">
+                        <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-2xl font-bold text-soft-dark ring-4 ring-soft-bg shadow-lg shadow-pastel-hijau-atas/30">
+                            {{ strtoupper(substr($user->name, 0, 2)) }}
+                        </div>
+                        <h2 class="mt-4 text-lg font-bold text-soft-dark">{{ $user->name }}</h2>
+                        <p class="text-sm {{ $mutedClass }}">{{ $user->nidn ?? '-' }}</p>
+                        <div class="mt-4 space-y-2 text-left">
+                            <div class="flex items-center justify-between border-t border-soft-border pt-2">
+                                <span class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Email</span>
+                                <span class="text-sm text-soft-dark truncate ml-2">{{ $user->email }}</span>
+                            </div>
+                            <div class="flex items-center justify-between border-t border-soft-border pt-2">
+                                <span class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Fakultas</span>
+                                <span class="text-sm text-soft-dark">{{ $user->fakultas ?? '-' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Stats --}}
+                    <div class="space-y-6">
+                        <div class="{{ $cardClass }} p-5">
+                            <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-4">Ringkasan</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="rounded-xl bg-soft-bg p-4">
+                                    <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Mata Kuliah</p>
+                                    <p class="mt-2 text-3xl font-bold tracking-tight text-soft-dark">{{ $data['mataKuliahList']->count() }}</p>
+                                </div>
+                                <div class="rounded-xl bg-soft-bg p-4">
+                                    <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Mahasiswa Bimbingan</p>
+                                    <p class="mt-2 text-3xl font-bold tracking-tight text-soft-dark">{{ $data['bimbinganCount'] }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if($data['mataKuliahList']->count())
+                            <div class="{{ $cardClass }} p-5">
+                                <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-4">Mata Kuliah Diajar</p>
+                                <div class="space-y-2">
+                                    @foreach($data['mataKuliahList'] as $mkItem)
+                                        <div class="flex items-center justify-between rounded-xl border border-soft-border px-4 py-3">
+                                            <span class="text-sm font-semibold text-soft-dark truncate min-w-0">{{ $mkItem->nama }} ({{ $mkItem->kode }})</span>
+                                            <span class="text-xs {{ $mutedClass }} whitespace-nowrap ml-2">{{ $mkItem->sks }} SKS</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Status Akun --}}
+                <div class="{{ $cardClass }} p-5">
+                    <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-3">Status Akun</p>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="flex justify-between border-b border-soft-border pb-2">
+                            <span class="{{ $mutedClass }}">Role</span>
+                            <span class="font-semibold text-soft-dark">Dosen</span>
+                        </div>
+                        <div class="flex justify-between border-b border-soft-border pb-2">
+                            <span class="{{ $mutedClass }}">Status</span>
+                            <span class="font-semibold text-appleGreen">Aktif</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        </div>
+    </main>
+</div>
+@endsection

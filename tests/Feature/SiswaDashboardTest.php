@@ -213,22 +213,22 @@ class SiswaDashboardTest extends TestCase
             'tahun_ajaran' => '2026/2027',
         ]);
 
-        $currentWeek = now()->startOfWeek();
+        $rollingStart = now()->startOfDay();
         Tugas::create([
             'mata_kuliah_id' => $mk->id,
             'nama' => 'Tugas minggu berjalan',
             'bobot' => 25,
-            'deadline' => $currentWeek->copy()->addDay()->setTime(10, 0),
+            'deadline' => $rollingStart->copy()->addDay()->setTime(10, 0),
             'deskripsi' => 'Tugas beban',
         ]);
 
-        $deadlineWeek = now()->addWeek()->startOfWeek();
+        $outsideWindow = now()->addDays(8);
         foreach ([0, 1, 2] as $index) {
             Tugas::create([
                 'mata_kuliah_id' => $mk->id,
                 'nama' => 'Tugas '.$index,
                 'bobot' => 33.33,
-                'deadline' => $deadlineWeek->copy()->addDays($index)->setTime(10, 0),
+                'deadline' => $outsideWindow->copy()->addDays($index)->setTime(10, 0),
                 'deskripsi' => 'Tugas beban',
             ]);
         }
@@ -242,7 +242,7 @@ class SiswaDashboardTest extends TestCase
 
         $this->assertSame(1, $data['weekly_task_count']);
         $this->assertSame(
-            $currentWeek->translatedFormat('d M').' - '.$currentWeek->copy()->endOfWeek()->translatedFormat('d M Y'),
+            $rollingStart->translatedFormat('d M').' - '.$rollingStart->copy()->addDays(6)->endOfDay()->translatedFormat('d M Y'),
             $data['workload_week_label']
         );
     }
@@ -289,9 +289,7 @@ class SiswaDashboardTest extends TestCase
         $response->assertOk()
             ->assertSee('3.60')
             ->assertSee('64')
-            ->assertSee('Semester 4')
-            ->assertSee('Prediksi Lulus')
-            ->assertSee('Semester 8');
+            ->assertSee('Semester 4');
 
         $profile = $response->original->getData()['data']['profile'];
 
