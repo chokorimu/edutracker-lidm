@@ -114,6 +114,7 @@ class DashboardController extends Controller
             function () use ($user) {
                 $now = now();
                 $allCourseIds = $user->krs()
+                    ->where('status', 'aktif')
                     ->pluck('mata_kuliah_id')
                     ->filter()
                     ->unique()
@@ -253,12 +254,11 @@ class DashboardController extends Controller
         $krsList = $user->krs()
             ->with('mataKuliah')
             ->where('semester', $currentSemester)
+            ->where('status', 'aktif')
             ->get();
 
         $sksSemester = $krsList->sum(fn ($krs) => (int) ($krs->mataKuliah?->sks ?? 0));
-        $sksLulus = (int) $user->ipkHistory()
-            ->where('semester', '<', $currentSemester)
-            ->sum('total_sks');
+        $sksLulus = (int) $user->ipkHistory()->sum('total_sks');
         $graduationPrediction = $this->graduationPrediction($sksLulus, $currentSemester);
 
         return [
@@ -285,6 +285,7 @@ class DashboardController extends Controller
         $krsList = $user->krs()
             ->with('mataKuliah')
             ->where('semester', $currentSemester)
+            ->where('status', 'aktif')
             ->get();
 
         $currentCourseIds = $krsList->pluck('mata_kuliah_id')->filter()->values();
@@ -326,6 +327,9 @@ class DashboardController extends Controller
                 'nama' => $mk->nama,
                 'kode' => $mk->kode,
                 'sks' => $mk->sks,
+                'hari' => $mk->hari,
+                'jam_mulai' => $mk->jam_mulai,
+                'jam_selesai' => $mk->jam_selesai,
                 'tugas' => $tugasCount,
                 'tugas_minggu_ini' => $weeklyTugasCount,
                 'beban' => BebanCalculator::label($statusBeban),

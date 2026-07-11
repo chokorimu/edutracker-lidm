@@ -188,6 +188,15 @@ class AdminResourceController extends Controller
             ]
         );
 
+        // Tutup semester: ubah status KRS menjadi 'selesai'
+        Krs::where('siswa_id', $siswaId)
+            ->where('semester', $semester)
+            ->where('status', 'aktif')
+            ->update(['status' => 'selesai']);
+
+        // Invalidate siswa dashboard cache
+        Cache::forget("siswa_dashboard_{$siswaId}");
+
         $siswa = UserSiswa::find($siswaId);
 
         return redirect()
@@ -247,6 +256,9 @@ class AdminResourceController extends Controller
                     'dosen_id' => ['label' => 'Dosen', 'type' => 'select', 'required' => true, 'options' => 'dosens'],
                     'tahun_ajaran' => ['label' => 'Tahun Ajaran', 'type' => 'text', 'required' => true],
                     'semester' => ['label' => 'Semester', 'type' => 'number', 'required' => true, 'min' => 1, 'max' => 14],
+                    'hari' => ['label' => 'Hari', 'type' => 'text'],
+                    'jam_mulai' => ['label' => 'Jam Mulai', 'type' => 'time'],
+                    'jam_selesai' => ['label' => 'Jam Selesai', 'type' => 'time'],
                 ],
             ],
             'dosen-pa' => [
@@ -384,6 +396,7 @@ class AdminResourceController extends Controller
             'select' => $rules[] = 'integer',
             'date' => $rules[] = 'date',
             'checkbox' => $rules[] = 'boolean',
+            'time' => $rules[] = 'date_format:H:i',
             default => $rules[] = 'string',
         };
 

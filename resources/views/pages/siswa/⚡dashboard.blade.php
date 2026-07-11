@@ -325,6 +325,9 @@
                                             <td class="px-5 py-4">
                                                 <p class="font-bold">{{ $mk['nama'] ?? 'Mata Kuliah' }}</p>
                                                 <p class="mt-1 text-xs {{ $mutedClass }}">{{ $mk['kode'] ?? '-' }}</p>
+                                                @if(!empty($mk['hari']))
+                                                    <p class="mt-1 text-xs {{ $mutedClass }}">{{ $mk['hari'] }}, {{ \Illuminate\Support\Str::substr($mk['jam_mulai'] ?? '', 0, 5) }} - {{ \Illuminate\Support\Str::substr($mk['jam_selesai'] ?? '', 0, 5) }}</p>
+                                                @endif
                                                 @if(!empty($mk['tugas_nilai']))
                                                     <div class="mt-2 space-y-1">
                                                         @foreach($mk['tugas_nilai'] as $tugas)
