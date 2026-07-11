@@ -171,6 +171,10 @@
                             <div class="mb-4 rounded-xl border border-appleOrange/40 bg-orange-50 p-4 text-xs text-orange-800">{{ $message }}</div>
                         @enderror
 
+                        @error('bobot_total')
+                            <div class="mb-4 rounded-xl border border-appleRed/40 bg-red-50 p-4 text-xs text-red-800">{{ $message }}</div>
+                        @enderror
+
                         @if(!empty($data['aggregatePreview']) && count($data['aggregatePreview']))
                             <div class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
                                 @foreach($data['aggregatePreview'] as $preview)
@@ -246,6 +250,11 @@
                             <div class="sm:col-span-2">
                                 <label class="mb-1 block text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Deskripsi</label>
                                 <textarea name="deskripsi" rows="2" class="{{ $inputClass }}">{{ old('deskripsi') }}</textarea>
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Bobot Tugas (%) <span class="font-normal normal-case">— kosongkan untuk otomatis</span></label>
+                                <input type="number" name="bobot" value="{{ old('bobot') }}" min="0" max="100" step="0.01" placeholder="Otomatis" class="{{ $inputClass }}">
                             </div>
 
                             {{-- Live preview panel --}}

@@ -135,6 +135,7 @@ class DosenResourceController extends Controller
             'deskripsi' => 'nullable|string',
             'deadline' => 'required|date_format:Y-m-d H:i:s|after:now',
             'override' => 'nullable|boolean',
+            'bobot' => 'nullable|numeric|min:0|max:100',
         ]);
 
         $mk = MataKuliah::findOrFail($validated['mata_kuliah_id']);
@@ -146,7 +147,27 @@ class DosenResourceController extends Controller
         $tugas->mata_kuliah_id = $validated['mata_kuliah_id'];
         $tugas->nama = $validated['nama'];
         $tugas->deskripsi = $validated['deskripsi'] ?? null;
-        $tugas->bobot = 0;
+
+        if (! empty($validated['bobot'])) {
+            $lockedSum = Tugas::where('mata_kuliah_id', $mk->id)
+                ->where('is_bobot_locked', true)
+                ->sum('bobot');
+
+            if (($lockedSum + $validated['bobot']) > 100) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'bobot_total' => 'Total bobot terkunci melebihi 100%. Sisa tersedia: '.round(100 - $lockedSum, 2).'%.',
+                    ]);
+            }
+
+            $tugas->bobot = $validated['bobot'];
+            $tugas->is_bobot_locked = true;
+        } else {
+            $tugas->bobot = 0;
+            $tugas->is_bobot_locked = false;
+        }
+
         $tugas->deadline = $validated['deadline'];
         $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline']);
         $tugas->override = $request->boolean('override');
@@ -282,11 +303,33 @@ class DosenResourceController extends Controller
             'deskripsi' => 'nullable|string',
             'deadline' => 'required|date_format:Y-m-d H:i:s',
             'status' => 'required|in:aktif,selesai',
+            'bobot' => 'nullable|numeric|min:0|max:100',
         ]);
+
+        if (! empty($validated['bobot'])) {
+            $lockedSum = Tugas::where('mata_kuliah_id', $mk->id)
+                ->where('is_bobot_locked', true)
+                ->where('id', '!=', $tugas->id)
+                ->sum('bobot');
+
+            if (($lockedSum + $validated['bobot']) > 100) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'bobot_total' => 'Total bobot terkunci melebihi 100%. Sisa tersedia: '.round(100 - $lockedSum, 2).'%.',
+                    ]);
+            }
+
+            $tugas->bobot = $validated['bobot'];
+            $tugas->is_bobot_locked = true;
+        } else {
+            $tugas->is_bobot_locked = false;
+        }
 
         $tugas->fill($validated);
         $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline'], $tugas->id);
         $tugas->save();
+        $this->rebalanceBobot($tugas->mata_kuliah_id);
 
         return redirect()->route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $tugas->mata_kuliah_id])
             ->with('status', 'Tugas diperbarui.');
@@ -542,19 +585,27 @@ class DosenResourceController extends Controller
     private function rebalanceBobot(int $mataKuliahId): void
     {
         $tugas = Tugas::where('mata_kuliah_id', $mataKuliahId)->get();
-        $count = $tugas->count();
-
-        if ($count === 0) {
+        if ($tugas->isEmpty()) {
             return;
         }
 
-        $bobot = round(100 / $count, 4);
-        $tugasArr = $tugas->values();
+        $locked = $tugas->where('is_bobot_locked', true);
+        $auto = $tugas->where('is_bobot_locked', false);
+        $totalLocked = $locked->sum('bobot');
+        $sisaBobot = max(0, 100 - $totalLocked);
+        $autoCount = $auto->count();
 
-        foreach ($tugasArr as $i => $t) {
-            $t->bobot = ($i === $count - 1)
-                ? round(100 - ($bobot * ($count - 1)), 4)
-                : $bobot;
+        if ($autoCount === 0) {
+            return;
+        }
+
+        $bobotPerAuto = round($sisaBobot / $autoCount, 4);
+        $autoArr = $auto->values();
+
+        foreach ($autoArr as $i => $t) {
+            $t->bobot = ($i === $autoCount - 1)
+                ? round($sisaBobot - ($bobotPerAuto * ($autoCount - 1)), 4)
+                : $bobotPerAuto;
             $t->saveQuietly();
         }
     }
