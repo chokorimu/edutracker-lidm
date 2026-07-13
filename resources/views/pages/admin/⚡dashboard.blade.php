@@ -190,7 +190,7 @@
                                 <option value="">Pilih Siswa</option>
                                 @foreach ($options['siswas'] as $siswa)
                                     <option value="{{ $siswa->id }}" @selected((string) old('siswa_id') === (string) $siswa->id)>
-                                        {{ $siswa->name }} @if ($siswa->email ?? null) - {{ $siswa->email }} @endif
+                                        {{ $siswa->name }} @if ($siswa->email ?? null) - {{ $siswa->email }} @endif (Sem {{ $siswa->semester }})
                                     </option>
                                 @endforeach
                             </select>
@@ -222,7 +222,7 @@
                 <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $editing ? 'Edit' : 'Tambah' }} {{ $config['label'] }}</p>
                     @if ($editing)
-                        <a wire:navigate href="{{ route('admin.dashboard', ['resource' => $resourceKey]) }}" class="text-sm font-semibold text-soft-dark hover:underline">Batal edit</a>
+                        <a href="{{ route('admin.dashboard', ['resource' => $resourceKey]) }}" class="text-sm font-semibold text-soft-dark hover:underline">Batal edit</a>
                     @endif
                 </div>
 
@@ -372,15 +372,11 @@
                                 <select name="siswa_id" required class="{{ $inputClass }} sm:w-64">
                                     <option value="">Pilih Siswa...</option>
                                     @foreach($options['siswas'] ?? [] as $s)
-                                        <option value="{{ $s->id }}" {{ old('siswa_id') == $s->id ? 'selected' : '' }}>{{ $s->name }} ({{ $s->nim }})</option>
+                                        <option value="{{ $s->id }}" {{ old('siswa_id') == $s->id ? 'selected' : '' }}>{{ $s->name }} ({{ $s->nim }}) - Sem {{ $s->semester }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="w-full sm:w-auto">
-                                <label class="block text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-1">Semester</label>
-                                <input type="number" name="semester" min="1" max="14" value="{{ old('semester', 1) }}" required class="{{ $inputClass }} sm:w-24">
-                            </div>
-                            <button type="submit" class="{{ $btnPrimary }} whitespace-nowrap">Hitung & Simpan IPK</button>
+                            <button type="submit" class="{{ $btnPrimary }} whitespace-nowrap">Hitung & Simpan IPK (Naik Semester)</button>
                         </form>
                     </div>
 
