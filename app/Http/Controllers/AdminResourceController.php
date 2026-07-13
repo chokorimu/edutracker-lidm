@@ -124,11 +124,11 @@ class AdminResourceController extends Controller
     {
         $validated = $request->validate([
             'siswa_id' => 'required|exists:user_siswa,id',
-            'semester' => 'required|integer|min:1|max:14',
         ]);
 
         $siswaId = (int) $validated['siswa_id'];
-        $semester = (int) $validated['semester'];
+        $siswa = UserSiswa::findOrFail($siswaId);
+        $semester = (int) $siswa->semester; // Automatically use the student's current semester
 
         $krsList = Krs::where('siswa_id', $siswaId)
             ->where('semester', $semester)
@@ -188,7 +188,20 @@ class AdminResourceController extends Controller
             ]
         );
 
-        $siswa = UserSiswa::find($siswaId);
+        // Tutup semester: ubah status KRS menjadi 'selesai'
+        Krs::where('siswa_id', $siswaId)
+            ->where('semester', $semester)
+            ->where('status', 'aktif')
+            ->update(['status' => 'selesai']);
+
+        // Naikkan semester siswa
+        $siswa->increment('semester');
+
+        // Hapus notifikasi semester sebelumnya
+        Notifikasi::where('siswa_id', $siswaId)->delete();
+
+        // Invalidate siswa dashboard cache
+        Cache::forget("siswa_dashboard_{$siswaId}");
 
         return redirect()
             ->route('admin.dashboard', ['resource' => 'ipk-history'])
@@ -247,6 +260,9 @@ class AdminResourceController extends Controller
                     'dosen_id' => ['label' => 'Dosen', 'type' => 'select', 'required' => true, 'options' => 'dosens'],
                     'tahun_ajaran' => ['label' => 'Tahun Ajaran', 'type' => 'text', 'required' => true],
                     'semester' => ['label' => 'Semester', 'type' => 'number', 'required' => true, 'min' => 1, 'max' => 14],
+                    'hari' => ['label' => 'Hari', 'type' => 'text'],
+                    'jam_mulai' => ['label' => 'Jam Mulai', 'type' => 'time'],
+                    'jam_selesai' => ['label' => 'Jam Selesai', 'type' => 'time'],
                 ],
             ],
             'dosen-pa' => [
@@ -384,6 +400,7 @@ class AdminResourceController extends Controller
             'select' => $rules[] = 'integer',
             'date' => $rules[] = 'date',
             'checkbox' => $rules[] = 'boolean',
+            'time' => $rules[] = 'date_format:H:i',
             default => $rules[] = 'string',
         };
 

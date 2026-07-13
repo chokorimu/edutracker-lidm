@@ -114,6 +114,7 @@ class DashboardController extends Controller
             function () use ($user) {
                 $now = now();
                 $allCourseIds = $user->krs()
+                    ->where('status', 'aktif')
                     ->pluck('mata_kuliah_id')
                     ->filter()
                     ->unique()
@@ -150,6 +151,7 @@ class DashboardController extends Controller
         $tugas = Tugas::findOrFail($tugasId);
         $enrolled = Krs::where('siswa_id', $user->id)
             ->where('mata_kuliah_id', $tugas->mata_kuliah_id)
+            ->where('status', 'aktif')
             ->exists();
 
         if (! $enrolled) {
@@ -253,12 +255,11 @@ class DashboardController extends Controller
         $krsList = $user->krs()
             ->with('mataKuliah')
             ->where('semester', $currentSemester)
+            ->where('status', 'aktif')
             ->get();
 
         $sksSemester = $krsList->sum(fn ($krs) => (int) ($krs->mataKuliah?->sks ?? 0));
-        $sksLulus = (int) $user->ipkHistory()
-            ->where('semester', '<', $currentSemester)
-            ->sum('total_sks');
+        $sksLulus = (int) $user->ipkHistory()->sum('total_sks');
         $graduationPrediction = $this->graduationPrediction($sksLulus, $currentSemester);
 
         return [
@@ -285,6 +286,7 @@ class DashboardController extends Controller
         $krsList = $user->krs()
             ->with('mataKuliah')
             ->where('semester', $currentSemester)
+            ->where('status', 'aktif')
             ->get();
 
         $currentCourseIds = $krsList->pluck('mata_kuliah_id')->filter()->values();
@@ -326,6 +328,9 @@ class DashboardController extends Controller
                 'nama' => $mk->nama,
                 'kode' => $mk->kode,
                 'sks' => $mk->sks,
+                'hari' => $mk->hari,
+                'jam_mulai' => $mk->jam_mulai,
+                'jam_selesai' => $mk->jam_selesai,
                 'tugas' => $tugasCount,
                 'tugas_minggu_ini' => $weeklyTugasCount,
                 'beban' => BebanCalculator::label($statusBeban),
@@ -437,6 +442,7 @@ class DashboardController extends Controller
     private function buildTugasSubmissionData(UserSiswa $user): array
     {
         $krsList = Krs::where('siswa_id', $user->id)
+            ->where('status', 'aktif')
             ->with(['mataKuliah.tugas' => fn ($query) => $query->orderBy('deadline')])
             ->get();
 
@@ -457,12 +463,12 @@ class DashboardController extends Controller
                 return [
                     'id' => $tugas->id,
                     'nama' => $tugas->nama,
-                    'deadline' => $tugas->deadline,
+                    'deadline' => $tugas->deadline instanceof \DateTimeInterface ? $tugas->deadline->format('Y-m-d H:i:s') : (is_string($tugas->deadline) ? $tugas->deadline : null),
                     'bobot' => $tugas->bobot,
                     'submitted' => $submission !== null,
                     'submission_id' => $submission?->id,
                     'file_name' => $submission?->file_name,
-                    'submitted_at' => $submission?->submitted_at,
+                    'submitted_at' => $submission?->submitted_at instanceof \DateTimeInterface ? $submission->submitted_at->format('Y-m-d H:i:s') : (is_string($submission?->submitted_at) ? $submission->submitted_at : null),
                     'status' => $submission?->status ?? 'belum',
                 ];
             });
@@ -581,7 +587,7 @@ class DashboardController extends Controller
 
     private function resolveWorkloadWeek($allCourseIds, Carbon $now): array
     {
-        return [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()];
+        return [$now->copy()->startOfDay(), $now->copy()->addDays(6)->endOfDay()];
     }
 
     private function buildCalendarData(?Request $request, $allCourseIds, Carbon $now): array

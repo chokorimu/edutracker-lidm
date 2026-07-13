@@ -42,17 +42,17 @@
     $pageTitle = $pageMeta[$currentTab]['title'] ?? $pageMeta['dashboard']['title'];
     $pageDescription = $pageMeta[$currentTab]['desc'] ?? $pageMeta['dashboard']['desc'];
 
-    $cardClass = 'bg-white border border-bone-dark rounded-2xl shadow-sm transition-all duration-300';
-    $mutedClass = 'text-appleMuted';
+    $cardClass = 'bg-white border border-soft-border rounded-2xl shadow-sm transition-all duration-300 animate-fade-in-up';
+    $mutedClass = 'text-soft-muted';
 @endphp
 
 @extends('layouts.app')
 
 @section('content')
-<div class="min-h-screen bg-bone-light text-appleDark font-sans selection:bg-appleDark selection:text-white antialiased">
+<div class="min-h-screen bg-soft-bg text-soft-dark font-sans selection:bg-soft-dark selection:text-white antialiased">
     <div class="grid min-h-screen lg:grid-cols-[16rem_1fr]">
         {{-- SIDEBAR --}}
-        <aside class="border-b border-bone-dark bg-white/85 backdrop-blur lg:border-b-0 lg:border-r">
+        <aside class="border-b border-soft-border bg-white/85 backdrop-blur lg:border-b-0 lg:border-r">
             <div class="flex items-center justify-between gap-4 px-5 py-4 lg:block lg:px-6 lg:py-6">
                 <x-title role="siswa"/>
                 <form method="POST" action="{{ route('siswa.logout') }}" class="lg:hidden">
@@ -63,11 +63,11 @@
 
             <nav class="flex gap-2 overflow-x-auto px-4 pb-4 lg:flex-col lg:overflow-visible lg:px-4 lg:pb-0">
                 @foreach($navItems as $tab => $item)
-                    <a href="{{ route('siswa.dashboard', ['tab' => $tab]) }}"
+                    <a wire:navigate href="{{ route('siswa.dashboard', ['tab' => $tab]) }}"
                        @class([
                            'flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
-                           'bg-appleDark text-white shadow-md shadow-appleDark/20' => $currentTab === $tab,
-                           'text-appleMuted hover:bg-bone hover:text-appleDark' => $currentTab !== $tab,
+                           'bg-gradient-to-r from-pastel-biru to-pastel-ungu text-soft-dark shadow-md' => $currentTab === $tab,
+                           'text-soft-muted hover:bg-soft-bg hover:text-soft-dark' => $currentTab !== $tab,
                        ])>
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
                             <path d="{{ $item['icon'] }}" />
@@ -78,9 +78,9 @@
             </nav>
 
             <div class="mt-auto hidden p-4 lg:block">
-                <div class="mb-4 rounded-2xl bg-bone p-4 ring-1 ring-bone-dark/50">
+                <div class="mb-4 rounded-2xl bg-soft-bg p-4 ring-1 ring-soft-border">
                     <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-appleDark text-xs font-bold text-white ring-4 ring-white">{{ $initials }}</div>
+                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-xs font-bold text-soft-dark ring-4 ring-white">{{ $initials }}</div>
                         <div class="min-w-0">
                             <p class="truncate text-sm font-bold">{{ $profile['nama'] ?? 'Mahasiswa' }}</p>
                             <p class="text-[11px] {{ $mutedClass }}">{{ $profile['nim'] ?? '-' }}</p>
@@ -96,14 +96,14 @@
 
         {{-- MAIN CONTENT --}}
         <main class="min-w-0">
-            <header class="sticky top-0 z-10 border-b border-bone-dark bg-bone-light/90 px-5 py-4 backdrop-blur lg:px-8">
+            <header class="sticky top-0 z-10 border-b border-soft-border bg-soft-bg/90 px-5 py-4 backdrop-blur lg:px-8">
                 <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight">{{ $pageTitle }}</h1>
                         <p class="mt-1 text-sm {{ $mutedClass }}">{{ $pageDescription }}</p>
                     </div>
-                    <div class="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 ring-bone-dark">
-                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-appleDark text-xs font-bold text-white">{{ $initials }}</div>
+                    <div class="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 ring-soft-border">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-xs font-bold text-soft-dark">{{ $initials }}</div>
                         <div class="min-w-0">
                             <p class="truncate text-xs font-bold">{{ $profile['nama'] ?? 'Mahasiswa' }}</p>
                             <p class="text-[10px] {{ $mutedClass }}">Semester {{ $profile['semester'] ?? '-' }} · {{ $profile['prodi'] ?? '-' }}</p>
@@ -117,12 +117,12 @@
                 {{-- DASHBOARD TAB --}}
                 @if($currentTab === 'dashboard')
                     @if(in_array($status, [BebanCalculator::HEAVY, BebanCalculator::OVERLOAD], true))
-                        <section class="rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-white p-4 shadow-sm">
+                        <section class="rounded-2xl border border-pastel-kuning bg-gradient-to-r from-pastel-kuning to-white p-4 shadow-sm">
                             <div class="flex gap-3">
-                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-appleOrange shadow-sm ring-1 ring-orange-100">!</div>
+                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-pastel-ungu shadow-sm ring-1 ring-pastel-kuning">!</div>
                                 <div>
                                     <h2 class="text-sm font-bold">Beban Akademik {{ $status === BebanCalculator::OVERLOAD ? 'Overload' : 'Tinggi' }}</h2>
-                                    <p class="mt-1 text-xs text-appleDark/70">Prioritaskan deadline terdekat dan kurangi penumpukan tugas minggu ini.</p>
+                                    <p class="mt-1 text-xs text-soft-dark/70">Prioritaskan deadline terdekat dan kurangi penumpukan tugas minggu ini.</p>
                                 </div>
                             </div>
                         </section>
@@ -130,12 +130,12 @@
 
                     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         @foreach([
-                            ['Total SKS Aktif', $profile['sks_semester'] ?? 0, 'text-appleDark', 'SKS semester ini'],
-                            ['Tugas Pekan Fokus', $data['weekly_task_count'] ?? 0, 'text-appleDark', $data['workload_week_label'] ?? 'deadline aktif'],
-                            ['Deadline 3 Hari', $data['deadline_terdekat'] ?? 0, 'text-appleOrange', 'perlu dipantau'],
-                            ['Status Beban', $data['status_beban_label'] ?? '-', $data['status_beban_color'] ?? 'text-appleDark', $data['workload_week_label'] ?? 'pekan berjalan'],
+                            ['Total SKS Aktif', $profile['sks_semester'] ?? 0, 'text-soft-dark', 'SKS semester ini'],
+                            ['Tugas On Going', $data['weekly_task_count'] ?? 0, 'text-soft-dark', $data['workload_week_label'] ?? 'deadline aktif'],
+                            ['Deadline 3 Hari', $data['deadline_terdekat'] ?? 0, 'text-pastel-ungu', 'perlu dipantau'],
+                            ['Status Beban', $data['status_beban_label'] ?? '-', $data['status_beban_color'] ?? 'text-soft-dark', $data['workload_week_label'] ?? 'pekan berjalan'],
                         ] as [$label, $value, $color, $caption])
-                            <div class="{{ $cardClass }} p-5 hover:shadow-lg hover:-translate-y-1">
+                            <div class="{{ $cardClass }} p-5 hover:shadow-lg hover:-translate-y-1 hover:border-pastel-biru">
                                 <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $label }}</p>
                                 <p class="mt-3 text-3xl font-bold tracking-tight {{ $color }}">{{ $value }}</p>
                                 <p class="mt-1 text-[11px] {{ $mutedClass }}">{{ $caption }}</p>
@@ -150,14 +150,14 @@
                                     <h2 class="text-sm font-bold">Distribusi Beban Mingguan</h2>
                                     <p class="mt-1 text-xs {{ $mutedClass }}">{{ $data['workload_week_label'] ?? 'Pekan berjalan' }} · jumlah tugas berdasarkan hari deadline.</p>
                                 </div>
-                                <span class="rounded-full bg-bone px-3 py-1 text-xs font-bold {{ $mutedClass }} ring-1 ring-bone-dark/50">{{ $data['weekly_task_count'] ?? 0 }} tugas</span>
+                                <span class="rounded-full bg-soft-bg px-3 py-1 text-xs font-bold {{ $mutedClass }} ring-1 ring-soft-border">{{ $data['weekly_task_count'] ?? 0 }} tugas</span>
                             </div>
                             @php $maxDaily = max(1, collect($data['daily_workload'] ?? [])->max('count') ?? 1); @endphp
-                            <div class="flex h-52 items-end gap-3 border-b border-bone-dark pb-3">
+                            <div class="flex h-52 items-end gap-3 border-b border-soft-border pb-3">
                                 @foreach($data['daily_workload'] ?? [] as $day)
                                     @php $height = max(8, ((int) ($day['count'] ?? 0) / $maxDaily) * 100); @endphp
                                     <div class="flex min-w-0 flex-1 flex-col items-center gap-2 group">
-                                        <div class="flex h-40 w-full items-end rounded-xl bg-bone-light px-1 transition-colors group-hover:bg-bone">
+                                        <div class="flex h-40 w-full items-end rounded-xl bg-soft-bg-light px-1 transition-colors group-hover:bg-soft-bg">
                                             <div class="w-full rounded-lg transition-all duration-500" style="height: {{ $height }}%; background-color: {{ $day['color'] ?? '#ccc' }}"></div>
                                         </div>
                                         <span class="text-[11px] font-bold {{ $mutedClass }}">{{ $day['day'] ?? '-' }}</span>
@@ -171,18 +171,18 @@
                             <h2 class="text-sm font-bold">Tugas Mendatang</h2>
                             <div class="mt-4 space-y-3">
                                 @forelse($data['tugas_mendatang'] ?? [] as $tugas)
-                                    <div class="rounded-xl border border-bone-dark p-3 hover:bg-bone-light/50 transition-colors">
+                                    <div class="rounded-xl border border-soft-border p-3 hover:bg-soft-bg-light/50 transition-colors">
                                         <div class="flex items-start justify-between gap-3">
                                             <div class="min-w-0">
                                                 <p class="truncate text-sm font-bold">{{ $tugas['judul'] ?? 'Tugas' }}</p>
                                                 <p class="mt-1 text-xs {{ $mutedClass }}">{{ $tugas['matkul'] ?? '-' }}</p>
                                             </div>
-                                            <span class="shrink-0 rounded-full bg-bone px-2 py-1 text-[10px] font-bold {{ $mutedClass }} ring-1 ring-bone-dark/50">{{ $tugas['sisa'] ?? '-' }}</span>
+                                            <span class="shrink-0 rounded-full bg-soft-bg px-2 py-1 text-[10px] font-bold {{ $mutedClass }} ring-1 ring-soft-border">{{ $tugas['sisa'] ?? '-' }}</span>
                                         </div>
                                         <p class="mt-2 text-[11px] {{ $mutedClass }}">{{ $tugas['deadline'] ?? '-' }} · {{ $tugas['jam'] ?? '-' }}</p>
                                     </div>
                                 @empty
-                                    <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Belum ada tugas mendatang.</p>
+                                    <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Belum ada tugas mendatang.</p>
                                 @endforelse
                             </div>
                         </div>
@@ -198,11 +198,11 @@
                                 {{-- BULLETPROOF: Tambahkan ?: now() agar tidak error jika tanggal null/kosong --}}
                                 <h2 class="text-sm font-bold">{{ Carbon::parse($data['month_start'] ?: now())->translatedFormat('F Y') }}</h2>
                                 <div class="flex gap-2">
-                                    <a href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => $data['calendar_previous']['month'] ?? now()->month, 'year' => $data['calendar_previous']['year'] ?? now()->year]) }}" class="rounded-full border border-bone-dark px-3 py-1 text-sm font-bold hover:bg-bone transition">‹</a>
-                                    <a href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => $data['calendar_next']['month'] ?? now()->month, 'year' => $data['calendar_next']['year'] ?? now()->year]) }}" class="rounded-full border border-bone-dark px-3 py-1 text-sm font-bold hover:bg-bone transition">›</a>
+                                    <a wire:navigate href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => $data['calendar_previous']['month'] ?? now()->month, 'year' => $data['calendar_previous']['year'] ?? now()->year]) }}" class="rounded-full border border-soft-border px-3 py-1 text-sm font-bold hover:bg-soft-bg transition">‹</a>
+                                    <a wire:navigate href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => $data['calendar_next']['month'] ?? now()->month, 'year' => $data['calendar_next']['year'] ?? now()->year]) }}" class="rounded-full border border-soft-border px-3 py-1 text-sm font-bold hover:bg-soft-bg transition">›</a>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-7 border-b border-bone-dark pb-3 text-center text-[11px] font-bold uppercase {{ $mutedClass }}">
+                            <div class="grid grid-cols-7 border-b border-soft-border pb-3 text-center text-[11px] font-bold uppercase {{ $mutedClass }}">
                                 <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
                             </div>
                             <div class="mt-3 grid grid-cols-7 gap-2 text-xs">
@@ -212,7 +212,7 @@
                                     $emptyCells = $monthStart->dayOfWeekIso === 7 ? 0 : $monthStart->dayOfWeekIso;
                                 @endphp
                                 @for($i = 0; $i < $emptyCells; $i++)
-                                    <div class="min-h-16 rounded-xl bg-bone-light/40 hover:bg-bone-light transition-colors"></div>
+                                    <div class="min-h-16 rounded-xl bg-soft-bg-light/40 hover:bg-soft-bg-light transition-colors"></div>
                                 @endfor
                                 @for($day = 1; $day <= $daysInMonth; $day++)
                                     @php
@@ -224,13 +224,13 @@
                                             BebanCalculator::NORMAL   => 'bg-amber-50 border-amber-200 hover:bg-amber-100',
                                             BebanCalculator::HEAVY    => 'bg-red-50 border-red-200 hover:bg-red-100',
                                             BebanCalculator::OVERLOAD => 'bg-red-100 border-red-300 hover:bg-red-200',
-                                            default                   => 'bg-bone-light border-bone-dark hover:bg-bone',
+                                            default                   => 'bg-soft-bg-light border-soft-border hover:bg-soft-bg',
                                         };
                                     @endphp
-                                    <a href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => $monthStart->month, 'year' => $monthStart->year, 'day' => $day]) }}"
+                                    <a wire:navigate href="{{ route('siswa.dashboard', ['tab' => 'calendar', 'month' => $monthStart->month, 'year' => $monthStart->year, 'day' => $day]) }}"
                                        @class([
                                            $colorClass,
-                                           'ring-2 ring-appleDark ring-offset-2' => ($data['selected_day'] ?? null) === $day,
+                                           'ring-2 ring-pastel-biru ring-offset-2' => ($data['selected_day'] ?? null) === $day,
                                            'flex min-h-16 flex-col justify-between rounded-xl border p-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm',
                                        ])>
                                         <span class="font-bold">{{ $day }}</span>
@@ -249,18 +249,18 @@
                                 @forelse($data['selected_day_tasks'] ?? [] as $task)
                                     <div class="flex gap-3">
                                         <span class="w-12 shrink-0 font-mono text-[11px] {{ $mutedClass }}">{{ $task['jam'] ?? '-' }}</span>
-                                        <div class="border-l-2 border-appleDark/20 pl-3">
+                                        <div class="border-l-2 border-pastel-biru/40 pl-3">
                                             <p class="text-sm font-bold">{{ $task['judul'] ?? 'Deadline' }}</p>
                                             <p class="mt-1 text-xs {{ $mutedClass }}">{{ $task['matkul'] ?? '-' }}</p>
                                         </div>
                                     </div>
                                 @empty
-                                    <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Tidak ada deadline pada tanggal ini.</p>
+                                    <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Tidak ada deadline pada tanggal ini.</p>
                                 @endforelse
                             </div>
 
                             @if(!empty($data['tugas_terlambat']))
-                                <div class="mt-6 border-t border-bone-dark pt-4">
+                                <div class="mt-6 border-t border-soft-border pt-4">
                                     <div class="flex items-center justify-between">
                                         <h3 class="text-sm font-bold text-appleRed">Tugas Terlambat</h3>
                                         <span class="rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold text-appleRed ring-1 ring-red-100">
@@ -287,11 +287,12 @@
 
                 {{-- MONITORING TAB --}}
                 @if($currentTab === 'monitoring')
-                    <section class="grid gap-4 md:grid-cols-3">
+                    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         @foreach([
-                            ['SKS Aktif', ($profile['sks_semester'] ?? 0) . ' SKS', 'Semester ' . ($profile['semester'] ?? '-'), 'text-appleDark'],
-                            ['SKS Lulus', ($profile['sks_lulus'] ?? 0) . ' SKS', 'Total akumulatif', 'text-appleGreen'],
-                            ['IPK Kumulatif', $ipkKumulatif, $ipkCaption, 'text-appleDark'],
+                            ['SKS Aktif', ($profile['sks_semester'] ?? 0) . ' SKS', 'Semester ' . ($profile['semester'] ?? '-'), 'text-soft-dark'],
+                            ['SKS Lulus', ($profile['sks_lulus'] ?? 0) . ' SKS', 'Total akumulatif', 'text-pastel-hijau-atas'],
+                            ['IPK Kumulatif', $ipkKumulatif, $ipkCaption, 'text-soft-dark'],
+                            ['Sisa SKS', (isset($profile['prediksi_lulus']['sisa_sks']) ? $profile['prediksi_lulus']['sisa_sks'] : max(0, 144 - ($profile['sks_lulus'] ?? 0))) . ' SKS', 'Sisa ' . (isset($profile['prediksi_lulus']['sisa_semester']) ? $profile['prediksi_lulus']['sisa_semester'] : max(0, 8 - ($profile['semester'] ?? 1))) . ' semester. Semangat!', 'text-pastel-ungu'],
                         ] as [$label, $value, $caption, $color])
                             <div class="{{ $cardClass }} p-5 hover:shadow-lg hover:-translate-y-1">
                                 <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $label }}</p>
@@ -302,12 +303,12 @@
                     </section>
 
                     <section class="{{ $cardClass }} overflow-hidden hover:shadow-lg">
-                        <div class="border-b border-bone-dark p-5">
+                        <div class="border-b border-soft-border p-5">
                             <h2 class="text-sm font-bold">Mata Kuliah Semester Ini</h2>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full min-w-[760px] text-left text-sm">
-                                <thead class="bg-bone text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">
+                                <thead class="bg-soft-bg text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">
                                     <tr>
                                         <th class="px-5 py-3">Mata Kuliah</th>
                                         <th class="px-5 py-3 text-center">SKS</th>
@@ -317,13 +318,16 @@
                                         <th class="px-5 py-3 text-center">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-bone-dark/70">
+                                <tbody class="divide-y divide-soft-border/70">
                                     @forelse($data['matakuliah'] ?? [] as $mk)
-                                        <tr class="hover:bg-bone-light/70 transition-colors">
+                                        <tr class="hover:bg-soft-bg-light/70 transition-colors">
                                             {{-- BULLETPROOF: Tambahkan ?? untuk semua key database --}}
                                             <td class="px-5 py-4">
                                                 <p class="font-bold">{{ $mk['nama'] ?? 'Mata Kuliah' }}</p>
                                                 <p class="mt-1 text-xs {{ $mutedClass }}">{{ $mk['kode'] ?? '-' }}</p>
+                                                @if(!empty($mk['hari']))
+                                                    <p class="mt-1 text-xs {{ $mutedClass }}">{{ $mk['hari'] }}, {{ \Illuminate\Support\Str::substr($mk['jam_mulai'] ?? '', 0, 5) }} - {{ \Illuminate\Support\Str::substr($mk['jam_selesai'] ?? '', 0, 5) }}</p>
+                                                @endif
                                                 @if(!empty($mk['tugas_nilai']))
                                                     <div class="mt-2 space-y-1">
                                                         @foreach($mk['tugas_nilai'] as $tugas)
@@ -362,7 +366,7 @@
                                     <p class="mt-1 text-xs {{ $mutedClass }}">Berdasarkan beban tugas dan performa akademik.</p>
                                 </div>
                                 <div class="text-left sm:text-right">
-                                    <p class="text-4xl font-bold tracking-tight text-appleOrange">{{ $data['risk_score'] ?? 0 }}%</p>
+                                    <p class="text-4xl font-bold tracking-tight text-pastel-ungu">{{ $data['risk_score'] ?? 0 }}%</p>
                                     <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Risiko</p>
                                 </div>
                             </div>
@@ -372,22 +376,22 @@
                                 </div>
                             </div>
                             <div class="mt-5 grid gap-3 sm:grid-cols-3">
-                                <div class="rounded-xl border border-green-100 bg-green-50 p-3"><p class="text-xs font-bold text-appleGreen">Aman</p><p class="text-[11px] {{ $mutedClass }}">0-40%</p></div>
-                                <div class="rounded-xl border border-orange-100 bg-orange-50 p-3"><p class="text-xs font-bold text-appleOrange">Perlu Perhatian</p><p class="text-[11px] {{ $mutedClass }}">40-70%</p></div>
-                                <div class="rounded-xl border border-red-100 bg-red-50 p-3"><p class="text-xs font-bold text-appleRed">Risiko Tinggi</p><p class="text-[11px] {{ $mutedClass }}">70-100%</p></div>
+                                <div class="rounded-xl border border-green-100 bg-green-50 p-3"><p class="text-xs font-bold text-pastel-hijau-atas">Aman</p><p class="text-[11px] {{ $mutedClass }}">0-40%</p><p class="mt-1 text-[11px] {{ $mutedClass }}">Anda tidak perlu cemas, beban masih dalam batas wajar untuk jadwal Anda saat ini.</p></div>
+                                <div class="rounded-xl border border-orange-100 bg-orange-50 p-3"><p class="text-xs font-bold text-pastel-ungu">Perlu Perhatian</p><p class="text-[11px] {{ $mutedClass }}">40-70%</p><p class="mt-1 text-[11px] {{ $mutedClass }}">Mulai atur waktu dari sekarang. Cicil tugas sedikit demi sedikit agar tidak menumpuk di akhir minggu.</p></div>
+                                <div class="rounded-xl border border-red-100 bg-red-50 p-3"><p class="text-xs font-bold text-appleRed">Risiko Tinggi</p><p class="text-[11px] {{ $mutedClass }}">70-100%</p><p class="mt-1 text-[11px] {{ $mutedClass }}">Prioritaskan kesehatanmu, kurangi kegiatan di luar jika memungkinkan, dan selesaikan tugas yang paling mendesak terlebih dahulu.</p></div>
                             </div>
                         </div>
 
-                        <div class="rounded-2xl bg-appleDark p-6 text-white shadow-lg shadow-appleDark/20">
+                        <div class="rounded-2xl bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah p-6 text-soft-dark shadow-lg">
                             <h2 class="text-sm font-bold">Rekomendasi Akademik</h2>
                             <div class="mt-4 space-y-3 text-sm">
-                                <div class="rounded-xl bg-white/10 p-4 backdrop-blur-sm ring-1 ring-white/20">
-                                    <p class="font-bold text-appleOrange">SKS Semester Depan</p>
-                                    <p class="mt-1 text-xs text-white/75">Disarankan mengambil maksimal {{ $data['sks_recommendation']['sks'] ?? 24 }} SKS. {{ $data['sks_recommendation']['reason'] ?? '' }}</p>
+                                <div class="rounded-xl bg-white/30 p-4 backdrop-blur-sm ring-1 ring-white/40">
+                                    <p class="font-bold text-pastel-ungu">SKS Semester Depan</p>
+                                    <p class="mt-1 text-xs text-soft-dark/75">Disarankan mengambil maksimal {{ $data['sks_recommendation']['sks'] ?? 24 }} SKS. {{ $data['sks_recommendation']['reason'] ?? '' }}</p>
                                 </div>
-                                <div class="rounded-xl bg-white/10 p-4 backdrop-blur-sm ring-1 ring-white/20">
+                                <div class="rounded-xl bg-white/30 p-4 backdrop-blur-sm ring-1 ring-white/40">
                                     <p class="font-bold">Prioritas Fokus</p>
-                                    <p class="mt-1 text-xs text-white/75">
+                                    <p class="mt-1 text-xs text-soft-dark/75">
                                         @if(($data['risk_score'] ?? 0) >= 70)
                                             Kurangi penumpukan deadline dan konsultasikan beban dengan dosen PA.
                                         @elseif(($data['risk_score'] ?? 0) >= 40)
@@ -487,7 +491,7 @@
                                     </svg>
                                 </div>
                             @else
-                                <p class="mt-4 rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Belum ada riwayat IPK.</p>
+                                <p class="mt-4 rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Belum ada riwayat IPK.</p>
                             @endif
                         </div>
 
@@ -500,10 +504,10 @@
                                             <span class="font-bold">{{ $skill['nama'] ?? 'Kompetensi' }}</span>
                                             <span class="{{ $mutedClass }}">{{ $skill['label'] ?? '-' }} · {{ $skill['score'] ?? 0 }}</span>
                                         </div>
-                                        <div class="mt-2 h-2 overflow-hidden rounded-full bg-bone"><div class="h-full rounded-full bg-blue-500 transition-all duration-500" style="width: {{ min(100, max(0, (int) ($skill['score'] ?? 0))) }}%"></div></div>
+                                        <div class="mt-2 h-2 overflow-hidden rounded-full bg-soft-bg"><div class="h-full rounded-full bg-blue-500 transition-all duration-500" style="width: {{ min(100, max(0, (int) ($skill['score'] ?? 0))) }}%"></div></div>
                                     </div>
                                 @empty
-                                    <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Belum ada nilai tugas yang bisa dihitung menjadi kompetensi.</p>
+                                    <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Belum ada nilai tugas yang bisa dihitung menjadi kompetensi.</p>
                                 @endforelse
                             </div>
                         </div>
@@ -512,17 +516,17 @@
 
                 {{-- NOTIFICATIONS TAB --}}
                 @if($currentTab === 'notifications')
-                    <section class="{{ $cardClass }} divide-y divide-bone-dark/70 overflow-hidden hover:shadow-lg">
+                    <section class="{{ $cardClass }} divide-y divide-soft-border/70 overflow-hidden hover:shadow-lg">
                         @forelse($data['notifikasi'] ?? [] as $notif)
                             @php
                                 $borderColor = match($notif['tipe'] ?? '') {
                                     'peringatan' => 'border-appleRed',
-                                    'pengingat'  => 'border-appleOrange',
-                                    'sukses'     => 'border-appleGreen',
-                                    default      => 'border-blue-500',
+                                    'pengingat'  => 'border-pastel-ungu',
+                                    'sukses'     => 'border-pastel-hijau-atas',
+                                    default      => 'border-pastel-biru',
                                 };
                             @endphp
-                            <div class="flex gap-4 p-5 hover:bg-bone-light/70 border-l-4 {{ $borderColor }} transition-colors">
+                            <div class="flex gap-4 p-5 hover:bg-soft-bg-light/70 border-l-4 {{ $borderColor }} transition-colors">
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">
                                         <h2 class="text-sm font-bold">{{ $notif['judul'] ?? 'Notifikasi' }}</h2>
@@ -553,11 +557,11 @@
                             <h2 class="text-sm font-bold text-gray-700">Pilih Mata Kuliah</h2>
                             <div class="mt-4 space-y-3">
                                 @forelse($data['tugas_tab'] ?? [] as $mk)
-                                    <a href="{{ route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $mk['mk_id']]) }}"
-                                       class="flex items-center justify-between gap-4 rounded-xl border border-bone-dark bg-white px-5 py-4 transition hover:border-indigo-400 hover:shadow-sm">
+                                    <a wire:navigate href="{{ route('siswa.dashboard', ['tab' => 'tugas', 'mk' => $mk['mk_id']]) }}"
+                                       class="flex items-center justify-between gap-4 rounded-xl border border-soft-border bg-white px-5 py-4 transition hover:border-indigo-400 hover:shadow-sm">
                                         <div class="min-w-0">
                                             <p class="text-xs font-bold uppercase tracking-widest text-indigo-600">{{ $mk['kode'] }}</p>
-                                            <p class="mt-0.5 truncate text-sm font-semibold text-appleDark">{{ $mk['nama'] }}</p>
+                                            <p class="mt-0.5 truncate text-sm font-semibold text-soft-dark">{{ $mk['nama'] }}</p>
                                         </div>
                                         @php $pending = collect($mk['tugas'])->where('submitted', false)->count(); @endphp
                                         @if($pending > 0)
@@ -569,7 +573,7 @@
                                         @endif
                                     </a>
                                 @empty
-                                    <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Tidak ada mata kuliah aktif.</p>
+                                    <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Tidak ada mata kuliah aktif.</p>
                                 @endforelse
                             </div>
                         </section>
@@ -580,7 +584,7 @@
                             <p class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">Mata kuliah tidak ditemukan.</p>
                         @else
                             <div class="flex items-center gap-3">
-                                <a href="{{ route('siswa.dashboard', ['tab' => 'tugas']) }}"
+                                <a wire:navigate href="{{ route('siswa.dashboard', ['tab' => 'tugas']) }}"
                                    class="text-xs text-indigo-600 hover:underline">← Semua Kelas</a>
                                 <span class="text-gray-300">|</span>
                                 <span class="text-sm font-semibold">{{ $currentMk['kode'] }} — {{ $currentMk['nama'] }}</span>
@@ -589,20 +593,20 @@
                             <section class="space-y-4">
                                 @forelse($currentMk['tugas'] as $tugas)
                                     @php
-                                        $deadline = Carbon::parse($tugas['deadline']);
+                                        $deadline = Carbon::parse($tugas['deadline'] ?? now());
                                         $isLate = now()->gt($deadline) && !$tugas['submitted'];
                                     @endphp
-                                    <div class="rounded-xl border {{ $tugas['submitted'] ? 'border-green-200 bg-green-50' : ($isLate ? 'border-red-200 bg-red-50' : 'border-bone-dark bg-white') }} p-5">
+                                    <div class="rounded-xl border {{ $tugas['submitted'] ? 'border-green-200 bg-green-50' : ($isLate ? 'border-red-200 bg-red-50' : 'border-soft-border bg-white') }} p-5">
                                         <div class="flex items-start justify-between gap-4">
                                             <div class="min-w-0">
-                                                <p class="text-sm font-semibold text-appleDark">{{ $tugas['nama'] }}</p>
+                                                <p class="text-sm font-semibold text-soft-dark">{{ $tugas['nama'] }}</p>
                                                 <p class="mt-0.5 text-xs {{ $mutedClass }}">
                                                     Deadline: {{ $deadline->translatedFormat('d M Y, H:i') }}
                                                     · Bobot: {{ $tugas['bobot'] }}%
                                                 </p>
                                                 @if($tugas['submitted'])
                                                     <p class="mt-1 text-xs font-medium {{ $tugas['status'] === 'late' ? 'text-orange-600' : 'text-green-700' }}">
-                                                        ✓ Dikumpulkan {{ Carbon::parse($tugas['submitted_at'])->translatedFormat('d M Y, H:i') }}
+                                                        ✓ Dikumpulkan {{ Carbon::parse($tugas['submitted_at'] ?? now())->translatedFormat('d M Y, H:i') }}
                                                         {{ $tugas['status'] === 'late' ? '(Terlambat)' : '' }}
                                                     </p>
                                                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -630,7 +634,7 @@
                                             @csrf
                                             <input type="hidden" name="task_id" value="{{ $tugas['id'] }}">
                                             <input type="file" name="file" accept=".pdf,application/pdf" required
-                                                   class="block min-w-0 w-full rounded-xl border border-bone-dark bg-white px-3 py-2 text-xs text-gray-600
+                                                   class="block min-w-0 w-full rounded-xl border border-soft-border bg-white px-3 py-2 text-xs text-gray-600
                                                           file:mr-3 file:rounded-lg file:border-0
                                                           file:bg-indigo-50 file:px-3 file:py-1.5
                                                           file:text-xs file:font-medium file:text-indigo-700
@@ -647,7 +651,7 @@
                                         </form>
                                     </div>
                                 @empty
-                                    <p class="rounded-xl bg-bone p-4 text-sm {{ $mutedClass }} text-center">Belum ada tugas di mata kuliah ini.</p>
+                                    <p class="rounded-xl bg-soft-bg p-4 text-sm {{ $mutedClass }} text-center">Belum ada tugas di mata kuliah ini.</p>
                                 @endforelse
                             </section>
                         @endif
@@ -658,10 +662,10 @@
                 @if($currentTab === 'profile')
                     <section class="grid gap-6 lg:grid-cols-[.85fr_1.35fr]">
                         <div class="{{ $cardClass }} p-6 text-center hover:shadow-lg">
-                            <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-appleDark text-2xl font-bold text-white ring-4 ring-bone-light">{{ $initials }}</div>
+                            <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-2xl font-bold text-soft-dark ring-4 ring-soft-bg">{{ $initials }}</div>
                             <h2 class="mt-4 text-lg font-bold tracking-tight">{{ $profile['nama'] ?? 'Mahasiswa' }}</h2>
                             <p class="mt-1 text-sm {{ $mutedClass }}">NIM: {{ $profile['nim'] ?? '-' }}</p>
-                            <div class="mt-6 space-y-3 border-t border-bone-dark pt-5 text-left text-sm">
+                            <div class="mt-6 space-y-3 border-t border-soft-border pt-5 text-left text-sm">
                                 @foreach([
                                     ['Program Studi', $profile['prodi'] ?? '-', ''],
                                     ['Email', $profile['email'] ?? '-', 'break-words'],
@@ -672,17 +676,6 @@
                                         <p class="mt-1 font-semibold {{ $class }}">{{ $value }}</p>
                                     </div>
                                 @endforeach
-                                @if(!empty($profile['prediksi_lulus']))
-                                    <div>
-                                        <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Prediksi Lulus</p>
-                                        <p class="mt-1 font-semibold">
-                                            Semester {{ $profile['prediksi_lulus']['prediksi_semester'] }}
-                                            <span class="block text-xs font-medium {{ $mutedClass }}">
-                                                Sisa {{ $profile['prediksi_lulus']['sisa_semester'] }} semester · {{ $profile['prediksi_lulus']['sisa_sks'] }} SKS
-                                            </span>
-                                        </p>
-                                    </div>
-                                @endif
                             </div>
                         </div>
 
@@ -696,14 +689,14 @@
                                         ['SKS Kontrak', $profile['sks_semester'] ?? 0],
                                         ['Semester', $profile['semester'] ?? '-'],
                                     ] as [$label, $value])
-                                        <div class="rounded-xl bg-bone p-4 text-center ring-1 ring-bone-dark/50">
+                                        <div class="rounded-xl bg-soft-bg p-4 text-center ring-1 ring-soft-border">
                                             <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $label }}</p>
                                             <p class="mt-1 text-lg font-bold tracking-tight">{{ $value }}</p>
                                         </div>
                                     @endforeach
                                 </div>
-                                <div class="mt-5 flex items-center gap-3 border-t border-bone-dark pt-5">
-                                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-bone text-xs font-bold {{ $mutedClass }} ring-1 ring-bone-dark/50">PA</div>
+                                <div class="mt-5 flex items-center gap-3 border-t border-soft-border pt-5">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-soft-bg text-xs font-bold {{ $mutedClass }} ring-1 ring-soft-border">PA</div>
                                     <div>
                                         <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Dosen Pembimbing Akademik</p>
                                         <p class="mt-1 text-sm font-bold">{{ $profile['dosen_pa'] ?? '-' }}</p>
@@ -713,7 +706,7 @@
 
                             <div class="{{ $cardClass }} p-6 hover:shadow-lg">
                                 <h2 class="text-sm font-bold">Status Akun</h2>
-                                <div class="mt-4 divide-y divide-bone-dark text-sm">
+                                <div class="mt-4 divide-y divide-soft-border text-sm">
                                     @foreach([
                                         ['Role', 'Siswa'],
                                         ['Status Akademik', 'Aktif'],

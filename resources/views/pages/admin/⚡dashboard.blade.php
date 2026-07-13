@@ -2,10 +2,10 @@
 
 @section('content')
 @php
-    $cardClass = 'bg-white border border-bone-dark rounded-2xl shadow-sm transition-all duration-300';
-    $mutedClass = 'text-appleMuted';
-    $inputClass = 'w-full rounded-xl border border-bone-dark bg-white px-3 py-2 text-sm focus:border-appleDark focus:outline-none';
-    $btnPrimary = 'rounded-xl bg-appleDark px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-appleDark/20 hover:opacity-90 transition';
+    $cardClass = 'bg-white border border-soft-border rounded-2xl shadow-sm transition-all duration-300 animate-fade-in-up';
+    $mutedClass = 'text-soft-muted';
+    $inputClass = 'w-full rounded-xl border border-soft-border bg-white px-3 py-2 text-sm focus:border-pastel-biru focus:outline-none';
+    $btnPrimary = 'rounded-xl bg-gradient-to-r from-pastel-hijau-atas to-pastel-hijau-bawah px-4 py-2 text-sm font-semibold text-soft-dark hover:opacity-90 transition';
 
     $fieldValue = function ($record, string $field, array $fieldConfig) use ($options) {
         $value = $record->{$field};
@@ -44,11 +44,11 @@
     }
 </script>
 
-<div class="min-h-screen bg-bone-light lg:grid lg:grid-cols-[16rem_1fr]">
+<div class="min-h-screen bg-soft-bg lg:grid lg:grid-cols-[16rem_1fr]">
     {{-- ═══ SIDEBAR ═══ --}}
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-bone-dark bg-white/85 backdrop-blur-xl -translate-x-full lg:relative lg:w-auto lg:translate-x-0 transition-transform duration-200">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-soft-border bg-white/85 backdrop-blur-xl -translate-x-full lg:relative lg:w-auto lg:translate-x-0 transition-transform duration-200">
         {{-- Logo --}}
-        <div class="flex h-14 items-center gap-2 border-b border-bone-dark px-5">
+        <div class="flex h-14 items-center gap-2 border-b border-soft-border px-5">
             <x-title role="admin"/>
         </div>
 
@@ -56,25 +56,25 @@
         <nav class="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
             <p class="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest {{ $mutedClass }}">Data Master</p>
             @foreach ($resources as $key => $resource)
-                <a href="{{ route('admin.dashboard', ['resource' => $key]) }}"
+                <a wire:navigate href="{{ route('admin.dashboard', ['resource' => $key]) }}"
                    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors
                           {{ $resourceKey === $key
-                              ? 'bg-appleDark text-white font-semibold shadow-sm shadow-appleDark/20'
-                              : $mutedClass . ' hover:bg-bone hover:text-appleDark' }}">
+                              ? 'bg-pastel-biru text-soft-dark font-semibold shadow-sm'
+                              : $mutedClass . ' hover:bg-soft-bg hover:text-soft-dark' }}">
                     <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="{{ $navIcons[$key] ?? $navIcons['pengaturan'] }}" />
                     </svg>
                     <span class="flex-1 truncate">{{ $resource['label'] }}</span>
-                    <span class="text-xs {{ $resourceKey === $key ? 'text-white/60' : $mutedClass }}">{{ $counts[$key] }}</span>
+                    <span class="text-xs {{ $resourceKey === $key ? 'text-soft-dark/60' : $mutedClass }}">{{ $counts[$key] }}</span>
                 </a>
             @endforeach
 
-            <div class="my-3 border-t border-bone-dark"></div>
-            <a href="{{ route('admin.laporan.index') }}"
+            <div class="my-3 border-t border-soft-border"></div>
+            <a wire:navigate href="{{ route('admin.laporan.index') }}"
                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors
                       {{ $resourceKey === 'laporan'
-                          ? 'bg-appleDark text-white font-semibold shadow-sm shadow-appleDark/20'
-                          : $mutedClass . ' hover:bg-bone hover:text-appleDark' }}">
+                          ? 'bg-pastel-biru text-soft-dark font-semibold shadow-sm'
+                          : $mutedClass . ' hover:bg-soft-bg hover:text-soft-dark' }}">
                 <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="{{ $navIcons['laporan'] }}" />
                 </svg>
@@ -83,13 +83,13 @@
         </nav>
 
         {{-- User + Logout --}}
-        <div class="border-t border-bone-dark px-3 py-3">
-            <div class="flex items-center gap-3 rounded-xl bg-bone px-3 py-2.5">
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-appleDark text-xs font-bold text-white ring-4 ring-white">
+        <div class="border-t border-soft-border px-3 py-3">
+            <div class="flex items-center gap-3 rounded-xl bg-soft-bg px-3 py-2.5">
+                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-xs font-bold text-soft-dark ring-4 ring-white">
                     {{ strtoupper(substr($user->name, 0, 2)) }}
                 </div>
                 <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-semibold text-appleDark">{{ $user->name }}</p>
+                    <p class="truncate text-sm font-semibold text-soft-dark">{{ $user->name }}</p>
                     <p class="truncate text-[11px] {{ $mutedClass }}">Admin</p>
                 </div>
             </div>
@@ -109,16 +109,16 @@
     {{-- ═══ MAIN ═══ --}}
     <main class="flex flex-1 flex-col overflow-y-auto">
         {{-- Sticky Header --}}
-        <header class="sticky top-0 z-20 flex items-center gap-4 border-b border-bone-dark bg-bone-light/90 px-5 py-4 backdrop-blur-lg lg:px-8">
-            <button onclick="toggleSidebar()" class="lg:hidden text-appleDark">
+        <header class="sticky top-0 z-20 flex items-center gap-4 border-b-2 border-pastel-biru bg-soft-bg/90 px-5 py-4 backdrop-blur-lg lg:px-8">
+            <button onclick="toggleSidebar()" class="lg:hidden text-soft-dark">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <div class="min-w-0 flex-1">
-                <h1 class="text-lg font-bold tracking-tight text-appleDark">Dashboard Admin</h1>
+                <h1 class="text-lg font-bold tracking-tight text-soft-dark">Dashboard Admin</h1>
                 <p class="text-xs {{ $mutedClass }}">{{ $config['label'] ?? 'Data Master' }} — Kelola data sistem.</p>
             </div>
             <div class="hidden sm:flex items-center gap-2">
-                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-appleDark text-xs font-bold text-white">
+                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-pastel-hijau-atas to-pastel-hijau-bawah text-xs font-bold text-soft-dark">
                     {{ strtoupper(substr($user->name, 0, 2)) }}
                 </div>
             </div>
@@ -190,7 +190,7 @@
                                 <option value="">Pilih Siswa</option>
                                 @foreach ($options['siswas'] as $siswa)
                                     <option value="{{ $siswa->id }}" @selected((string) old('siswa_id') === (string) $siswa->id)>
-                                        {{ $siswa->name }} @if ($siswa->email ?? null) - {{ $siswa->email }} @endif
+                                        {{ $siswa->name }} @if ($siswa->email ?? null) - {{ $siswa->email }} @endif (Sem {{ $siswa->semester }})
                                     </option>
                                 @endforeach
                             </select>
@@ -222,7 +222,7 @@
                 <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">{{ $editing ? 'Edit' : 'Tambah' }} {{ $config['label'] }}</p>
                     @if ($editing)
-                        <a href="{{ route('admin.dashboard', ['resource' => $resourceKey]) }}" class="text-sm font-semibold text-appleDark hover:underline">Batal edit</a>
+                        <a href="{{ route('admin.dashboard', ['resource' => $resourceKey]) }}" class="text-sm font-semibold text-soft-dark hover:underline">Batal edit</a>
                     @endif
                 </div>
 
@@ -250,8 +250,8 @@
                                 <textarea name="{{ $field }}" rows="3" class="{{ $inputClass }}" {{ ($fieldConfig['required'] ?? false) ? 'required' : '' }}>{{ $inputValue($field) }}</textarea>
                             @elseif (($fieldConfig['type'] ?? null) === 'checkbox')
                                 <input type="hidden" name="{{ $field }}" value="0">
-                                <label class="flex items-center gap-2 rounded-xl border border-bone-dark px-3 py-2 text-sm">
-                                    <input type="checkbox" name="{{ $field }}" value="1" @checked((bool) $inputValue($field)) class="rounded border-bone-dark text-appleDark focus:ring-appleDark">
+                                <label class="flex items-center gap-2 rounded-xl border border-soft-border px-3 py-2 text-sm">
+                                    <input type="checkbox" name="{{ $field }}" value="1" @checked((bool) $inputValue($field)) class="rounded border-soft-border text-soft-dark focus:ring-soft-border">
                                     Aktif
                                 </label>
                             @else
@@ -278,7 +278,7 @@
 
             {{-- Data Listing --}}
             <section class="{{ $cardClass }} overflow-hidden">
-                <div class="border-b border-bone-dark px-5 py-4">
+                <div class="border-b border-soft-border px-5 py-4">
                     <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }}">Daftar {{ $config['label'] }}</p>
                     @if ($resourceKey === 'krs' && $krsGroups)
                         <p class="text-xs {{ $mutedClass }} mt-1">Total {{ $krsGroups->total() }} murid dengan {{ $records->total() }} data KRS.</p>
@@ -290,7 +290,7 @@
                 </div>
 
                 @if ($resourceKey === 'krs' && $krsGroups)
-                    <div class="divide-y divide-bone-dark/70">
+                    <div class="divide-y divide-soft-border/70">
                         @forelse ($krsGroups as $siswa)
                             @php
                                 $krsList = $siswa->krs;
@@ -299,11 +299,11 @@
                                 $semester = $krsList->pluck('semester')->filter()->unique()->sort()->values()->join(', ');
                             @endphp
                             <details class="group">
-                                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-bone-light/70 transition-colors">
+                                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-soft-bg/70 transition-colors">
                                     <div class="min-w-0">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <span class="font-bold text-appleDark">{{ $siswa->name }}</span>
-                                            <span class="rounded-full bg-bone px-2 py-0.5 text-xs font-bold {{ $mutedClass }} ring-1 ring-bone-dark/50">{{ $krsList->count() }} mata kuliah</span>
+                                            <span class="font-bold text-soft-dark">{{ $siswa->name }}</span>
+                                            <span class="rounded-full bg-soft-bg px-2 py-0.5 text-xs font-bold {{ $mutedClass }} ring-1 ring-soft-border">{{ $krsList->count() }} mata kuliah</span>
                                             <span class="rounded-full bg-green-50 px-2 py-0.5 text-xs font-bold text-appleGreen ring-1 ring-green-200">{{ $totalSks }} SKS</span>
                                         </div>
                                         <p class="mt-1 truncate text-xs {{ $mutedClass }}">{{ $siswa->nim ?? '-' }} · Semester {{ $semester ?: '-' }} · {{ $tahunAjaran ?: '-' }}</p>
@@ -312,10 +312,10 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                     </svg>
                                 </summary>
-                                <div class="border-t border-bone-dark bg-bone px-5 py-4">
-                                    <div class="overflow-x-auto rounded-xl border border-bone-dark bg-white">
-                                        <table class="min-w-full divide-y divide-bone-dark/70 text-xs">
-                                            <thead class="bg-bone text-left">
+                                <div class="border-t border-soft-border bg-soft-bg px-5 py-4">
+                                    <div class="overflow-x-auto rounded-xl border border-soft-border bg-white">
+                                        <table class="min-w-full divide-y divide-soft-border/70 text-xs">
+                                            <thead class="bg-soft-bg text-left">
                                                 <tr class="{{ $mutedClass }}">
                                                     <th class="px-4 py-2 font-bold uppercase tracking-widest text-[10px]">Mata Kuliah</th>
                                                     <th class="px-4 py-2 font-bold uppercase tracking-widest text-[10px]">SKS</th>
@@ -325,20 +325,20 @@
                                                     <th class="px-4 py-2 font-bold uppercase tracking-widest text-[10px] text-right">Aksi</th>
                                                 </tr>
                                             </thead>
-                                            <tbody class="divide-y divide-bone-dark/50">
+                                            <tbody class="divide-y divide-soft-border/50">
                                                 @foreach ($krsList as $krs)
-                                                    <tr class="hover:bg-bone-light/70 transition-colors">
+                                                    <tr class="hover:bg-soft-bg/70 transition-colors">
                                                         <td class="px-4 py-2">
-                                                            <span class="font-semibold text-appleDark">{{ $krs->mataKuliah?->nama ?? '-' }}</span>
+                                                            <span class="font-semibold text-soft-dark">{{ $krs->mataKuliah?->nama ?? '-' }}</span>
                                                             <span class="block text-[11px] {{ $mutedClass }}">{{ $krs->mataKuliah?->kode ?? '-' }}</span>
                                                         </td>
-                                                        <td class="px-4 py-2 font-semibold text-appleDark">{{ $krs->mataKuliah?->sks ?? 0 }}</td>
+                                                        <td class="px-4 py-2 font-semibold text-soft-dark">{{ $krs->mataKuliah?->sks ?? 0 }}</td>
                                                         <td class="px-4 py-2 {{ $mutedClass }}">{{ $krs->semester }}</td>
                                                         <td class="px-4 py-2 {{ $mutedClass }}">{{ $krs->tahun_ajaran }}</td>
                                                         <td class="px-4 py-2 {{ $mutedClass }}">{{ $krs->status }}</td>
                                                         <td class="px-4 py-2">
                                                             <div class="flex justify-end gap-2">
-                                                                <a href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $krs->id]) }}" class="rounded-lg border border-bone-dark px-2 py-1 text-[11px] font-semibold text-appleDark hover:bg-bone">Edit</a>
+                                                                <a wire:navigate href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $krs->id]) }}" class="rounded-lg border border-soft-border px-2 py-1 text-[11px] font-semibold text-soft-dark hover:bg-soft-bg">Edit</a>
                                                                 <form method="POST" action="{{ route('admin.resources.destroy', [$resourceKey, $krs->id]) }}" onsubmit="return confirm('Hapus KRS ini?')">
                                                                     @csrf @method('DELETE')
                                                                     <button type="submit" class="rounded-lg border border-appleRed/40 px-2 py-1 text-[11px] font-semibold text-appleRed hover:bg-red-50">Hapus</button>
@@ -356,11 +356,11 @@
                             <p class="px-5 py-8 text-center text-sm {{ $mutedClass }}">Belum ada data.</p>
                         @endforelse
                     </div>
-                    <div class="border-t border-bone-dark px-5 py-4">{{ $krsGroups->links() }}</div>
+                    <div class="border-t border-soft-border px-5 py-4">{{ $krsGroups->links() }}</div>
 
                 @elseif ($resourceKey === 'ipk-history' && $ipkHistoryGroups)
                     {{-- IPK Auto Calculator --}}
-                    <div class="border-b border-bone-dark bg-bone px-5 py-4">
+                    <div class="border-b border-soft-border bg-soft-bg px-5 py-4">
                         <p class="text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-3">Kalkulasi IPK Otomatis dari KRS</p>
                         @if($errors->has('ipk_auto'))
                             <div class="mb-3 rounded-xl border border-appleRed/40 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $errors->first('ipk_auto') }}</div>
@@ -372,19 +372,15 @@
                                 <select name="siswa_id" required class="{{ $inputClass }} sm:w-64">
                                     <option value="">Pilih Siswa...</option>
                                     @foreach($options['siswas'] ?? [] as $s)
-                                        <option value="{{ $s->id }}" {{ old('siswa_id') == $s->id ? 'selected' : '' }}>{{ $s->name }} ({{ $s->nim }})</option>
+                                        <option value="{{ $s->id }}" {{ old('siswa_id') == $s->id ? 'selected' : '' }}>{{ $s->name }} ({{ $s->nim }}) - Sem {{ $s->semester }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="w-full sm:w-auto">
-                                <label class="block text-[11px] font-bold uppercase tracking-widest {{ $mutedClass }} mb-1">Semester</label>
-                                <input type="number" name="semester" min="1" max="14" value="{{ old('semester', 1) }}" required class="{{ $inputClass }} sm:w-24">
-                            </div>
-                            <button type="submit" class="{{ $btnPrimary }} whitespace-nowrap">Hitung & Simpan IPK</button>
+                            <button type="submit" class="{{ $btnPrimary }} whitespace-nowrap">Hitung & Simpan IPK (Naik Semester)</button>
                         </form>
                     </div>
 
-                    <div class="divide-y divide-bone-dark/70">
+                    <div class="divide-y divide-soft-border/70">
                         @forelse ($ipkHistoryGroups as $siswa)
                             @php
                                 $historyList = $siswa->ipkHistory;
@@ -392,11 +388,11 @@
                                 $avgIpk = $historyList->avg('ipk');
                             @endphp
                             <details class="group">
-                                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-bone-light/70 transition-colors">
+                                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-soft-bg/70 transition-colors">
                                     <div class="min-w-0">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <span class="font-bold text-appleDark">{{ $siswa->name }}</span>
-                                            <span class="rounded-full bg-bone px-2 py-0.5 text-xs font-bold {{ $mutedClass }} ring-1 ring-bone-dark/50">{{ $historyList->count() }} semester</span>
+                                            <span class="font-bold text-soft-dark">{{ $siswa->name }}</span>
+                                            <span class="rounded-full bg-soft-bg px-2 py-0.5 text-xs font-bold {{ $mutedClass }} ring-1 ring-soft-border">{{ $historyList->count() }} semester</span>
                                             <span class="rounded-full bg-green-50 px-2 py-0.5 text-xs font-bold text-appleGreen ring-1 ring-green-200">IPK {{ number_format((float) $avgIpk, 2) }}</span>
                                         </div>
                                         <p class="mt-1 truncate text-xs {{ $mutedClass }}">{{ $siswa->nim ?? '-' }} · {{ $totalSks }} SKS total</p>
@@ -405,10 +401,10 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                     </svg>
                                 </summary>
-                                <div class="border-t border-bone-dark bg-bone px-5 py-4">
-                                    <div class="overflow-x-auto rounded-xl border border-bone-dark bg-white">
-                                        <table class="min-w-full divide-y divide-bone-dark/70 text-xs">
-                                            <thead class="bg-bone text-left">
+                                <div class="border-t border-soft-border bg-soft-bg px-5 py-4">
+                                    <div class="overflow-x-auto rounded-xl border border-soft-border bg-white">
+                                        <table class="min-w-full divide-y divide-soft-border/70 text-xs">
+                                            <thead class="bg-soft-bg text-left">
                                                 <tr class="{{ $mutedClass }}">
                                                     <th class="px-4 py-2 font-bold uppercase tracking-widest text-[10px]">Semester</th>
                                                     <th class="px-4 py-2 font-bold uppercase tracking-widest text-[10px]">Tahun Ajaran</th>
@@ -418,17 +414,17 @@
                                                     <th class="px-4 py-2 font-bold uppercase tracking-widest text-[10px] text-right">Aksi</th>
                                                 </tr>
                                             </thead>
-                                            <tbody class="divide-y divide-bone-dark/50">
+                                            <tbody class="divide-y divide-soft-border/50">
                                                 @foreach ($historyList as $history)
-                                                    <tr class="hover:bg-bone-light/70 transition-colors">
-                                                        <td class="px-4 py-2 font-semibold text-appleDark">{{ $history->semester }}</td>
+                                                    <tr class="hover:bg-soft-bg/70 transition-colors">
+                                                        <td class="px-4 py-2 font-semibold text-soft-dark">{{ $history->semester }}</td>
                                                         <td class="px-4 py-2 {{ $mutedClass }}">{{ $history->tahun_ajaran }}</td>
                                                         <td class="px-4 py-2 {{ $mutedClass }}">{{ number_format((float) $history->ipk, 2) }}</td>
                                                         <td class="px-4 py-2 {{ $mutedClass }}">{{ $history->total_sks }}</td>
                                                         <td class="px-4 py-2 {{ $mutedClass }}">{{ $history->rekomendasi_sks ?? '-' }}</td>
                                                         <td class="px-4 py-2">
                                                             <div class="flex justify-end gap-2">
-                                                                <a href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $history->id]) }}" class="rounded-lg border border-bone-dark px-2 py-1 text-[11px] font-semibold text-appleDark hover:bg-bone">Edit</a>
+                                                                <a wire:navigate href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $history->id]) }}" class="rounded-lg border border-soft-border px-2 py-1 text-[11px] font-semibold text-soft-dark hover:bg-soft-bg">Edit</a>
                                                                 <form method="POST" action="{{ route('admin.resources.destroy', [$resourceKey, $history->id]) }}" onsubmit="return confirm('Hapus IPK History ini?')">
                                                                     @csrf @method('DELETE')
                                                                     <button type="submit" class="rounded-lg border border-appleRed/40 px-2 py-1 text-[11px] font-semibold text-appleRed hover:bg-red-50">Hapus</button>
@@ -446,13 +442,13 @@
                             <p class="px-5 py-8 text-center text-sm {{ $mutedClass }}">Belum ada data.</p>
                         @endforelse
                     </div>
-                    <div class="border-t border-bone-dark px-5 py-4">{{ $ipkHistoryGroups->links() }}</div>
+                    <div class="border-t border-soft-border px-5 py-4">{{ $ipkHistoryGroups->links() }}</div>
 
                 @else
                     {{-- Generic table --}}
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-bone-dark/70 text-sm">
-                            <thead class="bg-bone text-left">
+                        <table class="min-w-full divide-y divide-soft-border/70 text-sm">
+                            <thead class="bg-soft-bg text-left">
                                 <tr class="{{ $mutedClass }}">
                                     <th class="px-5 py-3 font-bold uppercase tracking-widest text-[10px]">ID</th>
                                     @foreach ($config['fields'] as $field => $fieldConfig)
@@ -462,9 +458,9 @@
                                     <th class="px-5 py-3 font-bold uppercase tracking-widest text-[10px] text-right">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-bone-dark/50">
+                            <tbody class="divide-y divide-soft-border/50">
                                 @forelse ($records as $record)
-                                    <tr class="hover:bg-bone-light/70 transition-colors">
+                                    <tr class="hover:bg-soft-bg/70 transition-colors">
                                         <td class="px-5 py-3 font-mono text-xs {{ $mutedClass }}">{{ $record->id }}</td>
                                         @foreach ($config['fields'] as $field => $fieldConfig)
                                             @continue($fieldConfig['hide_table'] ?? false)
@@ -472,7 +468,7 @@
                                         @endforeach
                                         <td class="px-5 py-3">
                                             <div class="flex justify-end gap-2">
-                                                <a href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $record->id]) }}" class="rounded-lg border border-bone-dark px-3 py-1.5 text-xs font-semibold text-appleDark hover:bg-bone">Edit</a>
+                                                <a wire:navigate href="{{ route('admin.dashboard', ['resource' => $resourceKey, 'edit' => $record->id]) }}" class="rounded-lg border border-soft-border px-3 py-1.5 text-xs font-semibold text-soft-dark hover:bg-soft-bg">Edit</a>
                                                 <form method="POST" action="{{ route('admin.resources.destroy', [$resourceKey, $record->id]) }}" onsubmit="return confirm('Hapus data ini?')">
                                                     @csrf @method('DELETE')
                                                     <button type="submit" class="rounded-lg border border-appleRed/40 px-3 py-1.5 text-xs font-semibold text-appleRed hover:bg-red-50">Hapus</button>
@@ -490,7 +486,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="border-t border-bone-dark px-5 py-4">{{ $records->links() }}</div>
+                    <div class="border-t border-soft-border px-5 py-4">{{ $records->links() }}</div>
                 @endif
             </section>
         </div>

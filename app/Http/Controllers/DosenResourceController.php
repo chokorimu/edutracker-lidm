@@ -53,14 +53,18 @@ class DosenResourceController extends Controller
                         ->latest()
                         ->get();
                     $data['siswaList'] = Krs::where('mata_kuliah_id', $mk->id)
+                        ->where('status', 'aktif')
                         ->with('siswa')
                         ->get();
+                    $activeSiswaIds = $data['siswaList']->pluck('siswa_id');
                     $tugasIds = $data['tugasList']->pluck('id');
                     $data['nilaiMap'] = NilaiTugas::whereIn('tugas_id', $tugasIds)
+                        ->whereIn('siswa_id', $activeSiswaIds)
                         ->get()
                         ->groupBy('tugas_id')
                         ->map(fn ($grades) => $grades->keyBy('siswa_id'));
                     $data['submissionMap'] = TugasSubmission::whereIn('tugas_id', $tugasIds)
+                        ->whereIn('siswa_id', $activeSiswaIds)
                         ->get()
                         ->groupBy('tugas_id')
                         ->map(fn ($submissions) => $submissions->keyBy('siswa_id'));
@@ -76,12 +80,14 @@ class DosenResourceController extends Controller
                 break;
 
             case 'beban':
-                $weekStart = Carbon::now()->startOfWeek();
-                $weekEnd = Carbon::now()->endOfWeek();
-                $nextWeekStart = Carbon::now()->addWeek()->startOfWeek();
-                $nextWeekEnd = Carbon::now()->addWeek()->endOfWeek();
+                $weekStart = Carbon::now()->startOfDay();
+                $weekEnd = Carbon::now()->addDays(6)->endOfDay();
+                $nextWeekStart = Carbon::now()->addDays(7)->startOfDay();
+                $nextWeekEnd = Carbon::now()->addDays(13)->endOfDay();
 
-                $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)->with('krs.siswa')->get();
+                $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)
+                    ->with(['krs' => fn ($q) => $q->where('status', 'aktif')->with('siswa')])
+                    ->get();
                 $data['bimbinganIds'] = DosenPa::where('dosen_id', $user->id)->pluck('siswa_id')->toArray();
                 $data['weekStart'] = $weekStart;
                 $data['weekEnd'] = $weekEnd;
@@ -135,6 +141,7 @@ class DosenResourceController extends Controller
             'deskripsi' => 'nullable|string',
             'deadline' => 'required|date_format:Y-m-d H:i:s|after:now',
             'override' => 'nullable|boolean',
+            'bobot' => 'nullable|numeric|min:0|max:100',
         ]);
 
         $mk = MataKuliah::findOrFail($validated['mata_kuliah_id']);
@@ -146,7 +153,27 @@ class DosenResourceController extends Controller
         $tugas->mata_kuliah_id = $validated['mata_kuliah_id'];
         $tugas->nama = $validated['nama'];
         $tugas->deskripsi = $validated['deskripsi'] ?? null;
-        $tugas->bobot = 0;
+
+        if (! empty($validated['bobot'])) {
+            $lockedSum = Tugas::where('mata_kuliah_id', $mk->id)
+                ->where('is_bobot_locked', true)
+                ->sum('bobot');
+
+            if (($lockedSum + $validated['bobot']) > 100) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'bobot_total' => 'Total bobot terkunci melebihi 100%. Sisa tersedia: '.round(100 - $lockedSum, 2).'%.',
+                    ]);
+            }
+
+            $tugas->bobot = $validated['bobot'];
+            $tugas->is_bobot_locked = true;
+        } else {
+            $tugas->bobot = 0;
+            $tugas->is_bobot_locked = false;
+        }
+
         $tugas->deadline = $validated['deadline'];
         $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline']);
         $tugas->override = $request->boolean('override');
@@ -205,8 +232,8 @@ class DosenResourceController extends Controller
         }
 
         $deadline = Carbon::parse($validated['deadline']);
-        $weekStart = $deadline->copy()->startOfWeek();
-        $weekEnd = $deadline->copy()->endOfWeek();
+        $weekStart = $deadline->copy()->startOfDay();
+        $weekEnd = $deadline->copy()->addDays(6)->endOfDay();
         $pendingStudentIds = $this->pendingStudentIdsForCourseWeek($mk->id, $weekStart, $weekEnd);
         $rows = BebanCalculator::weeklyLoadForCourse($mk->id, $weekStart, $weekEnd);
         $students = $rows->filter(fn (array $row) => $pendingStudentIds->contains($row['siswa_id']))
@@ -282,11 +309,33 @@ class DosenResourceController extends Controller
             'deskripsi' => 'nullable|string',
             'deadline' => 'required|date_format:Y-m-d H:i:s',
             'status' => 'required|in:aktif,selesai',
+            'bobot' => 'nullable|numeric|min:0|max:100',
         ]);
+
+        if (! empty($validated['bobot'])) {
+            $lockedSum = Tugas::where('mata_kuliah_id', $mk->id)
+                ->where('is_bobot_locked', true)
+                ->where('id', '!=', $tugas->id)
+                ->sum('bobot');
+
+            if (($lockedSum + $validated['bobot']) > 100) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'bobot_total' => 'Total bobot terkunci melebihi 100%. Sisa tersedia: '.round(100 - $lockedSum, 2).'%.',
+                    ]);
+            }
+
+            $tugas->bobot = $validated['bobot'];
+            $tugas->is_bobot_locked = true;
+        } else {
+            $tugas->is_bobot_locked = false;
+        }
 
         $tugas->fill($validated);
         $tugas->status_beban = $this->computeStatusBeban($mk->id, $validated['deadline'], $tugas->id);
         $tugas->save();
+        $this->rebalanceBobot($tugas->mata_kuliah_id);
 
         return redirect()->route('dosen.dashboard', ['tab' => 'kelas', 'mk' => $tugas->mata_kuliah_id])
             ->with('status', 'Tugas diperbarui.');
@@ -322,10 +371,11 @@ class DosenResourceController extends Controller
 
         $enrolled = Krs::where('mata_kuliah_id', $tugas->mata_kuliah_id)
             ->where('siswa_id', $siswaId)
+            ->where('status', 'aktif')
             ->exists();
 
         if (! $enrolled) {
-            abort(403);
+            abort(403, 'Tidak dapat memberikan nilai, KRS mahasiswa sudah selesai atau tidak aktif.');
         }
 
         $validated = $request->validate([
@@ -392,7 +442,7 @@ class DosenResourceController extends Controller
     {
         $now = now();
 
-        return [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()];
+        return [$now->copy()->startOfDay(), $now->copy()->addDays(6)->endOfDay()];
     }
 
     private function pendingStudentIdsForCourseWeek(int $mataKuliahId, Carbon $weekStart, Carbon $weekEnd)
@@ -402,7 +452,7 @@ class DosenResourceController extends Controller
 
     private function pendingSubmissionStatsForCourseWeek(int $mataKuliahId, Carbon $weekStart, Carbon $weekEnd): array
     {
-        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
+        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->where('status', 'aktif')->pluck('siswa_id');
 
         if ($studentIds->isEmpty()) {
             return [
@@ -446,16 +496,17 @@ class DosenResourceController extends Controller
     private function computeStatusBeban(int $mataKuliahId, string $deadline, ?int $excludeTugasId = null): string
     {
         $deadlineDate = Carbon::parse($deadline);
-        $weekStart = (clone $deadlineDate)->startOfWeek();
-        $weekEnd = (clone $deadlineDate)->endOfWeek();
+        $weekStart = (clone $deadlineDate)->startOfDay();
+        $weekEnd = (clone $deadlineDate)->addDays(6)->endOfDay();
 
-        $siswaIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
+        $siswaIds = Krs::where('mata_kuliah_id', $mataKuliahId)->where('status', 'aktif')->pluck('siswa_id');
 
         if ($siswaIds->isEmpty()) {
             return BebanCalculator::LIGHT;
         }
 
         $courseIdsBySiswa = Krs::whereIn('siswa_id', $siswaIds)
+            ->where('status', 'aktif')
             ->get(['siswa_id', 'mata_kuliah_id'])
             ->groupBy('siswa_id')
             ->map(fn ($rows) => $rows->pluck('mata_kuliah_id'));
@@ -542,19 +593,27 @@ class DosenResourceController extends Controller
     private function rebalanceBobot(int $mataKuliahId): void
     {
         $tugas = Tugas::where('mata_kuliah_id', $mataKuliahId)->get();
-        $count = $tugas->count();
-
-        if ($count === 0) {
+        if ($tugas->isEmpty()) {
             return;
         }
 
-        $bobot = round(100 / $count, 4);
-        $tugasArr = $tugas->values();
+        $locked = $tugas->where('is_bobot_locked', true);
+        $auto = $tugas->where('is_bobot_locked', false);
+        $totalLocked = $locked->sum('bobot');
+        $sisaBobot = max(0, 100 - $totalLocked);
+        $autoCount = $auto->count();
 
-        foreach ($tugasArr as $i => $t) {
-            $t->bobot = ($i === $count - 1)
-                ? round(100 - ($bobot * ($count - 1)), 4)
-                : $bobot;
+        if ($autoCount === 0) {
+            return;
+        }
+
+        $bobotPerAuto = round($sisaBobot / $autoCount, 4);
+        $autoArr = $auto->values();
+
+        foreach ($autoArr as $i => $t) {
+            $t->bobot = ($i === $autoCount - 1)
+                ? round($sisaBobot - ($bobotPerAuto * ($autoCount - 1)), 4)
+                : $bobotPerAuto;
             $t->saveQuietly();
         }
     }
@@ -590,6 +649,7 @@ class DosenResourceController extends Controller
             $nilaiAkhir = round($weightedSum / $totalBobot, 2);
             Krs::where('mata_kuliah_id', $mataKuliahId)
                 ->where('siswa_id', $siswaId)
+                ->where('status', 'aktif')
                 ->update([
                     'nilai_akhir' => $nilaiAkhir,
                     'nilai_huruf' => $this->toHuruf($nilaiAkhir),

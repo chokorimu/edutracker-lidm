@@ -1,17 +1,18 @@
 <?php
 
 use App\Http\Controllers\AdminResourceController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DosenResourceController;
 use App\Http\Controllers\ProdiDashboardController;
 use Illuminate\Support\Facades\Route;
-use Livewire\Volt\Volt;
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', function (Illuminate\Http\Request $request) {
+    return view('welcome', ['currentTab' => $request->query('tab', 'dashboard')]);
 });
 
-Volt::route('/login', 'pages::auth.login')->name('login')->middleware('throttle:login');
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminResourceController::class, 'index'])->name('dashboard');

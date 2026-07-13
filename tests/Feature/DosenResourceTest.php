@@ -123,7 +123,7 @@ class DosenResourceTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $deadline = now()->addWeek()->startOfWeek()->addDay()->setTime(10, 0);
+        $deadline = now()->addDays(8)->setTime(10, 0);
 
         $tasks = collect();
         foreach (['Normalisasi', 'ERD'] as $taskName) {
@@ -150,7 +150,7 @@ class DosenResourceTest extends TestCase
             ->assertSee('Dasar Basis Data (IF104)')
             ->assertSee('2 mahasiswa · rata-rata 0 tugas')
             ->assertSee('Status terberat: Ringan')
-            ->assertSee(now()->startOfWeek()->translatedFormat('d M'), false);
+            ->assertSee(now()->startOfDay()->translatedFormat('d M'), false);
     }
 
     public function test_beban_tab_filters_workload_table_by_selected_course(): void
@@ -289,7 +289,7 @@ class DosenResourceTest extends TestCase
         $this->assertSame(3, $rows->get($pendingSiswa->id)['count']);
         $this->assertSame(BebanCalculator::HEAVY, $rows->get($pendingSiswa->id)['status']);
 
-        $summary = BebanCalculator::studentWeeklySummary($submittedSiswa, now()->startOfWeek(), now()->endOfWeek());
+        $summary = BebanCalculator::studentWeeklySummary($submittedSiswa, now()->startOfDay(), now()->addDays(6)->endOfDay());
 
         $this->assertSame(0, $summary['task_count']);
         $this->assertSame(BebanCalculator::LIGHT, $summary['status']);
@@ -612,19 +612,19 @@ class DosenResourceTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $deadline = now()->addWeek()->startOfWeek()->addDay()->setTime(10, 0);
+        $deadline = now()->addDays(8)->setTime(10, 0);
         $firstTask = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 1',
             'bobot' => 20,
-            'deadline' => $deadline->copy()->subDay()->format('Y-m-d H:i:s'),
+            'deadline' => $deadline->copy()->addDay()->format('Y-m-d H:i:s'),
             'deskripsi' => 'Satu',
         ]);
         $secondTask = Tugas::create([
             'mata_kuliah_id' => $mataKuliah->id,
             'nama' => 'Tugas 2',
             'bobot' => 20,
-            'deadline' => $deadline->copy()->subDay()->format('Y-m-d H:i:s'),
+            'deadline' => $deadline->copy()->addDay()->format('Y-m-d H:i:s'),
             'deskripsi' => 'Dua',
         ]);
         foreach ([$firstTask, $secondTask] as $task) {
@@ -896,5 +896,68 @@ class DosenResourceTest extends TestCase
             ->assertRedirect();
 
         $this->assertNull(Cache::get("dosen_preview_{$dosen->id}"));
+    }
+
+    public function test_dosen_can_set_custom_task_weight_and_auto_rebalance_the_rest(): void
+    {
+        $dosen = UserDosen::create([
+            'name' => 'Dosen Bobot', 'email' => 'dosen-bobot@example.test',
+            'password' => 'password', 'nidn' => 'NIDN-BOBOT', 'fakultas' => 'Teknik',
+        ]);
+        $mataKuliah = MataKuliah::create([
+            'nama' => 'Testing Bobot', 'kode' => 'TB-001', 'sks' => 3,
+            'dosen_id' => $dosen->id, 'tahun_ajaran' => '2026/2027', 'semester' => 4,
+        ]);
+
+        // Create first task with no bobot (auto) via store
+        $this->actingAs($dosen, 'dosen')
+            ->post(route('dosen.tugas.store'), [
+                'mata_kuliah_id' => $mataKuliah->id,
+                'nama' => 'Tugas Auto 1',
+                'deadline' => now()->addDays(10)->format('Y-m-d H:i:s'),
+            ]);
+
+        // First task should be 100% (only auto task)
+        $this->assertDatabaseHas('tugas', [
+            'nama' => 'Tugas Auto 1', 'is_bobot_locked' => false,
+        ]);
+        $auto1 = Tugas::where('nama', 'Tugas Auto 1')->first();
+        $this->assertEquals(100, $auto1->bobot);
+
+        // Create second task with custom bobot 20%
+        $this->actingAs($dosen, 'dosen')
+            ->post(route('dosen.tugas.store'), [
+                'mata_kuliah_id' => $mataKuliah->id,
+                'nama' => 'Tugas Locked',
+                'bobot' => 20,
+                'deadline' => now()->addDays(10)->format('Y-m-d H:i:s'),
+            ]);
+
+        $this->assertDatabaseHas('tugas', [
+            'nama' => 'Tugas Locked', 'bobot' => 20, 'is_bobot_locked' => true,
+        ]);
+
+        // Auto task should be rebalanced to 80% (100 - 20 locked)
+        $auto1->refresh();
+        $this->assertEquals(80, $auto1->bobot);
+
+        // Create third task (also auto)
+        $this->actingAs($dosen, 'dosen')
+            ->post(route('dosen.tugas.store'), [
+                'mata_kuliah_id' => $mataKuliah->id,
+                'nama' => 'Tugas Auto 2',
+                'deadline' => now()->addDays(10)->format('Y-m-d H:i:s'),
+            ]);
+
+        // Now: Locked=20%, Auto1 and Auto2 share 80% = 40% each
+        $auto1->refresh();
+        $auto2 = Tugas::where('nama', 'Tugas Auto 2')->first();
+        $this->assertEquals(40, $auto1->bobot);
+        $this->assertEquals(40, $auto2->bobot);
+
+        // Verify locked task unchanged
+        $locked = Tugas::where('nama', 'Tugas Locked')->first();
+        $this->assertEquals(20, $locked->bobot);
+        $this->assertTrue((bool) $locked->is_bobot_locked);
     }
 }

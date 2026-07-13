@@ -70,12 +70,14 @@ class BebanCalculator
     {
         $weekStart = Carbon::parse($weekStart)->startOfDay();
         $weekEnd = Carbon::parse($weekEnd)->endOfDay();
-        $krsInCourse = Krs::where('mata_kuliah_id', $mataKuliahId)->with('siswa')->get();
+        $today = now()->startOfDay();
+        $krsInCourse = Krs::where('mata_kuliah_id', $mataKuliahId)->where('status', 'aktif')->with('siswa')->get();
         $siswaIds = $krsInCourse->pluck('siswa_id');
 
         $students = UserSiswa::whereIn('id', $siswaIds)->get()->keyBy('id');
 
         $krsBySiswa = Krs::whereIn('siswa_id', $siswaIds)
+            ->where('status', 'aktif')
             ->get()
             ->groupBy('siswa_id');
 
@@ -85,26 +87,30 @@ class BebanCalculator
             ->unique()
             ->values();
 
-        $weeklyTugas = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
-            ->whereBetween('deadline', [$weekStart, $weekEnd])
+        // Include tasks within the window OR overdue (deadline < today)
+        $activeTugas = Tugas::whereIn('mata_kuliah_id', $allCourseIds)
+            ->where(function ($q) use ($weekStart, $weekEnd, $today) {
+                $q->whereBetween('deadline', [$weekStart, $weekEnd])
+                    ->orWhere('deadline', '<', $today);
+            })
             ->get(['id', 'mata_kuliah_id'])
             ->groupBy('mata_kuliah_id');
 
-        $weeklyTugasIds = $weeklyTugas->flatten()->pluck('id');
-        $submittedPairs = TugasSubmission::whereIn('tugas_id', $weeklyTugasIds)
+        $activeTugasIds = $activeTugas->flatten()->pluck('id');
+        $submittedPairs = TugasSubmission::whereIn('tugas_id', $activeTugasIds)
             ->whereIn('siswa_id', $siswaIds)
             ->get(['tugas_id', 'siswa_id'])
             ->groupBy('siswa_id')
             ->map(fn ($rows) => $rows->pluck('tugas_id')->toArray());
 
-        return $krsInCourse->map(function ($krs) use ($students, $krsBySiswa, $weeklyTugas, $submittedPairs) {
+        return $krsInCourse->map(function ($krs) use ($students, $krsBySiswa, $activeTugas, $submittedPairs) {
             $courseIds = $krsBySiswa
                 ->get($krs->siswa_id, collect())
                 ->where('semester', $krs->semester)
                 ->pluck('mata_kuliah_id');
             $submittedTugasIds = $submittedPairs->get($krs->siswa_id, []);
-            $count = $courseIds->sum(function ($courseId) use ($weeklyTugas, $submittedTugasIds) {
-                return $weeklyTugas->get($courseId, collect())->pluck('id')->diff($submittedTugasIds)->count();
+            $count = $courseIds->sum(function ($courseId) use ($activeTugas, $submittedTugasIds) {
+                return $activeTugas->get($courseId, collect())->pluck('id')->diff($submittedTugasIds)->count();
             });
             $siswa = $krs->siswa ?? $students->get($krs->siswa_id);
 
@@ -121,20 +127,23 @@ class BebanCalculator
 
     public static function studentWeeklySummary(UserSiswa $student, $weekStart, $weekEnd): array
     {
-        $courseIds = Krs::where('siswa_id', $student->id)->pluck('mata_kuliah_id');
+        $courseIds = Krs::where('siswa_id', $student->id)->where('status', 'aktif')->pluck('mata_kuliah_id');
+        $today = now()->startOfDay()->toDateString();
 
-        $weeklyTugasIds = Tugas::whereIn('mata_kuliah_id', $courseIds)
-            ->whereBetween('deadline', [
-                Carbon::parse($weekStart)->toDateString(),
-                Carbon::parse($weekEnd)->toDateString(),
-            ])
+        $activeTugasIds = Tugas::whereIn('mata_kuliah_id', $courseIds)
+            ->where(function ($q) use ($weekStart, $weekEnd, $today) {
+                $q->whereBetween('deadline', [
+                    Carbon::parse($weekStart)->toDateString(),
+                    Carbon::parse($weekEnd)->toDateString(),
+                ])->orWhere('deadline', '<', $today);
+            })
             ->pluck('id');
 
         $submittedIds = TugasSubmission::where('siswa_id', $student->id)
-            ->whereIn('tugas_id', $weeklyTugasIds)
+            ->whereIn('tugas_id', $activeTugasIds)
             ->pluck('tugas_id');
 
-        $taskCount = $weeklyTugasIds->diff($submittedIds)->count();
+        $taskCount = $activeTugasIds->diff($submittedIds)->count();
         $status = self::forCount($taskCount);
 
         return [
@@ -161,11 +170,14 @@ class BebanCalculator
             ->where('krs.semester', $semester)
             ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
             ->leftJoin('tugas', function ($join) use ($weekStart, $weekEnd) {
+                $today = now()->startOfDay()->toDateString();
                 $join->on('tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
-                    ->whereBetween('tugas.deadline', [
-                        $weekStart->toDateString(),
-                        $weekEnd->toDateString(),
-                    ]);
+                    ->where(function ($q) use ($weekStart, $weekEnd, $today) {
+                        $q->whereBetween('tugas.deadline', [
+                            $weekStart->toDateString(),
+                            $weekEnd->toDateString(),
+                        ])->orWhere('tugas.deadline', '<', $today);
+                    });
             })
             ->leftJoin('tugas_submission', function ($join) use ($student) {
                 $join->on('tugas_submission.tugas_id', '=', 'tugas.id')
@@ -238,6 +250,11 @@ class BebanCalculator
             ->where('nilai_tugas.siswa_id', $student->id)
             ->join('tugas', 'nilai_tugas.tugas_id', '=', 'tugas.id')
             ->join('mata_kuliah', 'tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
+            ->join('krs', function ($join) use ($student) {
+                $join->on('mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+                    ->where('krs.siswa_id', '=', $student->id)
+                    ->where('krs.status', '=', 'aktif');
+            })
             ->selectRaw('mata_kuliah.nama as nama, AVG(nilai_tugas.nilai) as average_score')
             ->groupBy('mata_kuliah.id', 'mata_kuliah.nama')
             ->orderBy('mata_kuliah.nama')
@@ -263,10 +280,10 @@ class BebanCalculator
     public static function rescheduleSuggestions(int $mataKuliahId, string $deadline, int $limit = 3, ?int $excludeTaskId = null): array
     {
         $deadlineDate = Carbon::parse($deadline);
-        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
+        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->where('status', 'aktif')->pluck('siswa_id');
 
         $studentCourseMap = Krs::whereIn('siswa_id', $studentIds)
-
+            ->where('status', 'aktif')
             ->get()
             ->groupBy('siswa_id')
             ->map(fn ($krsList) => $krsList->pluck('mata_kuliah_id')->toArray())
@@ -348,13 +365,13 @@ class BebanCalculator
     {
         $now = now();
 
-        return [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()];
+        return [$now->copy()->startOfDay(), $now->copy()->addDays(6)->endOfDay()];
     }
 
     public static function paRiskCards(UserDosen $dosen): array
     {
-        $weekStart = now()->startOfWeek();
-        $weekEnd = now()->endOfWeek();
+        $weekStart = now()->startOfDay();
+        $weekEnd = now()->addDays(6)->endOfDay();
 
         return DosenPa::where('dosen_id', $dosen->id)
             ->with('siswa')
@@ -456,6 +473,7 @@ class BebanCalculator
 
         $start = $weekStart instanceof \DateTimeInterface ? $weekStart->format('Y-m-d') : Carbon::parse($weekStart)->toDateString();
         $end = $weekEnd instanceof \DateTimeInterface ? $weekEnd->format('Y-m-d') : Carbon::parse($weekEnd)->toDateString();
+        $today = now()->startOfDay()->toDateString();
 
         $taskCounts = UserSiswa::select('user_siswa.id')
             ->leftJoin('krs', function ($join) {
@@ -463,12 +481,19 @@ class BebanCalculator
                     ->on('krs.semester', '=', 'user_siswa.semester');
             })
             ->leftJoin('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
-            ->leftJoin('tugas', function ($join) use ($start, $end) {
+            ->leftJoin('tugas', function ($join) use ($start, $end, $today) {
                 $join->on('tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
-                    ->whereBetween('tugas.deadline', [$start, $end]);
+                    ->where(function ($q) use ($start, $end, $today) {
+                        $q->whereBetween('tugas.deadline', [$start, $end])
+                            ->orWhere('tugas.deadline', '<', $today);
+                    });
+            })
+            ->leftJoin('tugas_submission', function ($join) {
+                $join->on('tugas_submission.tugas_id', '=', 'tugas.id')
+                    ->on('tugas_submission.siswa_id', '=', 'user_siswa.id');
             })
             ->groupBy('user_siswa.id')
-            ->selectRaw('COUNT(tugas.id) as task_count')
+            ->selectRaw('COUNT(CASE WHEN tugas.id IS NOT NULL AND tugas_submission.id IS NULL THEN 1 END) as task_count')
             ->pluck('task_count', 'user_siswa.id');
 
         foreach ($taskCounts as $count) {
@@ -485,8 +510,8 @@ class BebanCalculator
      */
     public static function averageTasksPerWeekPerCourse(): array
     {
-        $weekStart = now()->startOfWeek()->toDateString();
-        $weekEnd = now()->endOfWeek()->toDateString();
+        $weekStart = now()->startOfDay()->toDateString();
+        $weekEnd = now()->addDays(6)->endOfDay()->toDateString();
 
         // 1 query: count tasks per course this week + count enrolled students
         $results = MataKuliah::select('mata_kuliah.id', 'mata_kuliah.nama')

@@ -1,57 +1,57 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-8 bg-bone-light min-h-screen">
-    <h1 class="text-2xl font-bold text-appleDark mb-6">Dashboard Program Studi</h1>
+<div class="p-8 bg-soft-bg min-h-screen">
+    <h1 class="text-2xl font-bold text-soft-dark mb-6">Dashboard Program Studi</h1>
 
     {{-- Stat Cards --}}
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
-            <h3 class="text-xs font-bold text-appleMuted uppercase">Total Mahasiswa</h3>
-            <p class="text-3xl font-bold text-appleDark mt-2">{{ $stats['total_siswa'] }}</p>
+        <div class="bg-white p-6 rounded-[24px] border border-soft-border shadow-sm animate-fade-in-up">
+            <h3 class="text-xs font-bold text-soft-muted uppercase">Total Mahasiswa</h3>
+            <p class="text-3xl font-bold text-soft-dark mt-2">{{ $stats['total_siswa'] }}</p>
         </div>
-        <div class="bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
-            <h3 class="text-xs font-bold text-appleMuted uppercase">Overload SKS (30 hari)</h3>
+        <div class="bg-white p-6 rounded-[24px] border border-soft-border shadow-sm animate-fade-in-up">
+            <h3 class="text-xs font-bold text-soft-muted uppercase">Overload SKS (30 hari)</h3>
             <p class="text-3xl font-bold text-appleRed mt-2">{{ $stats['notif_overload_sks'] }}</p>
         </div>
-        <div class="bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
-            <h3 class="text-xs font-bold text-appleMuted uppercase">Deadline Collision (30 hari)</h3>
-            <p class="text-3xl font-bold text-appleOrange mt-2">{{ $stats['notif_deadline_collision'] }}</p>
+        <div class="bg-white p-6 rounded-[24px] border border-soft-border shadow-sm animate-fade-in-up">
+            <h3 class="text-xs font-bold text-soft-muted uppercase">Deadline Collision (30 hari)</h3>
+            <p class="text-3xl font-bold text-pastel-ungu mt-2">{{ $stats['notif_deadline_collision'] }}</p>
         </div>
-        <div class="bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
-            <h3 class="text-xs font-bold text-appleMuted uppercase">Notifikasi Lainnya (30 hari)</h3>
-            <p class="text-3xl font-bold text-appleDark mt-2">{{ $stats['notif_lainnya'] }}</p>
+        <div class="bg-white p-6 rounded-[24px] border border-soft-border shadow-sm animate-fade-in-up">
+            <h3 class="text-xs font-bold text-soft-muted uppercase">Notifikasi Lainnya (30 hari)</h3>
+            <p class="text-3xl font-bold text-soft-dark mt-2">{{ $stats['notif_lainnya'] }}</p>
         </div>
     </div>
 
     {{-- Chart + Table --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="lg:col-span-2 bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
-            <h3 class="text-sm font-bold text-appleDark mb-4">Tren Beban Keseluruhan 8 Minggu</h3>
+        <div class="lg:col-span-2 bg-white p-6 rounded-[24px] border border-soft-border shadow-sm animate-fade-in-up">
+            <h3 class="text-sm font-bold text-soft-dark mb-4">Tren Beban Keseluruhan 8 Minggu</h3>
             <canvas id="weeklyTrendChart" height="90"></canvas>
         </div>
 
         {{-- Load Distribution Chart --}}
-        <div class="bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
-            <h3 class="text-sm font-bold text-appleDark mb-4">Distribusi Beban Minggu Ini</h3>
+        <div class="bg-white p-6 rounded-[24px] border border-soft-border shadow-sm animate-fade-in-up">
+            <h3 class="text-sm font-bold text-soft-dark mb-4">Distribusi Beban Minggu Ini</h3>
             <canvas id="loadDistChart" height="200"></canvas>
         </div>
 
         {{-- Course Average Tasks Table --}}
-        <div class="bg-white p-6 rounded-[24px] border border-bone-dark shadow-sm">
-            <h3 class="text-sm font-bold text-appleDark mb-4">Rata-rata Tugas/Minggu per Mata Kuliah</h3>
+        <div class="bg-white p-6 rounded-[24px] border border-soft-border shadow-sm animate-fade-in-up">
+            <h3 class="text-sm font-bold text-soft-dark mb-4">Rata-rata Tugas/Minggu per Mata Kuliah</h3>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-bone-dark text-left text-xs font-bold text-appleMuted uppercase">
+                        <tr class="border-b border-soft-border text-left text-xs font-bold text-soft-muted uppercase">
                             <th class="py-2 px-4">Mata Kuliah</th>
                             <th class="py-2 px-4 text-center">Rata-rata Tugas/Minggu</th>
                             <th class="py-2 px-4 text-center">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="text-appleDark">
+                    <tbody class="text-soft-dark">
                         @foreach($courses as $course)
-                            <tr class="border-b border-bone-dark/50">
+                            <tr class="border-b border-soft-border/50">
                                 <td class="py-3 px-4">{{ $course['nama'] }}</td>
                                 <td class="py-3 px-4 text-center">{{ $course['avg_tasks_week'] }}</td>
                                 <td class="py-3 px-4 text-center">
