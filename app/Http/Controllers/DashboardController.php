@@ -151,6 +151,7 @@ class DashboardController extends Controller
         $tugas = Tugas::findOrFail($tugasId);
         $enrolled = Krs::where('siswa_id', $user->id)
             ->where('mata_kuliah_id', $tugas->mata_kuliah_id)
+            ->where('status', 'aktif')
             ->exists();
 
         if (! $enrolled) {
@@ -441,6 +442,7 @@ class DashboardController extends Controller
     private function buildTugasSubmissionData(UserSiswa $user): array
     {
         $krsList = Krs::where('siswa_id', $user->id)
+            ->where('status', 'aktif')
             ->with(['mataKuliah.tugas' => fn ($query) => $query->orderBy('deadline')])
             ->get();
 

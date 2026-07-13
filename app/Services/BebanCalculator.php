@@ -71,12 +71,13 @@ class BebanCalculator
         $weekStart = Carbon::parse($weekStart)->startOfDay();
         $weekEnd = Carbon::parse($weekEnd)->endOfDay();
         $today = now()->startOfDay();
-        $krsInCourse = Krs::where('mata_kuliah_id', $mataKuliahId)->with('siswa')->get();
+        $krsInCourse = Krs::where('mata_kuliah_id', $mataKuliahId)->where('status', 'aktif')->with('siswa')->get();
         $siswaIds = $krsInCourse->pluck('siswa_id');
 
         $students = UserSiswa::whereIn('id', $siswaIds)->get()->keyBy('id');
 
         $krsBySiswa = Krs::whereIn('siswa_id', $siswaIds)
+            ->where('status', 'aktif')
             ->get()
             ->groupBy('siswa_id');
 
@@ -126,7 +127,7 @@ class BebanCalculator
 
     public static function studentWeeklySummary(UserSiswa $student, $weekStart, $weekEnd): array
     {
-        $courseIds = Krs::where('siswa_id', $student->id)->pluck('mata_kuliah_id');
+        $courseIds = Krs::where('siswa_id', $student->id)->where('status', 'aktif')->pluck('mata_kuliah_id');
         $today = now()->startOfDay()->toDateString();
 
         $activeTugasIds = Tugas::whereIn('mata_kuliah_id', $courseIds)
@@ -249,6 +250,11 @@ class BebanCalculator
             ->where('nilai_tugas.siswa_id', $student->id)
             ->join('tugas', 'nilai_tugas.tugas_id', '=', 'tugas.id')
             ->join('mata_kuliah', 'tugas.mata_kuliah_id', '=', 'mata_kuliah.id')
+            ->join('krs', function ($join) use ($student) {
+                $join->on('mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+                    ->where('krs.siswa_id', '=', $student->id)
+                    ->where('krs.status', '=', 'aktif');
+            })
             ->selectRaw('mata_kuliah.nama as nama, AVG(nilai_tugas.nilai) as average_score')
             ->groupBy('mata_kuliah.id', 'mata_kuliah.nama')
             ->orderBy('mata_kuliah.nama')
@@ -274,10 +280,10 @@ class BebanCalculator
     public static function rescheduleSuggestions(int $mataKuliahId, string $deadline, int $limit = 3, ?int $excludeTaskId = null): array
     {
         $deadlineDate = Carbon::parse($deadline);
-        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
+        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->where('status', 'aktif')->pluck('siswa_id');
 
         $studentCourseMap = Krs::whereIn('siswa_id', $studentIds)
-
+            ->where('status', 'aktif')
             ->get()
             ->groupBy('siswa_id')
             ->map(fn ($krsList) => $krsList->pluck('mata_kuliah_id')->toArray())

@@ -53,14 +53,18 @@ class DosenResourceController extends Controller
                         ->latest()
                         ->get();
                     $data['siswaList'] = Krs::where('mata_kuliah_id', $mk->id)
+                        ->where('status', 'aktif')
                         ->with('siswa')
                         ->get();
+                    $activeSiswaIds = $data['siswaList']->pluck('siswa_id');
                     $tugasIds = $data['tugasList']->pluck('id');
                     $data['nilaiMap'] = NilaiTugas::whereIn('tugas_id', $tugasIds)
+                        ->whereIn('siswa_id', $activeSiswaIds)
                         ->get()
                         ->groupBy('tugas_id')
                         ->map(fn ($grades) => $grades->keyBy('siswa_id'));
                     $data['submissionMap'] = TugasSubmission::whereIn('tugas_id', $tugasIds)
+                        ->whereIn('siswa_id', $activeSiswaIds)
                         ->get()
                         ->groupBy('tugas_id')
                         ->map(fn ($submissions) => $submissions->keyBy('siswa_id'));
@@ -81,7 +85,9 @@ class DosenResourceController extends Controller
                 $nextWeekStart = Carbon::now()->addDays(7)->startOfDay();
                 $nextWeekEnd = Carbon::now()->addDays(13)->endOfDay();
 
-                $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)->with('krs.siswa')->get();
+                $data['mataKuliahList'] = MataKuliah::where('dosen_id', $user->id)
+                    ->with(['krs' => fn ($q) => $q->where('status', 'aktif')->with('siswa')])
+                    ->get();
                 $data['bimbinganIds'] = DosenPa::where('dosen_id', $user->id)->pluck('siswa_id')->toArray();
                 $data['weekStart'] = $weekStart;
                 $data['weekEnd'] = $weekEnd;
@@ -365,10 +371,11 @@ class DosenResourceController extends Controller
 
         $enrolled = Krs::where('mata_kuliah_id', $tugas->mata_kuliah_id)
             ->where('siswa_id', $siswaId)
+            ->where('status', 'aktif')
             ->exists();
 
         if (! $enrolled) {
-            abort(403);
+            abort(403, 'Tidak dapat memberikan nilai, KRS mahasiswa sudah selesai atau tidak aktif.');
         }
 
         $validated = $request->validate([
@@ -445,7 +452,7 @@ class DosenResourceController extends Controller
 
     private function pendingSubmissionStatsForCourseWeek(int $mataKuliahId, Carbon $weekStart, Carbon $weekEnd): array
     {
-        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
+        $studentIds = Krs::where('mata_kuliah_id', $mataKuliahId)->where('status', 'aktif')->pluck('siswa_id');
 
         if ($studentIds->isEmpty()) {
             return [
@@ -492,13 +499,14 @@ class DosenResourceController extends Controller
         $weekStart = (clone $deadlineDate)->startOfDay();
         $weekEnd = (clone $deadlineDate)->addDays(6)->endOfDay();
 
-        $siswaIds = Krs::where('mata_kuliah_id', $mataKuliahId)->pluck('siswa_id');
+        $siswaIds = Krs::where('mata_kuliah_id', $mataKuliahId)->where('status', 'aktif')->pluck('siswa_id');
 
         if ($siswaIds->isEmpty()) {
             return BebanCalculator::LIGHT;
         }
 
         $courseIdsBySiswa = Krs::whereIn('siswa_id', $siswaIds)
+            ->where('status', 'aktif')
             ->get(['siswa_id', 'mata_kuliah_id'])
             ->groupBy('siswa_id')
             ->map(fn ($rows) => $rows->pluck('mata_kuliah_id'));
@@ -641,6 +649,7 @@ class DosenResourceController extends Controller
             $nilaiAkhir = round($weightedSum / $totalBobot, 2);
             Krs::where('mata_kuliah_id', $mataKuliahId)
                 ->where('siswa_id', $siswaId)
+                ->where('status', 'aktif')
                 ->update([
                     'nilai_akhir' => $nilaiAkhir,
                     'nilai_huruf' => $this->toHuruf($nilaiAkhir),
