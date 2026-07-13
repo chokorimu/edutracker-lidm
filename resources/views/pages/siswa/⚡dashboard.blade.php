@@ -611,7 +611,7 @@
                                                     </p>
                                                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
                                                         <span class="{{ $mutedClass }}">{{ $tugas['file_name'] }}</span>
-                                                        <a wire:navigate href="{{ route('siswa.submission.download', $tugas['id']) }}"
+                                                        <a href="{{ route('siswa.submission.download', $tugas['id']) }}"
                                                            class="font-medium text-indigo-600 hover:underline">Download</a>
                                                     </div>
                                                 @elseif($isLate)

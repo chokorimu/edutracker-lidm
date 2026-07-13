@@ -396,7 +396,7 @@
                                                                     <td class="py-1.5 pr-2">
                                                                         @if($submission)
                                                                             <div class="flex max-w-[12rem] flex-col gap-0.5">
-                                                                                <a wire:navigate href="{{ route('dosen.submission.download', $submission->id) }}" class="truncate text-[10px] font-medium text-soft-dark hover:underline" title="{{ $submission->file_name }}">
+                                                                                <a href="{{ route('dosen.submission.download', $submission->id) }}" class="truncate text-[10px] font-medium text-soft-dark hover:underline" title="{{ $submission->file_name }}">
                                                                                     Download {{ $submission->file_name }}
                                                                                 </a>
                                                                                 <span class="text-[10px] {{ $submission->status === 'late' ? 'font-bold text-appleOrange' : $mutedClass }} whitespace-nowrap">
